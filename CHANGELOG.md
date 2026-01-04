@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.3 - 2026-01-04
+
+### Added
+- CLI sync: concurrency flag to limit registry checks.
+
+### Fixed
+- CLI sync: wrap note output to avoid terminal overflow; cap list lengths.
+- CLI sync: label fallback scans as fallback locations.
+- CLI package: bundle schema internally (no external `clawdhub-schema` publish).
+- Repo: mark `clawdhub-schema` as private to prevent publishing.
+
 ## 0.0.2 - 2026-01-04
 
 ### Added
