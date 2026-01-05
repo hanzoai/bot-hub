@@ -1,7 +1,9 @@
 import {
+  type ClawdbotConfigSpec,
   type ClawdisSkillMetadata,
   ClawdisSkillMetadataSchema,
   isTextContentType,
+  type NixPluginSpec,
   parseArk,
   type SkillInstallSpec,
   TEXT_FILE_EXTENSION_SET,
@@ -59,11 +61,19 @@ export function getFrontmatterMetadata(frontmatter: ParsedSkillFrontmatter) {
 
 export function parseClawdisMetadata(frontmatter: ParsedSkillFrontmatter) {
   const metadata = getFrontmatterMetadata(frontmatter)
-  const clawdisFromMetadata =
+  const metadataRecord =
     metadata && typeof metadata === 'object' && !Array.isArray(metadata)
-      ? (metadata as Record<string, unknown>).clawdis
+      ? (metadata as Record<string, unknown>)
       : undefined
-  const clawdisRaw = clawdisFromMetadata ?? frontmatter.clawdis
+  const clawdbotMeta = metadataRecord?.clawdbot
+  const clawdisMeta = metadataRecord?.clawdis
+  const metadataSource =
+    clawdbotMeta && typeof clawdbotMeta === 'object' && !Array.isArray(clawdbotMeta)
+      ? (clawdbotMeta as Record<string, unknown>)
+      : clawdisMeta && typeof clawdisMeta === 'object' && !Array.isArray(clawdisMeta)
+        ? (clawdisMeta as Record<string, unknown>)
+        : undefined
+  const clawdisRaw = metadataSource ?? frontmatter.clawdis
   if (!clawdisRaw || typeof clawdisRaw !== 'object' || Array.isArray(clawdisRaw)) return undefined
 
   try {
@@ -84,6 +94,7 @@ export function parseClawdisMetadata(frontmatter: ParsedSkillFrontmatter) {
     if (typeof clawdisObj.homepage === 'string') metadata.homepage = clawdisObj.homepage
     if (typeof clawdisObj.skillKey === 'string') metadata.skillKey = clawdisObj.skillKey
     if (typeof clawdisObj.primaryEnv === 'string') metadata.primaryEnv = clawdisObj.primaryEnv
+    if (typeof clawdisObj.cliHelp === 'string') metadata.cliHelp = clawdisObj.cliHelp
     if (osRaw.length > 0) metadata.os = osRaw
 
     if (requiresRaw) {
@@ -101,6 +112,10 @@ export function parseClawdisMetadata(frontmatter: ParsedSkillFrontmatter) {
     }
 
     if (install.length > 0) metadata.install = install
+    const nix = parseNixPluginSpec(clawdisObj.nix)
+    if (nix) metadata.nix = nix
+    const config = parseClawdbotConfigSpec(clawdisObj.config)
+    if (config) metadata.config = config
 
     return parseArk(ClawdisSkillMetadataSchema, metadata, 'Clawdis metadata')
   } catch {
@@ -221,6 +236,31 @@ function parseInstallSpec(input: unknown): SkillInstallSpec | undefined {
   if (typeof raw.package === 'string') spec.package = raw.package
   if (typeof raw.module === 'string') spec.module = raw.module
   return spec
+}
+
+function parseNixPluginSpec(input: unknown): NixPluginSpec | undefined {
+  if (!input || typeof input !== 'object') return undefined
+  const raw = input as Record<string, unknown>
+  if (typeof raw.plugin !== 'string') return undefined
+  const plugin = raw.plugin.trim()
+  if (!plugin) return undefined
+  const systems = normalizeStringList(raw.systems)
+  const spec: NixPluginSpec = { plugin }
+  if (systems.length > 0) spec.systems = systems
+  return spec
+}
+
+function parseClawdbotConfigSpec(input: unknown): ClawdbotConfigSpec | undefined {
+  if (!input || typeof input !== 'object') return undefined
+  const raw = input as Record<string, unknown>
+  const requiredEnv = normalizeStringList(raw.requiredEnv)
+  const stateDirs = normalizeStringList(raw.stateDirs)
+  const example = typeof raw.example === 'string' ? raw.example.trim() : ''
+  const spec: ClawdbotConfigSpec = {}
+  if (requiredEnv.length > 0) spec.requiredEnv = requiredEnv
+  if (stateDirs.length > 0) spec.stateDirs = stateDirs
+  if (example) spec.example = example
+  return Object.keys(spec).length > 0 ? spec : undefined
 }
 
 function toHex(bytes: Uint8Array) {

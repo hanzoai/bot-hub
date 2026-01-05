@@ -232,6 +232,17 @@ export declare const SkillInstallSpecSchema: import("arktype/internal/variants/o
     module?: string | undefined;
 }, {}>;
 export type SkillInstallSpec = (typeof SkillInstallSpecSchema)[inferred];
+export declare const NixPluginSpecSchema: import("arktype/internal/variants/object.ts").ObjectType<{
+    plugin: string;
+    systems?: string[] | undefined;
+}, {}>;
+export type NixPluginSpec = (typeof NixPluginSpecSchema)[inferred];
+export declare const ClawdbotConfigSpecSchema: import("arktype/internal/variants/object.ts").ObjectType<{
+    requiredEnv?: string[] | undefined;
+    stateDirs?: string[] | undefined;
+    example?: string | undefined;
+}, {}>;
+export type ClawdbotConfigSpec = (typeof ClawdbotConfigSpecSchema)[inferred];
 export declare const ClawdisRequiresSchema: import("arktype/internal/variants/object.ts").ObjectType<{
     bins?: string[] | undefined;
     anyBins?: string[] | undefined;
@@ -246,6 +257,7 @@ export declare const ClawdisSkillMetadataSchema: import("arktype/internal/varian
     emoji?: string | undefined;
     homepage?: string | undefined;
     os?: string[] | undefined;
+    cliHelp?: string | undefined;
     requires?: {
         bins?: string[] | undefined;
         anyBins?: string[] | undefined;
@@ -262,5 +274,14 @@ export declare const ClawdisSkillMetadataSchema: import("arktype/internal/varian
         package?: string | undefined;
         module?: string | undefined;
     }[] | undefined;
+    nix?: {
+        plugin: string;
+        systems?: string[] | undefined;
+    } | undefined;
+    config?: {
+        requiredEnv?: string[] | undefined;
+        stateDirs?: string[] | undefined;
+        example?: string | undefined;
+    } | undefined;
 }, {}>;
 export type ClawdisSkillMetadata = (typeof ClawdisSkillMetadataSchema)[inferred];

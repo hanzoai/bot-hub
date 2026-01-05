@@ -42,8 +42,10 @@ function SkillsIndex() {
   const highlightedOnly = search.highlighted ?? false
   const [query, setQuery] = useState(search.q ?? '')
 
-  const skills = useQuery(api.skills.list, { limit: 500 }) as Doc<'skills'>[] | undefined
-  const isLoadingSkills = skills === undefined
+  const items = useQuery(api.skills.listWithLatest, { limit: 500 }) as
+    | Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
+    | undefined
+  const isLoadingSkills = items === undefined
 
   useEffect(() => {
     setQuery(search.q ?? '')
@@ -51,16 +53,17 @@ function SkillsIndex() {
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase()
-    const all = (skills ?? []).filter((skill) =>
-      highlightedOnly ? skill.batch === 'highlighted' : true,
+    const all = (items ?? []).filter((entry) =>
+      highlightedOnly ? entry.skill.batch === 'highlighted' : true,
     )
     if (!value) return all
-    return all.filter((skill) => {
+    return all.filter((entry) => {
+      const skill = entry.skill
       if (skill.slug.toLowerCase().includes(value)) return true
       if (skill.displayName.toLowerCase().includes(value)) return true
       return (skill.summary ?? '').toLowerCase().includes(value)
     })
-  }, [highlightedOnly, query, skills])
+  }, [highlightedOnly, query, items])
 
   const sorted = useMemo(() => {
     const multiplier = dir === 'asc' ? 1 : -1
@@ -68,28 +71,31 @@ function SkillsIndex() {
     results.sort((a, b) => {
       switch (sort) {
         case 'downloads':
-          return (a.stats.downloads - b.stats.downloads) * multiplier
+          return (a.skill.stats.downloads - b.skill.stats.downloads) * multiplier
         case 'installs':
-          return ((a.stats.installsAllTime ?? 0) - (b.stats.installsAllTime ?? 0)) * multiplier
-        case 'stars':
-          return (a.stats.stars - b.stats.stars) * multiplier
-        case 'updated':
-          return (a.updatedAt - b.updatedAt) * multiplier
-        case 'name':
           return (
-            (a.displayName.localeCompare(b.displayName) || a.slug.localeCompare(b.slug)) *
+            ((a.skill.stats.installsAllTime ?? 0) - (b.skill.stats.installsAllTime ?? 0)) *
             multiplier
           )
+        case 'stars':
+          return (a.skill.stats.stars - b.skill.stats.stars) * multiplier
+        case 'updated':
+          return (a.skill.updatedAt - b.skill.updatedAt) * multiplier
+        case 'name':
+          return (
+            a.skill.displayName.localeCompare(b.skill.displayName) ||
+            a.skill.slug.localeCompare(b.skill.slug)
+          ) * multiplier
         default:
-          return (a.createdAt - b.createdAt) * multiplier
+          return (a.skill.createdAt - b.skill.createdAt) * multiplier
       }
     })
     return results
   }, [dir, filtered, sort])
 
   const showing = sorted.length
-  const total = skills?.filter((skill) =>
-    highlightedOnly ? skill.batch === 'highlighted' : true,
+  const total = items?.filter((entry) =>
+    highlightedOnly ? entry.skill.batch === 'highlighted' : true,
   ).length
 
   return (
@@ -207,46 +213,67 @@ function SkillsIndex() {
         <div className="card">No skills match that filter.</div>
       ) : view === 'cards' ? (
         <div className="grid">
-          {sorted.map((skill) => (
-            <SkillCard
-              key={skill._id}
-              skill={skill}
-              badge={skill.batch === 'highlighted' ? 'Highlighted' : undefined}
-              summaryFallback="Agent-ready skill pack."
-              meta={
-                <div className="stat">
-                  ⭐ {skill.stats.stars} · ⤓ {skill.stats.downloads} · ⤒{' '}
-                  {skill.stats.installsAllTime ?? 0}
-                </div>
-              }
-            />
-          ))}
+          {sorted.map((entry) => {
+            const skill = entry.skill
+            const isPlugin = Boolean(entry.latestVersion?.parsed?.clawdis?.nix?.plugin)
+            return (
+              <SkillCard
+                key={skill._id}
+                skill={skill}
+                badge={skill.batch === 'highlighted' ? 'Highlighted' : undefined}
+                chip={isPlugin ? 'Plugin bundle (nix)' : undefined}
+                summaryFallback="Agent-ready skill pack."
+                meta={
+                  <div className="stat">
+                    ⭐ {skill.stats.stars} · ⤓ {skill.stats.downloads} · ⤒{' '}
+                    {skill.stats.installsAllTime ?? 0}
+                  </div>
+                }
+              />
+            )
+          })}
         </div>
       ) : (
         <div className="skills-list">
-          {sorted.map((skill) => (
-            <Link
-              key={skill._id}
-              className="skills-row"
-              to="/skills/$slug"
-              params={{ slug: skill.slug }}
-            >
-              <div className="skills-row-main">
-                <div className="skills-row-title">
-                  <span>{skill.displayName}</span>
-                  <span className="skills-row-slug">/{skill.slug}</span>
-                  {skill.batch === 'highlighted' ? <span className="tag">Highlighted</span> : null}
+          {sorted.map((entry) => {
+            const skill = entry.skill
+            const isPlugin = Boolean(entry.latestVersion?.parsed?.clawdis?.nix?.plugin)
+            return (
+              <Link
+                key={skill._id}
+                className="skills-row"
+                to="/skills/$slug"
+                params={{ slug: skill.slug }}
+              >
+                <div className="skills-row-main">
+                  <div className="skills-row-title">
+                    <span>{skill.displayName}</span>
+                    <span className="skills-row-slug">/{skill.slug}</span>
+                    {skill.batch === 'highlighted' ? (
+                      <span className="tag">Highlighted</span>
+                    ) : null}
+                    {isPlugin ? (
+                      <span className="tag tag-accent tag-compact">Plugin bundle (nix)</span>
+                    ) : null}
+                  </div>
+                  <div className="skills-row-summary">
+                    {skill.summary ?? 'No summary provided.'}
+                  </div>
+                  {isPlugin ? (
+                    <div className="skills-row-meta">
+                      Bundle includes SKILL.md, CLI, and config.
+                    </div>
+                  ) : null}
                 </div>
-                <div className="skills-row-summary">{skill.summary ?? 'No summary provided.'}</div>
-              </div>
-              <div className="skills-row-metrics">
-                <span>⤓ {skill.stats.downloads}</span>
-                <span>⤒ {skill.stats.installsAllTime ?? 0}</span>
-                <span>★ {skill.stats.stars}</span>
-                <span>{skill.stats.versions} v</span>
-              </div>
-            </Link>
-          ))}
+                <div className="skills-row-metrics">
+                  <span>⤓ {skill.stats.downloads}</span>
+                  <span>⤒ {skill.stats.installsAllTime ?? 0}</span>
+                  <span>★ {skill.stats.stars}</span>
+                  <span>{skill.stats.versions} v</span>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
     </main>

@@ -113,6 +113,45 @@ export const list = query({
   },
 })
 
+export const listWithLatest = query({
+  args: {
+    batch: v.optional(v.string()),
+    ownerUserId: v.optional(v.id('users')),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 24
+    let entries: Doc<'skills'>[] = []
+    if (args.batch) {
+      entries = await ctx.db
+        .query('skills')
+        .withIndex('by_batch', (q) => q.eq('batch', args.batch))
+        .order('desc')
+        .take(limit * 5)
+    } else if (args.ownerUserId) {
+      entries = await ctx.db
+        .query('skills')
+        .withIndex('by_owner', (q) => q.eq('ownerUserId', args.ownerUserId))
+        .order('desc')
+        .take(limit * 5)
+    } else {
+      entries = await ctx.db
+        .query('skills')
+        .order('desc')
+        .take(limit * 5)
+    }
+
+    const filtered = entries.filter((skill) => !skill.softDeletedAt).slice(0, limit)
+    const items = await Promise.all(
+      filtered.map(async (skill) => ({
+        skill,
+        latestVersion: skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null,
+      })),
+    )
+    return items
+  },
+})
+
 export const listPublicPage = query({
   args: {
     cursor: v.optional(v.string()),

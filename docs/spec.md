@@ -61,7 +61,10 @@ read_when:
 From SKILL.md frontmatter + AgentSkills + Clawdis extensions:
 - `name`, `description`, `homepage`, `website`, `url`, `emoji`
 - `metadata.clawdis`: `always`, `skillKey`, `primaryEnv`, `emoji`, `homepage`, `os`,
-  `requires` (`bins`, `anyBins`, `env`, `config`), `install[]`
+  `requires` (`bins`, `anyBins`, `env`, `config`), `install[]`, `nix` (`plugin`, `systems`),
+  `config` (`requiredEnv`, `stateDirs`, `example`), `cliHelp` (string; `cli --help` output)
+- `metadata.clawdbot`: alias of `metadata.clawdis` (preferred for nix-clawdbot plugin pointers)
+  - Nix plugins are different from regular skills; they bundle the skill pack, the CLI binary, and config flags/requirements together.
   - `metadata` in frontmatter is YAML (object) preferred; legacy JSON-string accepted.
 
 

@@ -103,6 +103,9 @@ export function SkillDetailPage({
   const nixSystems = clawdis?.nix?.systems ?? []
   const nixSnippet = nixPlugin ? formatNixInstallSnippet(nixPlugin) : null
   const configRequirements = clawdis?.config
+  const configExample = configRequirements?.example
+    ? formatConfigSnippet(configRequirements.example)
+    : null
   const cliHelp = clawdis?.cliHelp
   const hasRuntimeRequirements = Boolean(
     clawdis?.emoji ||
@@ -273,15 +276,6 @@ export function SkillDetailPage({
                   <span>CLI</span>
                   <span>Config</span>
                 </div>
-                {nixSnippet ? (
-                  <div className="bundle-section">
-                    <div className="bundle-section-title">Install via Nix</div>
-                    <div style={{ color: 'var(--ink-soft)', fontSize: '0.85rem' }}>
-                      {nixSystems.length ? `Systems: ${nixSystems.join(', ')}` : 'nix-clawdbot'}
-                    </div>
-                    <pre className="hero-install-code">{nixSnippet}</pre>
-                  </div>
-                ) : null}
                 {configRequirements ? (
                   <div className="bundle-section">
                     <div className="bundle-section-title">Config requirements</div>
@@ -299,9 +293,6 @@ export function SkillDetailPage({
                         </div>
                       ) : null}
                     </div>
-                    {configRequirements.example ? (
-                      <pre className="hero-install-code">{configRequirements.example}</pre>
-                    ) : null}
                   </div>
                 ) : null}
                 {cliHelp ? (
@@ -441,6 +432,32 @@ export function SkillDetailPage({
             </div>
           ) : null}
         </div>
+        {nixSnippet ? (
+          <div className="card">
+            <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
+              Install via Nix
+            </h2>
+            <p className="section-subtitle" style={{ margin: 0 }}>
+              {nixSystems.length ? `Systems: ${nixSystems.join(', ')}` : 'nix-clawdbot'}
+            </p>
+            <pre className="hero-install-code" style={{ marginTop: 12 }}>
+              {nixSnippet}
+            </pre>
+          </div>
+        ) : null}
+        {configExample ? (
+          <div className="card">
+            <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
+              Config example
+            </h2>
+            <p className="section-subtitle" style={{ margin: 0 }}>
+              Starter config for this plugin bundle.
+            </p>
+            <pre className="hero-install-code" style={{ marginTop: 12 }}>
+              {configExample}
+            </pre>
+          </div>
+        ) : null}
         <div className="card tab-card">
           <div className="tab-header">
             <button
@@ -621,6 +638,84 @@ function buildSkillHref(ownerHandle: string | null, slug: string) {
   return `/skills/${slug}`
 }
 
+function formatConfigSnippet(raw: string) {
+  const trimmed = raw.trim()
+  if (!trimmed || raw.includes('\n')) return raw
+  try {
+    const parsed = JSON.parse(raw)
+    return JSON.stringify(parsed, null, 2)
+  } catch {
+    // fall through
+  }
+
+  let out = ''
+  let indent = 0
+  let inString = false
+  let isEscaped = false
+
+  const newline = () => {
+    out = out.replace(/[ \t]+$/u, '')
+    out += `\n${' '.repeat(indent * 2)}`
+  }
+
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i]
+    if (inString) {
+      out += ch
+      if (isEscaped) {
+        isEscaped = false
+      } else if (ch === '\\') {
+        isEscaped = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (ch === '"') {
+      inString = true
+      out += ch
+      continue
+    }
+
+    if (ch === '{' || ch === '[') {
+      out += ch
+      indent += 1
+      newline()
+      continue
+    }
+
+    if (ch === '}' || ch === ']') {
+      indent = Math.max(0, indent - 1)
+      newline()
+      out += ch
+      continue
+    }
+
+    if (ch === ';' || ch === ',') {
+      out += ch
+      newline()
+      continue
+    }
+
+    if (ch === '\n' || ch === '\r' || ch === '\t') {
+      continue
+    }
+
+    if (ch === ' ') {
+      if (out.endsWith(' ') || out.endsWith('\n')) {
+        continue
+      }
+      out += ' '
+      continue
+    }
+
+    out += ch
+  }
+
+  return out.trim()
+}
+
 function stripFrontmatter(content: string) {
   const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   if (!normalized.startsWith('---')) return content
@@ -681,5 +776,6 @@ function formatBytes(bytes: number) {
 }
 
 function formatNixInstallSnippet(plugin: string) {
-  return `programs.clawdbot.plugins = [\n  { source = "${plugin}"; }\n];`
+  const snippet = `programs.clawdbot.plugins = [ { source = "${plugin}"; } ];`
+  return formatConfigSnippet(snippet)
 }

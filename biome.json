@@ -12,7 +12,9 @@
       "!**/convex/_generated",
       "!**/src/routeTree.gen.ts",
       "!**/.tanstack",
-      "!**/public"
+      "!**/public",
+      "!**/.devenv",
+      "!**/.devenv"
     ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },

@@ -80,7 +80,9 @@ describe('cmdPublish', () => {
       })
       if (!publishCall) throw new Error('Missing publish call')
       const publishForm = (publishCall[1] as { form?: FormData }).form as FormData
-      const payload = JSON.parse(String(publishForm.get('payload')))
+      const payloadEntry = publishForm.get('payload')
+      if (typeof payloadEntry !== 'string') throw new Error('Missing publish payload')
+      const payload = JSON.parse(payloadEntry)
       expect(payload.slug).toBe('my-skill')
       expect(payload.displayName).toBe('My Skill')
       expect(payload.version).toBe('1.0.0')
