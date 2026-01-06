@@ -13,6 +13,11 @@
 - CLI: telemetry opt-out via `CLAWDHUB_DISABLE_TELEMETRY=1`.
 - Web: move theme picker into mobile menu.
 
+## 0.0.5 - Unreleased
+
+### Fixed
+- CLI sync: ignore plural `skills.md` docs files when scanning for skills.
+
 ## 0.0.4 - 2026-01-05
 
 ### Added
