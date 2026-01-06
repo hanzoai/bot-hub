@@ -1,49 +1,18 @@
 import { ConvexError, v } from 'convex/values'
-import semver from 'semver'
-import { api, internal } from './_generated/api'
+import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
-import type { ActionCtx, MutationCtx } from './_generated/server'
 import { action, internalMutation, internalQuery, mutation, query } from './_generated/server'
 import { assertRole, requireUser, requireUserFromAction } from './lib/access'
+import { generateChangelogPreview as buildChangelogPreview } from './lib/changelog'
+import { getFrontmatterValue } from './lib/skills'
 import {
-  generateChangelogPreview as buildChangelogPreview,
-  generateChangelogForPublish,
-} from './lib/changelog'
-import { generateEmbedding } from './lib/embeddings'
-import {
-  buildEmbeddingText,
-  getFrontmatterMetadata,
-  getFrontmatterValue,
-  isTextFile,
-  parseClawdisMetadata,
-  parseFrontmatter,
-  sanitizePath,
-} from './lib/skills'
-import type { WebhookSkillPayload } from './lib/webhooks'
+  fetchText,
+  publishVersionForUser,
+  queueHighlightedWebhook,
+  type PublishResult,
+} from './lib/skillPublish'
 
-const MAX_TOTAL_BYTES = 50 * 1024 * 1024
-const MAX_FILES_FOR_EMBEDDING = 40
-
-type PublishResult = {
-  skillId: Id<'skills'>
-  versionId: Id<'skillVersions'>
-  embeddingId: Id<'skillEmbeddings'>
-}
-
-type PublishVersionArgs = {
-  slug: string
-  displayName: string
-  version: string
-  changelog: string
-  tags?: string[]
-  files: Array<{
-    path: string
-    size: number
-    storageId: Id<'_storage'>
-    sha256: string
-    contentType?: string
-  }>
-}
+export { publishVersionForUser } from './lib/skillPublish'
 
 type ReadmeResult = { path: string; text: string }
 
@@ -180,113 +149,6 @@ export const generateChangelogPreview = action({
   },
 })
 
-export async function publishVersionForUser(
-  ctx: ActionCtx,
-  userId: Id<'users'>,
-  args: PublishVersionArgs,
-): Promise<PublishResult> {
-  const version = args.version.trim()
-  const slug = args.slug.trim().toLowerCase()
-  const displayName = args.displayName.trim()
-  if (!slug || !displayName) throw new ConvexError('Slug and display name required')
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
-    throw new ConvexError('Slug must be lowercase and url-safe')
-  }
-  if (!semver.valid(version)) {
-    throw new ConvexError('Version must be valid semver')
-  }
-  const suppliedChangelog = args.changelog.trim()
-  const changelogSource = suppliedChangelog ? ('user' as const) : ('auto' as const)
-
-  const sanitizedFiles = args.files.map((file) => ({
-    ...file,
-    path: sanitizePath(file.path),
-  }))
-  if (sanitizedFiles.some((file) => !file.path)) {
-    throw new ConvexError('Invalid file paths')
-  }
-  if (sanitizedFiles.some((file) => !isTextFile(file.path ?? '', file.contentType ?? undefined))) {
-    throw new ConvexError('Only text-based files are allowed')
-  }
-
-  const totalBytes = sanitizedFiles.reduce((sum, file) => sum + file.size, 0)
-  if (totalBytes > MAX_TOTAL_BYTES) {
-    throw new ConvexError('Skill bundle exceeds 50MB limit')
-  }
-
-  const readmeFile = sanitizedFiles.find(
-    (file) => file.path?.toLowerCase() === 'skill.md' || file.path?.toLowerCase() === 'skills.md',
-  )
-  if (!readmeFile) throw new ConvexError('SKILL.md is required')
-
-  const readmeText = await fetchText(ctx, readmeFile.storageId)
-  const frontmatter = parseFrontmatter(readmeText)
-  const clawdis = parseClawdisMetadata(frontmatter)
-  const metadata = getFrontmatterMetadata(frontmatter)
-
-  const otherFiles = [] as Array<{ path: string; content: string }>
-  for (const file of sanitizedFiles) {
-    if (!file.path || file.path.toLowerCase().endsWith('.md')) continue
-    if (!isTextFile(file.path, file.contentType ?? undefined)) continue
-    const content = await fetchText(ctx, file.storageId)
-    otherFiles.push({ path: file.path, content })
-    if (otherFiles.length >= MAX_FILES_FOR_EMBEDDING) break
-  }
-
-  const embeddingText = buildEmbeddingText({
-    frontmatter,
-    readme: readmeText,
-    otherFiles,
-  })
-
-  const changelogPromise =
-    changelogSource === 'user'
-      ? Promise.resolve(suppliedChangelog)
-      : generateChangelogForPublish(ctx, {
-          slug,
-          version,
-          readmeText,
-          files: sanitizedFiles.map((file) => ({ path: file.path ?? '', sha256: file.sha256 })),
-        })
-
-  const embeddingPromise = generateEmbedding(embeddingText)
-
-  const [changelogText, embedding] = await Promise.all([
-    changelogPromise,
-    embeddingPromise.catch((error) => {
-      throw new ConvexError(formatEmbeddingError(error))
-    }),
-  ])
-
-  const publishResult = (await ctx.runMutation(internal.skills.insertVersion, {
-    userId,
-    slug,
-    displayName,
-    version,
-    changelog: changelogText,
-    changelogSource,
-    tags: args.tags?.map((tag) => tag.trim()).filter(Boolean),
-    files: sanitizedFiles.map((file) => ({
-      ...file,
-      path: file.path ?? '',
-    })),
-    parsed: {
-      frontmatter,
-      metadata,
-      clawdis,
-    },
-    embedding,
-  })) as PublishResult
-
-  void schedulePublishWebhook(ctx, {
-    slug,
-    version,
-    displayName,
-  })
-
-  return publishResult
-}
-
 export const getReadme: ReturnType<typeof action> = action({
   args: { versionId: v.id('skillVersions') },
   handler: async (ctx, args): Promise<ReadmeResult> => {
@@ -302,18 +164,6 @@ export const getReadme: ReturnType<typeof action> = action({
     return { path: readmeFile.path, text }
   },
 })
-
-function formatEmbeddingError(error: unknown) {
-  if (error instanceof Error) {
-    if (error.message.includes('OPENAI_API_KEY')) {
-      return 'OPENAI_API_KEY is not configured.'
-    }
-    if (error.message.startsWith('Embedding failed')) {
-      return error.message
-    }
-  }
-  return 'Embedding failed. Please try again.'
-}
 
 export const updateTags = mutation({
   args: {
@@ -419,7 +269,7 @@ export const setBatch = mutation({
     })
 
     if (nextBatch === 'highlighted' && previousBatch !== 'highlighted') {
-      void scheduleHighlightedWebhook(ctx, skill._id)
+      void queueHighlightedWebhook(ctx, skill._id)
     }
   },
 })
@@ -613,65 +463,9 @@ export const setSkillSoftDeletedInternal = internalMutation({
   },
 })
 
-async function fetchText(
-  ctx: { storage: { get: (id: Id<'_storage'>) => Promise<Blob | null> } },
-  storageId: Id<'_storage'>,
-) {
-  const blob = await ctx.storage.get(storageId)
-  if (!blob) throw new Error('File missing in storage')
-  return blob.text()
-}
-
 function visibilityFor(isLatest: boolean, isApproved: boolean) {
   if (isLatest && isApproved) return 'latest-approved'
   if (isLatest) return 'latest'
   if (isApproved) return 'archived-approved'
   return 'archived'
-}
-
-async function schedulePublishWebhook(
-  ctx: ActionCtx,
-  params: { slug: string; version: string; displayName: string },
-) {
-  const result = (await ctx.runQuery(api.skills.getBySlug, {
-    slug: params.slug,
-  })) as { skill: Doc<'skills'>; owner: Doc<'users'> | null } | null
-  if (!result?.skill) return
-
-  const payload: WebhookSkillPayload = {
-    slug: result.skill.slug,
-    displayName: result.skill.displayName || params.displayName,
-    summary: result.skill.summary ?? undefined,
-    version: params.version,
-    ownerHandle: result.owner?.handle ?? result.owner?.name ?? undefined,
-    batch: result.skill.batch ?? undefined,
-    tags: Object.keys(result.skill.tags ?? {}),
-  }
-
-  await ctx.scheduler.runAfter(0, internal.webhooks.sendDiscordWebhook, {
-    event: 'skill.publish',
-    skill: payload,
-  })
-}
-
-async function scheduleHighlightedWebhook(ctx: MutationCtx, skillId: Id<'skills'>) {
-  const skill = await ctx.db.get(skillId)
-  if (!skill) return
-  const owner = await ctx.db.get(skill.ownerUserId)
-  const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
-
-  const payload: WebhookSkillPayload = {
-    slug: skill.slug,
-    displayName: skill.displayName,
-    summary: skill.summary ?? undefined,
-    version: latestVersion?.version ?? undefined,
-    ownerHandle: owner?.handle ?? owner?.name ?? undefined,
-    batch: skill.batch ?? undefined,
-    tags: Object.keys(skill.tags ?? {}),
-  }
-
-  await ctx.scheduler.runAfter(0, internal.webhooks.sendDiscordWebhook, {
-    event: 'skill.highlighted',
-    skill: payload,
-  })
 }
