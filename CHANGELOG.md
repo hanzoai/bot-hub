@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.6 - 2026-01-07
+## 0.1.0 - 2026-01-07
 
 ### Added
 - API: v1 public REST endpoints with rate limits, raw file fetch, and OpenAPI spec.
