@@ -12,22 +12,29 @@ vi.mock('@tanstack/react-router', () => ({
 
 const generateUploadUrl = vi.fn()
 const publishVersion = vi.fn()
+const generateChangelogPreview = vi.fn()
 const fetchMock = vi.fn()
 const useQueryMock = vi.fn()
+let useActionCallCount = 0
 
 vi.mock('convex/react', () => ({
   useConvexAuth: () => ({ isAuthenticated: true }),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
   useMutation: () => generateUploadUrl,
-  useAction: () => publishVersion,
+  useAction: () => {
+    useActionCallCount += 1
+    return useActionCallCount % 2 === 1 ? publishVersion : generateChangelogPreview
+  },
 }))
 
 describe('Upload route', () => {
   beforeEach(() => {
     generateUploadUrl.mockReset()
     publishVersion.mockReset()
+    generateChangelogPreview.mockReset()
     fetchMock.mockReset()
     useQueryMock.mockReset()
+    useActionCallCount = 0
     useQueryMock.mockImplementation((_fn: unknown, args: unknown) => {
       if (args === 'skip') return undefined
       return null
