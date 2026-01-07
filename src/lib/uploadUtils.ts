@@ -53,10 +53,10 @@ export function formatPublishError(error: unknown) {
   }
   if (error instanceof Error) {
     const cleaned = error.message
-      .replace(/\[CONVEX[^\]]*\]\s*/g, '')
-      .replace(/\[Request ID:[^\]]*\]\s*/g, '')
-      .replace(/^Server Error Called by client\s*/i, '')
-      .replace(/^ConvexError:\s*/i, '')
+      .replace(/\\[CONVEX[^\\]]*\\]\\s*/g, '')
+      .replace(/\\[Request ID:[^\\]]*\\]\\s*/g, '')
+      .replace(/^Server Error Called by client\\s*/i, '')
+      .replace(/^ConvexError:\\s*/i, '')
       .trim()
     if (cleaned && cleaned !== 'Server Error') return cleaned
   }
