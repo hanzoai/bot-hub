@@ -2181,7 +2181,9 @@ code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
-  background: rgba(255, 107, 74, 0.06);
+  display: inline-block;
+  max-width: 100%;
+  background: rgba(255, 107, 74, 0.04);
   border: 1px solid rgba(255, 107, 74, 0.12);
   border-radius: 14px;
   padding: 14px 16px;
@@ -2195,7 +2197,7 @@ code {
 }
 
 [data-theme="dark"] .markdown pre {
-  background: rgba(18, 14, 12, 0.7);
+  background: rgba(18, 14, 12, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
