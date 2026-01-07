@@ -64,6 +64,12 @@ bun clawdhub install <slug>
 bun clawdhub list
 ```
 
+You can also install into any folder:
+
+```bash
+bun clawdhub install <slug> --workdir /tmp/clawdhub-demo --dir skills
+```
+
 Update:
 
 ```bash

@@ -69,6 +69,9 @@ export default function Header() {
           <Link to="/search" search={{ q: undefined, highlighted: undefined }}>
             Search
           </Link>
+          <a href="https://docs.clawdhub.com" target="_blank" rel="noreferrer">
+            Docs
+          </a>
           {me ? <Link to="/stars">Stars</Link> : null}
           {isModerator ? <Link to="/admin">Admin</Link> : null}
         </nav>
@@ -104,6 +107,11 @@ export default function Header() {
                   <Link to="/search" search={{ q: undefined, highlighted: undefined }}>
                     Search
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="https://docs.clawdhub.com" target="_blank" rel="noreferrer">
+                    Docs
+                  </a>
                 </DropdownMenuItem>
                 {me ? (
                   <DropdownMenuItem asChild>

@@ -79,6 +79,7 @@ Stores your API token + cached registry URL.
 ### `sync`
 
 - Scans for local skill folders and publishes new/changed ones.
+- Roots can be any folder: a skills directory or a single skill folder with `SKILL.md`.
 - Flags:
   - `--root <dir...>` extra scan roots
   - `--all` upload without prompting

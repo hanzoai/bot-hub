@@ -17,6 +17,8 @@
   --accent: #ff6b4a;
   --accent-deep: #e54f31;
   --seafoam: #2bc6a4;
+  --diff-added: #6bb7a8;
+  --diff-removed: #e1846c;
   --gold: #f0c46a;
   --line: rgba(29, 26, 23, 0.12);
   --shadow: 0 24px 60px rgba(29, 26, 23, 0.1);
@@ -44,6 +46,8 @@
   --accent: #e86a47;
   --accent-deep: #c24a2f;
   --seafoam: #4ad8b7;
+  --diff-added: #3aa38d;
+  --diff-removed: #b35b46;
   --gold: #f3c97a;
   --line: rgba(255, 255, 255, 0.12);
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);

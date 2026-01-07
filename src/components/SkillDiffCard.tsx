@@ -425,13 +425,15 @@ function applyMonacoTheme(monaco: NonNullable<ReturnType<typeof useMonaco>>) {
   const line = styles.getPropertyValue('--line').trim() || 'rgba(29, 26, 23, 0.12)'
   const accent = styles.getPropertyValue('--accent').trim() || '#ff6b4a'
   const seafoam = styles.getPropertyValue('--seafoam').trim() || '#2bc6a4'
+  const diffAdded = styles.getPropertyValue('--diff-added').trim() || seafoam
+  const diffRemoved = styles.getPropertyValue('--diff-removed').trim() || accent
   const background = surface
   const gutter = surfaceMuted
   const isDark = document.documentElement.dataset.theme === 'dark'
   const base = isDark ? 'vs-dark' : 'vs'
 
-  const diffInserted = toRgba(seafoam, isDark ? 0.18 : 0.22)
-  const diffRemoved = toRgba(accent, isDark ? 0.22 : 0.18)
+  const diffInserted = toRgba(diffAdded, isDark ? 0.12 : 0.16)
+  const diffRemovedBg = toRgba(diffRemoved, isDark ? 0.12 : 0.16)
 
   monaco.editor.defineTheme(`clawdhub-${isDark ? 'dark' : 'light'}`, {
     base,
@@ -452,7 +454,9 @@ function applyMonacoTheme(monaco: NonNullable<ReturnType<typeof useMonaco>>) {
       'editorWidget.border': line,
       'editorWidget.foreground': ink,
       'diffEditor.insertedTextBackground': diffInserted,
-      'diffEditor.removedTextBackground': diffRemoved,
+      'diffEditor.removedTextBackground': diffRemovedBg,
+      'diffEditor.insertedLineBackground': diffInserted,
+      'diffEditor.removedLineBackground': diffRemovedBg,
       'diffEditor.border': line,
       'scrollbarSlider.background': toRgba(inkSoft, 0.15),
       'scrollbarSlider.hoverBackground': toRgba(inkSoft, 0.28),
