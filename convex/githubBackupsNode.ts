@@ -2,6 +2,8 @@
 
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
+import type { Doc } from './_generated/dataModel'
+import type { ActionCtx } from './_generated/server'
 import { internalAction } from './_generated/server'
 import {
   backupSkillToGitHub,
@@ -10,16 +12,44 @@ import {
   isGitHubBackupConfigured,
 } from './lib/githubBackup'
 
-const MAX_BATCH_SIZE = 500
-const DEFAULT_BATCH_SIZE = MAX_BATCH_SIZE
+const DEFAULT_BATCH_SIZE = 50
+const MAX_BATCH_SIZE = 200
+const DEFAULT_MAX_BATCHES = 5
+const MAX_MAX_BATCHES = 200
 
-type BackupStats = {
+type BackupPageItem =
+  | {
+      kind: 'ok'
+      slug: string
+      version: string
+      displayName: string
+      ownerHandle: string
+      files: Doc<'skillVersions'>['files']
+      publishedAt: number
+    }
+  | { kind: 'missingLatestVersion' }
+  | { kind: 'missingVersionDoc' }
+  | { kind: 'missingOwner' }
+
+export type GitHubBackupSyncStats = {
   skillsScanned: number
   skillsSkipped: number
   skillsBackedUp: number
   skillsMissingVersion: number
   skillsMissingOwner: number
   errors: number
+}
+
+export type SyncGitHubBackupsInternalArgs = {
+  dryRun?: boolean
+  batchSize?: number
+  maxBatches?: number
+}
+
+export type SyncGitHubBackupsInternalResult = {
+  stats: GitHubBackupSyncStats
+  cursor: string | null
+  isDone: boolean
 }
 
 export const backupSkillForPublishInternal = internalAction({
@@ -48,89 +78,104 @@ export const backupSkillForPublishInternal = internalAction({
   },
 })
 
+export async function syncGitHubBackupsInternalHandler(
+  ctx: ActionCtx,
+  args: SyncGitHubBackupsInternalArgs,
+): Promise<SyncGitHubBackupsInternalResult> {
+  const dryRun = Boolean(args.dryRun)
+  const stats: GitHubBackupSyncStats = {
+    skillsScanned: 0,
+    skillsSkipped: 0,
+    skillsBackedUp: 0,
+    skillsMissingVersion: 0,
+    skillsMissingOwner: 0,
+    errors: 0,
+  }
+
+  if (!isGitHubBackupConfigured()) {
+    return { stats, cursor: null, isDone: true }
+  }
+
+  const batchSize = clampInt(args.batchSize ?? DEFAULT_BATCH_SIZE, 1, MAX_BATCH_SIZE)
+  const maxBatches = clampInt(args.maxBatches ?? DEFAULT_MAX_BATCHES, 1, MAX_MAX_BATCHES)
+  const context = await getGitHubBackupContext()
+
+  const state = dryRun
+    ? { cursor: null as string | null }
+    : ((await ctx.runQuery(internal.githubBackups.getGitHubBackupSyncStateInternal, {})) as {
+        cursor: string | null
+      })
+
+  let cursor: string | null = state.cursor
+  let isDone = false
+
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const page = (await ctx.runQuery(internal.githubBackups.getGitHubBackupPageInternal, {
+      cursor: cursor ?? undefined,
+      batchSize,
+    })) as { items: BackupPageItem[]; cursor: string | null; isDone: boolean }
+
+    cursor = page.cursor
+    isDone = page.isDone
+
+    for (const item of page.items) {
+      if (item.kind !== 'ok') {
+        if (item.kind === 'missingLatestVersion' || item.kind === 'missingVersionDoc') {
+          stats.skillsMissingVersion += 1
+        } else if (item.kind === 'missingOwner') {
+          stats.skillsMissingOwner += 1
+        }
+        continue
+      }
+
+      stats.skillsScanned += 1
+      try {
+        const meta = await fetchGitHubSkillMeta(context, item.ownerHandle, item.slug)
+        if (meta?.latest?.version === item.version) {
+          stats.skillsSkipped += 1
+          continue
+        }
+
+        if (!dryRun) {
+          await backupSkillToGitHub(
+            ctx,
+            {
+              slug: item.slug,
+              version: item.version,
+              displayName: item.displayName,
+              ownerHandle: item.ownerHandle,
+              files: item.files,
+              publishedAt: item.publishedAt,
+            },
+            context,
+          )
+          stats.skillsBackedUp += 1
+        }
+      } catch (error) {
+        console.error('GitHub backup sync failed', error)
+        stats.errors += 1
+      }
+    }
+
+    if (!dryRun) {
+      await ctx.runMutation(internal.githubBackups.setGitHubBackupSyncStateInternal, {
+        cursor: isDone ? undefined : (cursor ?? undefined),
+      })
+    }
+
+    if (isDone) break
+  }
+
+  return { stats, cursor, isDone }
+}
+
 export const syncGitHubBackupsInternal = internalAction({
   args: {
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
     maxBatches: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const stats: BackupStats = {
-      skillsScanned: 0,
-      skillsSkipped: 0,
-      skillsBackedUp: 0,
-      skillsMissingVersion: 0,
-      skillsMissingOwner: 0,
-      errors: 0,
-    }
-
-    if (!isGitHubBackupConfigured()) {
-      return { stats, cursor: null, isDone: true }
-    }
-
-    const batchSize = clampInt(args.batchSize ?? DEFAULT_BATCH_SIZE, 1, MAX_BATCH_SIZE)
-    const maxBatches =
-      typeof args.maxBatches === 'number'
-        ? clampInt(args.maxBatches, 1, Number.MAX_SAFE_INTEGER)
-        : Number.POSITIVE_INFINITY
-    const context = await getGitHubBackupContext()
-
-    let cursor: string | null = null
-    let isDone = false
-    let batches = 0
-
-    while (!isDone && batches < maxBatches) {
-      const page = await ctx.runQuery(internal.githubBackups.getGitHubBackupPageInternal, {
-        cursor,
-        batchSize,
-      })
-
-      cursor = page.cursor
-      isDone = page.isDone
-      batches += 1
-
-      for (const item of page.items) {
-        if (item.kind === 'missingLatestVersion' || item.kind === 'missingVersionDoc') {
-          stats.skillsMissingVersion += 1
-          continue
-        }
-        if (item.kind === 'missingOwner') {
-          stats.skillsMissingOwner += 1
-          continue
-        }
-
-        stats.skillsScanned += 1
-        try {
-          const meta = await fetchGitHubSkillMeta(context, item.ownerHandle, item.slug)
-          if (meta?.latest?.version === item.version) {
-            stats.skillsSkipped += 1
-            continue
-          }
-
-          if (!args.dryRun) {
-            await backupSkillToGitHub(
-              ctx,
-              {
-                slug: item.slug,
-                version: item.version,
-                displayName: item.displayName,
-                ownerHandle: item.ownerHandle,
-                files: item.files,
-                publishedAt: item.publishedAt,
-              },
-              context,
-            )
-            stats.skillsBackedUp += 1
-          }
-        } catch (error) {
-          console.error('GitHub backup sync failed', error)
-          stats.errors += 1
-        }
-      }
-    }
-
-    return { stats, cursor, isDone }
-  },
+  handler: syncGitHubBackupsInternalHandler,
 })
 
 function clampInt(value: number, min: number, max: number) {

@@ -46,9 +46,6 @@ export async function publishVersionForUser(
   userId: Id<'users'>,
   args: PublishVersionArgs,
 ): Promise<PublishResult> {
-  const owner = (await ctx.runQuery(api.users.getById, { userId })) as Doc<'users'> | null
-  if (!owner || owner.deletedAt) throw new ConvexError('User not found')
-
   const version = args.version.trim()
   const slug = args.slug.trim().toLowerCase()
   const displayName = args.displayName.trim()
@@ -62,16 +59,14 @@ export async function publishVersionForUser(
   const suppliedChangelog = args.changelog.trim()
   const changelogSource = suppliedChangelog ? ('user' as const) : ('auto' as const)
 
-  const sanitizedFiles = args.files.map((file) => ({
-    ...file,
-    path: sanitizePath(file.path),
-  }))
-  if (sanitizedFiles.some((file) => !file.path)) {
-    throw new ConvexError('Invalid file paths')
-  }
-  if (sanitizedFiles.some((file) => !isTextFile(file.path ?? '', file.contentType ?? undefined))) {
-    throw new ConvexError('Only text-based files are allowed')
-  }
+  const sanitizedFiles = args.files.map((file) => {
+    const path = sanitizePath(file.path)
+    if (!path) throw new ConvexError('Invalid file paths')
+    if (!isTextFile(path, file.contentType ?? undefined)) {
+      throw new ConvexError('Only text-based files are allowed')
+    }
+    return { ...file, path }
+  })
 
   const totalBytes = sanitizedFiles.reduce((sum, file) => sum + file.size, 0)
   if (totalBytes > MAX_TOTAL_BYTES) {
@@ -129,20 +124,6 @@ export async function publishVersionForUser(
     }),
   ])
 
-  try {
-    await ctx.runAction(internal.githubBackupsNode.backupSkillForPublishInternal, {
-      slug,
-      version,
-      displayName,
-      ownerHandle: owner.handle ?? owner.name ?? owner.email ?? owner._id,
-      files: sanitizedFiles,
-      publishedAt: Date.now(),
-    })
-  } catch (error) {
-    console.error('GitHub backup failed (will retry via cron)', error)
-    // Don't throw - backup will be retried by cron job
-  }
-
   const publishResult = (await ctx.runMutation(internal.skills.insertVersion, {
     userId,
     slug,
@@ -158,10 +139,7 @@ export async function publishVersionForUser(
           version: args.forkOf.version?.trim() || undefined,
         }
       : undefined,
-    files: sanitizedFiles.map((file) => ({
-      ...file,
-      path: file.path ?? '',
-    })),
+    files: sanitizedFiles,
     parsed: {
       frontmatter,
       metadata,
@@ -169,6 +147,19 @@ export async function publishVersionForUser(
     },
     embedding,
   })) as PublishResult
+
+  void ctx.scheduler
+    .runAfter(0, internal.githubBackupsNode.backupSkillForPublishInternal, {
+      slug,
+      version,
+      displayName,
+      ownerHandle: userId,
+      files: sanitizedFiles,
+      publishedAt: Date.now(),
+    })
+    .catch((error) => {
+      console.error('GitHub backup scheduling failed', error)
+    })
 
   void schedulePublishWebhook(ctx, {
     slug,

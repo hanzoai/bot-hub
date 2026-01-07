@@ -7,7 +7,7 @@ crons.interval(
   'github-backup-sync',
   { minutes: 30 },
   internal.githubBackupsNode.syncGitHubBackupsInternal,
-  {},
+  { batchSize: 50, maxBatches: 5 },
 )
 
 export default crons

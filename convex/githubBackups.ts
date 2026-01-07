@@ -1,11 +1,12 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
-import { action, internalQuery } from './_generated/server'
+import { action, internalMutation, internalQuery } from './_generated/server'
 import { assertRole, requireUserFromAction } from './lib/access'
 
-const MAX_BATCH_SIZE = 500
-const DEFAULT_BATCH_SIZE = MAX_BATCH_SIZE
+const DEFAULT_BATCH_SIZE = 50
+const MAX_BATCH_SIZE = 200
+const SYNC_STATE_KEY = 'default'
 
 type BackupPageItem =
   | {
@@ -25,6 +26,23 @@ type BackupPageItem =
 
 type BackupPageResult = {
   items: BackupPageItem[]
+  cursor: string | null
+  isDone: boolean
+}
+
+type BackupSyncState = {
+  cursor: string | null
+}
+
+export type SyncGitHubBackupsResult = {
+  stats: {
+    skillsScanned: number
+    skillsSkipped: number
+    skillsBackedUp: number
+    skillsMissingVersion: number
+    skillsMissingOwner: number
+    errors: number
+  }
   cursor: string | null
   isDone: boolean
 }
@@ -72,7 +90,7 @@ export const getGitHubBackupPageInternal = internalQuery({
         slug: skill.slug,
         displayName: skill.displayName,
         version: version.version,
-        ownerHandle: owner.handle ?? owner.name ?? owner.email ?? owner._id,
+        ownerHandle: owner.handle ?? owner._id,
         files: version.files,
         publishedAt: version.createdAt,
       })
@@ -82,20 +100,68 @@ export const getGitHubBackupPageInternal = internalQuery({
   },
 })
 
-export const syncGitHubBackups = action({
+export const getGitHubBackupSyncStateInternal = internalQuery({
+  args: {},
+  handler: async (ctx): Promise<BackupSyncState> => {
+    const state = await ctx.db
+      .query('githubBackupSyncState')
+      .withIndex('by_key', (q) => q.eq('key', SYNC_STATE_KEY))
+      .unique()
+    return { cursor: state?.cursor ?? null }
+  },
+})
+
+export const setGitHubBackupSyncStateInternal = internalMutation({
+  args: {
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now()
+    const state = await ctx.db
+      .query('githubBackupSyncState')
+      .withIndex('by_key', (q) => q.eq('key', SYNC_STATE_KEY))
+      .unique()
+
+    if (!state) {
+      await ctx.db.insert('githubBackupSyncState', {
+        key: SYNC_STATE_KEY,
+        cursor: args.cursor,
+        updatedAt: now,
+      })
+      return { ok: true as const }
+    }
+
+    await ctx.db.patch(state._id, {
+      cursor: args.cursor,
+      updatedAt: now,
+    })
+
+    return { ok: true as const }
+  },
+})
+
+export const syncGitHubBackups: ReturnType<typeof action> = action({
   args: {
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
     maxBatches: v.optional(v.number()),
+    resetCursor: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SyncGitHubBackupsResult> => {
     const { user } = await requireUserFromAction(ctx)
     assertRole(user, ['admin'])
+
+    if (args.resetCursor && !args.dryRun) {
+      await ctx.runMutation(internal.githubBackups.setGitHubBackupSyncStateInternal, {
+        cursor: undefined,
+      })
+    }
+
     return ctx.runAction(internal.githubBackupsNode.syncGitHubBackupsInternal, {
       dryRun: args.dryRun,
       batchSize: args.batchSize,
       maxBatches: args.maxBatches,
-    })
+    }) as Promise<SyncGitHubBackupsResult>
   },
 })
 

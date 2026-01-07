@@ -242,10 +242,11 @@ function buildMetaFile(
 ): MetaFile {
   let history = [...(existing?.history ?? [])]
   if (existing?.latest?.version) {
+    const previousCommit = existing.latest.commit ?? commitUrl(repo, baseCommitSha)
     const previous = {
       version: existing.latest.version,
       publishedAt: existing.latest.publishedAt,
-      commit: existing.latest.commit ?? commitUrl(repo, baseCommitSha),
+      commit: previousCommit,
     }
     history = [previous, ...history.filter((entry) => entry.version !== previous.version)]
   }

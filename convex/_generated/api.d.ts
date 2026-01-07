@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as comments from "../comments.js";
+import type * as crons from "../crons.js";
 import type * as downloads from "../downloads.js";
 import type * as githubBackups from "../githubBackups.js";
 import type * as githubBackupsNode from "../githubBackupsNode.js";
@@ -20,6 +21,7 @@ import type * as lib_access from "../lib/access.js";
 import type * as lib_apiTokenAuth from "../lib/apiTokenAuth.js";
 import type * as lib_changelog from "../lib/changelog.js";
 import type * as lib_embeddings from "../lib/embeddings.js";
+import type * as lib_githubBackup from "../lib/githubBackup.js";
 import type * as lib_skillBackfill from "../lib/skillBackfill.js";
 import type * as lib_skillPublish from "../lib/skillPublish.js";
 import type * as lib_skills from "../lib/skills.js";
@@ -45,6 +47,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   comments: typeof comments;
+  crons: typeof crons;
   downloads: typeof downloads;
   githubBackups: typeof githubBackups;
   githubBackupsNode: typeof githubBackupsNode;
@@ -55,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   "lib/apiTokenAuth": typeof lib_apiTokenAuth;
   "lib/changelog": typeof lib_changelog;
   "lib/embeddings": typeof lib_embeddings;
+  "lib/githubBackup": typeof lib_githubBackup;
   "lib/skillBackfill": typeof lib_skillBackfill;
   "lib/skillPublish": typeof lib_skillPublish;
   "lib/skills": typeof lib_skills;

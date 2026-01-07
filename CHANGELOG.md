@@ -5,6 +5,7 @@
 ### Added
 - API: v1 public REST endpoints with rate limits, raw file fetch, and OpenAPI spec.
 - Docs: `docs/api.md` and `DEPRECATIONS.md` for the v1 cutover plan.
+- Registry: GitHub App backs up published skills to `clawdbot/skills` (thanks @thewilloftheshadow, #5).
 
 ### Changed
 - CLI: publish now uses single multipart `POST /api/v1/skills`.
