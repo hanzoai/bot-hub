@@ -558,6 +558,7 @@ async function parseMultipartPublish(
     files.push({ path, size, storageId, sha256, contentType })
   }
 
+  const forkOf = payload.forkOf && typeof payload.forkOf === 'object' ? payload.forkOf : undefined
   const body = {
     slug: payload.slug,
     displayName: payload.displayName,
@@ -566,7 +567,7 @@ async function parseMultipartPublish(
     tags: Array.isArray(payload.tags) ? payload.tags : undefined,
     ...(payload.source ? { source: payload.source } : {}),
     files,
-    ...(payload.forkOf === undefined ? {} : { forkOf: payload.forkOf }),
+    ...(forkOf ? { forkOf } : {}),
   }
 
   return parsePublishBody(body)
@@ -753,8 +754,8 @@ function toOptionalNumber(value: string | null) {
 }
 
 async function sha256Hex(bytes: Uint8Array) {
-  const normalized = new Uint8Array(bytes)
-  const digest = await crypto.subtle.digest('SHA-256', normalized.buffer)
+  const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+  const digest = await crypto.subtle.digest('SHA-256', buffer)
   return toHex(new Uint8Array(digest))
 }
 

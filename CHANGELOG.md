@@ -13,12 +13,12 @@
 - Web: prevent skill OG text overflow outside the card.
 - Registry: make SoulHub auto-seed idempotent and non-user-owned.
 
-## 0.1.0 - 2026-01-07
+## 0.0.6 - 2026-01-07
+
 
 ### Added
 - API: v1 public REST endpoints with rate limits, raw file fetch, and OpenAPI spec.
 - Docs: `docs/api.md` and `DEPRECATIONS.md` for the v1 cutover plan.
-- Registry: GitHub App backs up published skills to `clawdbot/skills` (thanks @thewilloftheshadow, #5).
 
 ### Changed
 - CLI: publish now uses single multipart `POST /api/v1/skills`.

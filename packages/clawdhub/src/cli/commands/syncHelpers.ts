@@ -7,10 +7,11 @@ import semver from 'semver'
 import { apiRequest, downloadZip } from '../../http.js'
 import {
   ApiCliTelemetrySyncResponseSchema,
-  ApiCliWhoamiResponseSchema,
   ApiRoutes,
-  ApiSkillMetaResponseSchema,
-  ApiSkillResolveResponseSchema,
+  ApiV1SkillResolveResponseSchema,
+  ApiV1SkillResponseSchema,
+  ApiV1WhoamiResponseSchema,
+  LegacyApiRoutes,
 } from '../../schema/index.js'
 import { hashSkillZip } from '../../skills.js'
 import { getRegistry } from '../registry.js'
@@ -45,7 +46,7 @@ export async function reportTelemetryIfEnabled(params: {
       params.registry,
       {
         method: 'POST',
-        path: ApiRoutes.cliTelemetrySync,
+        path: LegacyApiRoutes.cliTelemetrySync,
         token: params.token,
         body: { roots },
       },
@@ -102,9 +103,9 @@ export async function checkRegistrySyncState(
         registry,
         {
           method: 'GET',
-          path: `${ApiRoutes.skillResolve}?slug=${encodeURIComponent(skill.slug)}&hash=${encodeURIComponent(skill.fingerprint)}`,
+          path: `${ApiRoutes.resolve}?slug=${encodeURIComponent(skill.slug)}&hash=${encodeURIComponent(skill.fingerprint)}`,
         },
-        ApiSkillResolveResponseSchema,
+        ApiV1SkillResolveResponseSchema,
       )
       resolveSupport.value = true
       const latestVersion = resolved.latestVersion?.version ?? null
@@ -144,8 +145,8 @@ export async function checkRegistrySyncState(
 
   const meta = await apiRequest(
     registry,
-    { method: 'GET', path: `${ApiRoutes.skill}?slug=${encodeURIComponent(skill.slug)}` },
-    ApiSkillMetaResponseSchema,
+    { method: 'GET', path: `${ApiRoutes.skills}/${encodeURIComponent(skill.slug)}` },
+    ApiV1SkillResponseSchema,
   ).catch(() => null)
 
   const latestVersion = meta?.latestVersion?.version ?? null
@@ -302,8 +303,8 @@ export async function getRegistryWithAuth(opts: GlobalOpts, token: string) {
   const registry = await getRegistry(opts, { cache: true })
   await apiRequest(
     registry,
-    { method: 'GET', path: ApiRoutes.cliWhoami, token },
-    ApiCliWhoamiResponseSchema,
+    { method: 'GET', path: ApiRoutes.whoami, token },
+    ApiV1WhoamiResponseSchema,
   )
   return registry
 }

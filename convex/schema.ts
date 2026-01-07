@@ -306,12 +306,6 @@ const userSkillRootInstalls = defineTable({
   .index('by_user_skill', ['userId', 'skillId'])
   .index('by_skill', ['skillId'])
 
-const githubBackupSyncState = defineTable({
-  key: v.string(),
-  cursor: v.optional(v.string()),
-  updatedAt: v.number(),
-}).index('by_key', ['key'])
-
 export default defineSchema({
   ...authTables,
   users,
@@ -330,7 +324,6 @@ export default defineSchema({
   auditLogs,
   apiTokens,
   rateLimits,
-  githubBackupSyncState,
   userSyncRoots,
   userSkillInstalls,
   userSkillRootInstalls,
