@@ -14,10 +14,6 @@ export function Footer() {
               Open source (MIT)
             </a>{' '}
             ·{' '}
-            <a href="https://docs.clawdhub.com" target="_blank" rel="noreferrer">
-              Docs
-            </a>{' '}
-            ·{' '}
             <a href="https://steipete.me" target="_blank" rel="noreferrer">
               Peter Steinberger
             </a>
