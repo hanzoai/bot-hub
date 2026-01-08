@@ -9,6 +9,15 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 
 const require = createRequire(import.meta.url)
 const resvgWasmPath = require.resolve('@resvg/resvg-wasm/index_bg.wasm')
+const bricolageBoldPath = require.resolve(
+  '@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-800-normal.woff2',
+)
+const bricolageTextPath = require.resolve(
+  '@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-500-normal.woff2',
+)
+const plexMonoPath = require.resolve(
+  '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2',
+)
 
 const config = defineConfig({
   plugins: [
@@ -16,7 +25,7 @@ const config = defineConfig({
     nitro({
       serverDir: 'server',
       externals: {
-        traceInclude: [resvgWasmPath],
+        traceInclude: [resvgWasmPath, bricolageBoldPath, bricolageTextPath, plexMonoPath],
       },
     }),
     // this is the plugin that enables path aliases

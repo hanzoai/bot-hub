@@ -11,8 +11,12 @@ type OgQuery = {
   description?: string
 }
 
+const FONT_SANS = 'Bricolage Grotesque'
+const FONT_MONO = 'IBM Plex Mono'
+
 let markDataUrlPromise: Promise<string> | null = null
 let wasmInitPromise: Promise<void> | null = null
+let fontBuffersPromise: Promise<Uint8Array[]> | null = null
 
 async function ensureWasm() {
   if (!wasmInitPromise) {
@@ -24,6 +28,32 @@ async function ensureWasm() {
     })()
   }
   await wasmInitPromise
+}
+
+async function getFontBuffers() {
+  if (!fontBuffersPromise) {
+    fontBuffersPromise = Promise.all([
+      readFile(
+        new URL(
+          '../../../node_modules/@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-800-normal.woff2',
+          import.meta.url,
+        ),
+      ),
+      readFile(
+        new URL(
+          '../../../node_modules/@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-500-normal.woff2',
+          import.meta.url,
+        ),
+      ),
+      readFile(
+        new URL(
+          '../../../node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2',
+          import.meta.url,
+        ),
+      ),
+    ]).then((buffers) => buffers.map((buffer) => new Uint8Array(buffer)))
+  }
+  return fontBuffersPromise
 }
 
 function getNitroServerRootUrl() {
@@ -197,30 +227,30 @@ function buildSvg(params: {
     <text x="186" y="163"
       fill="#F6EFE4"
       font-size="18"
-      font-weight="650"
-      font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif"
+      font-weight="600"
+      font-family="${FONT_SANS}, sans-serif"
       opacity="0.92">${escapeXml(pillText)}</text>
   </g>
 
   <text x="114" y="${titleY}"
     fill="#F6EFE4"
     font-size="${titleFontSize}"
-    font-weight="760"
-    font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif">${titleTspans}</text>
+    font-weight="800"
+    font-family="${FONT_SANS}, sans-serif">${titleTspans}</text>
 
   <text x="114" y="${descY}"
     fill="#C6B8A8"
     font-size="26"
-    font-weight="520"
-    font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, Helvetica, Arial, sans-serif">${descTspans}</text>
+    font-weight="500"
+    font-family="${FONT_SANS}, sans-serif">${descTspans}</text>
 
   <rect x="114" y="472" width="110" height="6" rx="3" fill="#E86A47"/>
   <text x="114" y="530"
     fill="#F6EFE4"
     font-size="20"
-    font-weight="650"
+    font-weight="500"
     opacity="0.90"
-    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace">${escapeXml(params.footer)}</text>
+    font-family="${FONT_MONO}, monospace">${escapeXml(params.footer)}</text>
 </svg>`
 }
 
@@ -245,7 +275,10 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Cache-Control', cacheKey)
   setHeader(event, 'Content-Type', 'image/png')
 
-  const [markDataUrl] = await Promise.all([getMarkDataUrl(), ensureWasm()])
+  const [markDataUrl, fontBuffers] = await Promise.all([
+    getMarkDataUrl(),
+    ensureWasm().then(() => getFontBuffers()),
+  ])
   const svg = buildSvg({
     markDataUrl,
     title,
@@ -257,7 +290,12 @@ export default defineEventHandler(async (event) => {
 
   const resvg = new Resvg(svg, {
     fitTo: { mode: 'width', value: 1200 },
-    font: { loadSystemFonts: true },
+    font: {
+      fontBuffers,
+      defaultFontFamily: FONT_SANS,
+      sansSerifFamily: FONT_SANS,
+      monospaceFamily: FONT_MONO,
+    },
   })
   const png = resvg.render().asPng()
   resvg.free()
