@@ -19,9 +19,12 @@ describe('og helpers', () => {
     expect(meta.url).toContain('/steipete/weather')
     expect(meta.owner).toBe('steipete')
     expect(meta.image).toContain('/og/skill.png?')
+    expect(meta.image).toContain('v=2')
     expect(meta.image).toContain('slug=weather')
     expect(meta.image).toContain('owner=steipete')
     expect(meta.image).toContain('version=1.2.3')
+    expect(meta.image).not.toContain('title=')
+    expect(meta.image).not.toContain('description=')
   })
 
   it('uses defaults when owner and summary are missing', () => {

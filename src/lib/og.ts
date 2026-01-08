@@ -16,6 +16,7 @@ type SkillMeta = {
 
 const DEFAULT_SITE = 'https://clawdhub.com'
 const DEFAULT_DESCRIPTION = 'ClawdHub — a fast skill registry for agents, with vector search.'
+const OG_SKILL_IMAGE_LAYOUT_VERSION = '2'
 
 export function getSiteUrl() {
   return import.meta.env.VITE_SITE_URL ?? DEFAULT_SITE
@@ -58,11 +59,10 @@ export function buildSkillMeta(source: SkillMetaSource): SkillMeta {
     summary || (owner ? `Agent skill by @${owner} on ClawdHub.` : DEFAULT_DESCRIPTION)
   const url = owner ? `${siteUrl}/${owner}/${source.slug}` : `${siteUrl}/skills/${source.slug}`
   const imageParams = new URLSearchParams()
+  imageParams.set('v', OG_SKILL_IMAGE_LAYOUT_VERSION)
   imageParams.set('slug', source.slug)
-  imageParams.set('title', displayName)
   if (owner) imageParams.set('owner', owner)
   if (version) imageParams.set('version', version)
-  if (summary) imageParams.set('description', truncate(summary, 200))
   return {
     title,
     description: truncate(description, 200),
