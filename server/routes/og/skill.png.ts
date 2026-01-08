@@ -1,5 +1,5 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
-import { defineEventHandler, getQuery, setHeader } from 'h3'
+import { defineEventHandler, getQuery, getRequestHost, setHeader } from 'h3'
 
 import { fetchSkillOgMeta } from '../../og/fetchSkillOgMeta'
 import {
@@ -59,9 +59,7 @@ export default defineEventHandler(async (event) => {
   const descriptionFromQuery = cleanString(query.description)
 
   const needFetch = !titleFromQuery || !descriptionFromQuery || !ownerFromQuery || !versionFromQuery
-  const meta = needFetch
-    ? await fetchSkillOgMeta(slug, getApiBase(event.node.req.headers.host ?? null))
-    : null
+  const meta = needFetch ? await fetchSkillOgMeta(slug, getApiBase(getRequestHost(event))) : null
 
   const owner = ownerFromQuery || meta?.owner || ''
   const version = versionFromQuery || meta?.version || ''
