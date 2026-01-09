@@ -176,15 +176,27 @@ export async function checkRegistrySyncState(
 }
 
 export async function scanRoots(roots: string[]) {
+  const result = await scanRootsWithLabels(roots)
+  return {
+    roots: result.roots,
+    skillsByRoot: result.skillsByRoot,
+    skills: result.skills,
+    rootsWithSkills: result.rootsWithSkills,
+  }
+}
+
+export async function scanRootsWithLabels(roots: string[], labels?: Record<string, string>) {
   const all: SkillFolder[] = []
   const rootsWithSkills: string[] = []
   const uniqueRoots = await dedupeRoots(roots)
   const skillsByRoot: Record<string, SkillFolder[]> = {}
+  const rootLabels: Record<string, string> = {}
   for (const root of uniqueRoots) {
     const found = await findSkillFolders(root)
     skillsByRoot[root] = found
     if (found.length > 0) rootsWithSkills.push(root)
     all.push(...found)
+    if (labels?.[root]) rootLabels[root] = labels[root] as string
   }
   const byFolder = new Map<string, SkillFolder>()
   for (const folder of all) {
@@ -195,6 +207,7 @@ export async function scanRoots(roots: string[]) {
     skillsByRoot,
     skills: Array.from(byFolder.values()),
     rootsWithSkills,
+    rootLabels,
   }
 }
 

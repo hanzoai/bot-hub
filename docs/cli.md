@@ -80,6 +80,12 @@ Stores your API token + cached registry URL.
 
 - Scans for local skill folders and publishes new/changed ones.
 - Roots can be any folder: a skills directory or a single skill folder with `SKILL.md`.
+- Auto-adds Clawdbot skill roots when `~/.clawdbot/clawdbot.json` is present:
+  - `agent.workspace/skills` (main agent)
+  - `routing.agents.*.workspace/skills` (per-agent)
+  - `~/.clawdbot/skills` (shared)
+  - `skills.load.extraDirs` (shared packs)
+- Respects `CLAWDBOT_CONFIG_PATH` and `CLAWDBOT_STATE_DIR`.
 - Flags:
   - `--root <dir...>` extra scan roots
   - `--all` upload without prompting

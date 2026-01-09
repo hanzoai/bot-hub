@@ -2,6 +2,7 @@ import { relative } from 'node:path'
 import { intro, outro } from '@clack/prompts'
 import { readGlobalConfig } from '../../config.js'
 import { hashSkillFiles, listTextFiles, readSkillOrigin } from '../../skills.js'
+import { resolveClawdbotSkillRoots } from '../clawdbotConfig.js'
 import { getFallbackSkillRoots } from '../scanSkills.js'
 import type { GlobalOpts } from '../types.js'
 import { createSpinner, fail, formatError, isInteractive } from '../ui.js'
@@ -24,7 +25,7 @@ import {
   printSection,
   reportTelemetryIfEnabled,
   resolvePublishMeta,
-  scanRoots,
+  scanRootsWithLabels,
   selectToUpload,
 } from './syncHelpers.js'
 import type { Candidate, LocalSkill, SyncOptions } from './syncTypes.js'
@@ -39,15 +40,19 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
 
   const registry = await getRegistryWithAuth(opts, token)
   const selectedRoots = buildScanRoots(opts, options.root)
+  const clawdbotRoots = await resolveClawdbotSkillRoots()
+  const combinedRoots = Array.from(
+    new Set([...selectedRoots, ...clawdbotRoots.roots].map((root) => root.trim()).filter(Boolean)),
+  )
   const concurrency = normalizeConcurrency(options.concurrency)
 
   const spinner = createSpinner('Scanning for local skills')
-  const primaryScan = await scanRoots(selectedRoots)
+  const primaryScan = await scanRootsWithLabels(combinedRoots, clawdbotRoots.labels)
   let scan = primaryScan
   let telemetryScan = primaryScan
   if (primaryScan.skills.length === 0) {
     const fallback = getFallbackSkillRoots(opts.workdir)
-    const fallbackScan = await scanRoots(fallback)
+    const fallbackScan = await scanRootsWithLabels(fallback)
     spinner.stop()
     telemetryScan = mergeScan(primaryScan, fallbackScan)
     scan = fallbackScan
@@ -59,6 +64,15 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
     )
   } else {
     spinner.stop()
+    const labeledRoots = primaryScan.rootsWithSkills
+      .map((root) => {
+        const label = primaryScan.rootLabels?.[root]
+        return label ? `${label} (${root})` : root
+      })
+      .filter(Boolean)
+    if (labeledRoots.length > 0) {
+      printSection('Roots with skills', formatList(labeledRoots, 10))
+    }
   }
   const deduped = dedupeSkillsBySlug(scan.skills)
   const skills = deduped.skills
