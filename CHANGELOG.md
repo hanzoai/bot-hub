@@ -4,6 +4,7 @@
 
 ### Added
 - Web: dynamic OG image cards for skills (name, description, version).
+- CLI: auto-scan Clawdbot skill roots (per-agent workspaces, shared skills, extraDirs).
 
 ### Fixed
 - Web: stabilize skill OG image generation on server runtimes.
