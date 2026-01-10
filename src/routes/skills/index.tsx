@@ -83,9 +83,9 @@ function SkillsIndex() {
           return (a.skill.updatedAt - b.skill.updatedAt) * multiplier
         case 'name':
           return (
-            a.skill.displayName.localeCompare(b.skill.displayName) ||
-            a.skill.slug.localeCompare(b.skill.slug)
-          ) * multiplier
+            (a.skill.displayName.localeCompare(b.skill.displayName) ||
+              a.skill.slug.localeCompare(b.skill.slug)) * multiplier
+          )
         default:
           return (a.skill.createdAt - b.skill.createdAt) * multiplier
       }

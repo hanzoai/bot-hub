@@ -268,6 +268,12 @@ const rateLimits = defineTable({
   .index('by_key_window', ['key', 'windowStart'])
   .index('by_key', ['key'])
 
+const githubBackupSyncState = defineTable({
+  key: v.string(),
+  cursor: v.optional(v.string()),
+  updatedAt: v.number(),
+}).index('by_key', ['key'])
+
 const userSyncRoots = defineTable({
   userId: v.id('users'),
   rootId: v.string(),
@@ -324,6 +330,7 @@ export default defineSchema({
   auditLogs,
   apiTokens,
   rateLimits,
+  githubBackupSyncState,
   userSyncRoots,
   userSkillInstalls,
   userSkillRootInstalls,

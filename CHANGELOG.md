@@ -12,6 +12,8 @@
 - Web: stabilize skill OG image generation on server runtimes.
 - Web: prevent skill OG text overflow outside the card.
 - Registry: make SoulHub auto-seed idempotent and non-user-owned.
+- Registry: keep GitHub backup state + publish backups intact (thanks @joshp123, #1).
+- CLI/Registry: restore fork lineage on sync + clamp bulk list queries (thanks @joshp123, #1).
 
 ## 0.0.6 - 2026-01-07
 

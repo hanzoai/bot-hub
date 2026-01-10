@@ -1,3 +1,4 @@
+import type { SkillOrigin } from '../../skills.js'
 import type { SkillFolder } from '../scanSkills.js'
 
 export type SyncOptions = {
@@ -13,6 +14,7 @@ export type SyncOptions = {
 export type Candidate = SkillFolder & {
   fingerprint: string
   fileCount: number
+  origin: SkillOrigin | null
   status: 'synced' | 'new' | 'update'
   matchVersion: string | null
   latestVersion: string | null
@@ -21,4 +23,5 @@ export type Candidate = SkillFolder & {
 export type LocalSkill = SkillFolder & {
   fingerprint: string
   fileCount: number
+  origin: SkillOrigin | null
 }

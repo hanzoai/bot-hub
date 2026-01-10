@@ -1,6 +1,6 @@
 import { intro, outro } from '@clack/prompts'
 import { readGlobalConfig } from '../../config.js'
-import { hashSkillFiles, listTextFiles } from '../../skills.js'
+import { hashSkillFiles, listTextFiles, readSkillOrigin } from '../../skills.js'
 import { resolveClawdbotSkillRoots } from '../clawdbotConfig.js'
 import { getFallbackSkillRoots } from '../scanSkills.js'
 import type { GlobalOpts } from '../types.js'
@@ -84,12 +84,14 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
     const parsed = await mapWithConcurrency(skills, Math.min(concurrency, 12), async (skill) => {
       const filesOnDisk = await listTextFiles(skill.folder)
       const hashed = hashSkillFiles(filesOnDisk)
+      const origin = await readSkillOrigin(skill.folder)
       done += 1
       parsingSpinner.text = `Parsing local skills ${done}/${skills.length}`
       return {
         ...skill,
         fingerprint: hashed.fingerprint,
         fileCount: filesOnDisk.length,
+        origin,
       }
     })
     locals.push(...parsed)
@@ -174,14 +176,25 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
       allowPrompt,
       changelogFlag: options.changelog,
     })
+    const forkOf =
+      skill.origin && normalizeRegistry(skill.origin.registry) === normalizeRegistry(registry)
+        ? skill.origin.slug !== skill.slug
+          ? `${skill.origin.slug}@${skill.origin.installedVersion}`
+          : undefined
+        : undefined
     await cmdPublish(opts, skill.folder, {
       slug: skill.slug,
       name: skill.displayName,
       version: publishVersion,
       changelog,
       tags,
+      forkOf,
     })
   }
 
   outro(`Uploaded ${selected.length} skill(s).`)
+}
+
+function normalizeRegistry(value: string) {
+  return value.trim().replace(/\/+$/, '').toLowerCase()
 }
