@@ -33,7 +33,7 @@ export const Route = createFileRoute('/skills/')({
   component: SkillsIndex,
 })
 
-function SkillsIndex() {
+export function SkillsIndex() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
   const sort = search.sort ?? 'newest'
