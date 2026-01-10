@@ -42,7 +42,7 @@ function SkillsIndex() {
   const highlightedOnly = search.highlighted ?? false
   const [query, setQuery] = useState(search.q ?? '')
 
-  const items = useQuery(api.skills.listWithLatest, { limit: 500 }) as
+  const items = useQuery(api.skills.listWithLatest, { limit: 200 }) as
     | Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
     | undefined
   const isLoadingSkills = items === undefined
