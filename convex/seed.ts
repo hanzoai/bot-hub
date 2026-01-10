@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
-import type { ActionCtx, DatabaseReader } from './_generated/server'
+import type { ActionCtx, DatabaseReader, DatabaseWriter } from './_generated/server'
 import { action, internalMutation, internalQuery } from './_generated/server'
 import { publishSoulVersionForUser } from './lib/soulPublish'
 import { SOUL_SEED_DISPLAY_NAME, SOUL_SEED_HANDLE, SOUL_SEED_KEY, SOUL_SEEDS } from './seedSouls'
@@ -10,6 +10,11 @@ const SEED_LOCK_STALE_MS = 10 * 60 * 1000
 
 type SeedStateDoc = Doc<'githubBackupSyncState'>
 
+type SeedStartDecision = {
+  started: boolean
+  reason: 'done' | 'running' | 'patched' | 'inserted'
+}
+
 async function getSeedState(ctx: { db: DatabaseReader }): Promise<SeedStateDoc | null> {
   const entries = (await ctx.db
     .query('githubBackupSyncState')
@@ -17,6 +22,28 @@ async function getSeedState(ctx: { db: DatabaseReader }): Promise<SeedStateDoc |
     .order('desc')
     .take(2)) as SeedStateDoc[]
   return entries[0] ?? null
+}
+
+async function cleanupSeedState(ctx: { db: DatabaseWriter }, keepId: Id<'githubBackupSyncState'>) {
+  const entries = (await ctx.db
+    .query('githubBackupSyncState')
+    .withIndex('by_key', (q) => q.eq('key', SOUL_SEED_KEY))
+    .order('desc')
+    .take(50)) as SeedStateDoc[]
+
+  for (const entry of entries) {
+    if (entry._id === keepId) continue
+    await ctx.db.delete(entry._id)
+  }
+}
+
+export function decideSeedStart(existing: SeedStateDoc | null, now: number): SeedStartDecision {
+  const cursor = existing?.cursor ?? null
+  if (cursor === 'done') return { started: false, reason: 'done' }
+  if (cursor === 'running' && existing && now - existing.updatedAt < SEED_LOCK_STALE_MS) {
+    return { started: false, reason: 'running' }
+  }
+  return existing ? { started: true, reason: 'patched' } : { started: true, reason: 'inserted' }
 }
 
 export const getSoulSeedStateInternal = internalQuery({
@@ -31,13 +58,16 @@ export const setSoulSeedStateInternal = internalMutation({
     const now = Date.now()
     if (existing) {
       await ctx.db.patch(existing._id, { cursor: args.status, updatedAt: now })
+      await cleanupSeedState(ctx, existing._id)
       return existing._id
     }
-    return ctx.db.insert('githubBackupSyncState', {
+    const id = await ctx.db.insert('githubBackupSyncState', {
       key: SOUL_SEED_KEY,
       cursor: args.status,
       updatedAt: now,
     })
+    await cleanupSeedState(ctx, id)
+    return id
   },
 })
 
@@ -46,23 +76,22 @@ export const tryStartSoulSeedInternal = internalMutation({
   handler: async (ctx) => {
     const now = Date.now()
     const existing = await getSeedState(ctx)
-    const cursor = existing?.cursor ?? null
+    const decision = decideSeedStart(existing, now)
 
-    if (cursor === 'done') return { started: false, reason: 'done' as const }
-    if (cursor === 'running' && existing && now - existing.updatedAt < SEED_LOCK_STALE_MS) {
-      return { started: false, reason: 'running' as const }
-    }
+    if (!decision.started) return decision
 
     if (existing) {
       await ctx.db.patch(existing._id, { cursor: 'running', updatedAt: now })
+      await cleanupSeedState(ctx, existing._id)
       return { started: true, reason: 'patched' as const }
     }
 
-    await ctx.db.insert('githubBackupSyncState', {
+    const id = await ctx.db.insert('githubBackupSyncState', {
       key: SOUL_SEED_KEY,
       cursor: 'running',
       updatedAt: now,
     })
+    await cleanupSeedState(ctx, id)
     return { started: true, reason: 'inserted' as const }
   },
 })

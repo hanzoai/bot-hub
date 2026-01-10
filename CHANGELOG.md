@@ -11,6 +11,7 @@
 ### Fixed
 - Web: stabilize skill OG image generation on server runtimes.
 - Web: prevent skill OG text overflow outside the card.
+- Registry: make SoulHub auto-seed idempotent and non-user-owned.
 
 ## 0.1.0 - 2026-01-07
 
