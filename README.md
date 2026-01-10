@@ -93,6 +93,52 @@ This writes `JWT_PRIVATE_KEY` + `JWKS` to the deployment and prints values for y
 - `JWT_PRIVATE_KEY` / `JWKS`: Convex Auth keys.
 - `OPENAI_API_KEY`: embeddings for search + indexing.
 
+## Nix plugins (nixmode skills)
+
+ClawdHub can store a nix-clawdbot plugin pointer in SKILL frontmatter so the registry knows which
+Nix package bundle to install. A nix plugin is different from a regular skill pack: it bundles the
+skill pack, the CLI binary, and its config flags/requirements together.
+
+Add this to `SKILL.md`:
+
+```yaml
+---
+name: peekaboo
+description: Capture and automate macOS UI with the Peekaboo CLI.
+metadata: {"clawdbot":{"nix":{"plugin":"github:clawdbot/nix-steipete-tools?dir=tools/peekaboo","systems":["aarch64-darwin"]}}}
+---
+```
+
+Install via nix-clawdbot:
+
+```nix
+programs.clawdbot.plugins = [
+  { source = "github:clawdbot/nix-steipete-tools?dir=tools/peekaboo"; }
+];
+```
+
+You can also declare config requirements + an example snippet:
+
+```yaml
+---
+name: padel
+description: Check padel court availability and manage bookings via Playtomic.
+metadata: {"clawdbot":{"config":{"requiredEnv":["PADEL_AUTH_FILE"],"stateDirs":[".config/padel"],"example":"config = { env = { PADEL_AUTH_FILE = \\\"/run/agenix/padel-auth\\\"; }; };"}}}
+---
+```
+
+To show CLI help (recommended for nix plugins), include the `cli --help` output:
+
+```yaml
+---
+name: padel
+description: Check padel court availability and manage bookings via Playtomic.
+metadata: {"clawdbot":{"cliHelp":"padel --help\\nUsage: padel [command]\\n"}}
+---
+```
+
+`metadata.clawdbot` is preferred, but `metadata.clawdis` is accepted as an alias for compatibility.
+
 ## Scripts
 
 ```bash

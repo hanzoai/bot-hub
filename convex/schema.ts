@@ -268,6 +268,12 @@ const rateLimits = defineTable({
   .index('by_key_window', ['key', 'windowStart'])
   .index('by_key', ['key'])
 
+const githubBackupSyncState = defineTable({
+  key: v.string(),
+  cursor: v.optional(v.string()),
+  updatedAt: v.number(),
+}).index('by_key', ['key'])
+
 const userSyncRoots = defineTable({
   userId: v.id('users'),
   rootId: v.string(),
@@ -305,12 +311,6 @@ const userSkillRootInstalls = defineTable({
   .index('by_user_root_skill', ['userId', 'rootId', 'skillId'])
   .index('by_user_skill', ['userId', 'skillId'])
   .index('by_skill', ['skillId'])
-
-const githubBackupSyncState = defineTable({
-  key: v.string(),
-  cursor: v.optional(v.string()),
-  updatedAt: v.number(),
-}).index('by_key', ['key'])
 
 export default defineSchema({
   ...authTables,

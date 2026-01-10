@@ -20,6 +20,8 @@ type FileTextResult = { path: string; text: string; size: number; sha256: string
 
 const MAX_DIFF_FILE_BYTES = 200 * 1024
 const MAX_LIST_LIMIT = 50
+const MAX_LIST_BULK_LIMIT = 200
+const MAX_LIST_TAKE = 1000
 
 export const getBySlug = query({
   args: { slug: v.string() },
@@ -87,13 +89,14 @@ export const list = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 24
+    const limit = clampInt(args.limit ?? 24, 1, MAX_LIST_BULK_LIMIT)
+    const takeLimit = Math.min(limit * 5, MAX_LIST_TAKE)
     if (args.batch) {
       const entries = await ctx.db
         .query('skills')
         .withIndex('by_batch', (q) => q.eq('batch', args.batch))
         .order('desc')
-        .take(limit * 5)
+        .take(takeLimit)
       return entries.filter((skill) => !skill.softDeletedAt).slice(0, limit)
     }
     const ownerUserId = args.ownerUserId
@@ -102,14 +105,48 @@ export const list = query({
         .query('skills')
         .withIndex('by_owner', (q) => q.eq('ownerUserId', ownerUserId))
         .order('desc')
-        .take(limit * 5)
+        .take(takeLimit)
       return entries.filter((skill) => !skill.softDeletedAt).slice(0, limit)
     }
-    const entries = await ctx.db
-      .query('skills')
-      .order('desc')
-      .take(limit * 5)
+    const entries = await ctx.db.query('skills').order('desc').take(takeLimit)
     return entries.filter((skill) => !skill.softDeletedAt).slice(0, limit)
+  },
+})
+
+export const listWithLatest = query({
+  args: {
+    batch: v.optional(v.string()),
+    ownerUserId: v.optional(v.id('users')),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = clampInt(args.limit ?? 24, 1, MAX_LIST_BULK_LIMIT)
+    const takeLimit = Math.min(limit * 5, MAX_LIST_TAKE)
+    let entries: Doc<'skills'>[] = []
+    if (args.batch) {
+      entries = await ctx.db
+        .query('skills')
+        .withIndex('by_batch', (q) => q.eq('batch', args.batch))
+        .order('desc')
+        .take(takeLimit)
+    } else if (args.ownerUserId) {
+      entries = await ctx.db
+        .query('skills')
+        .withIndex('by_owner', (q) => q.eq('ownerUserId', args.ownerUserId))
+        .order('desc')
+        .take(takeLimit)
+    } else {
+      entries = await ctx.db.query('skills').order('desc').take(takeLimit)
+    }
+
+    const filtered = entries.filter((skill) => !skill.softDeletedAt).slice(0, limit)
+    const items = await Promise.all(
+      filtered.map(async (skill) => ({
+        skill,
+        latestVersion: skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null,
+      })),
+    )
+    return items
   },
 })
 

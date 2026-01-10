@@ -107,6 +107,35 @@ describe('skills utils', () => {
     expect(clawdis?.requires?.anyBins).toEqual(['rg', 'fd'])
   })
 
+  it('parses clawdbot metadata with nix plugin pointer', () => {
+    const frontmatter = parseFrontmatter(
+      `---\nmetadata: {"clawdbot":{"nix":{"plugin":"github:clawdbot/nix-steipete-tools?dir=tools/peekaboo","systems":["aarch64-darwin"]}}}\n---\nBody`,
+    )
+    const clawdis = parseClawdisMetadata(frontmatter)
+    expect(clawdis?.nix?.plugin).toBe('github:clawdbot/nix-steipete-tools?dir=tools/peekaboo')
+    expect(clawdis?.nix?.systems).toEqual(['aarch64-darwin'])
+  })
+
+  it('parses clawdbot config requirements with example', () => {
+    const frontmatter = parseFrontmatter(
+      `---\nmetadata: {"clawdbot":{"config":{"requiredEnv":["PADEL_AUTH_FILE"],"stateDirs":[".config/padel"],"example":"config = { env = { PADEL_AUTH_FILE = \\"/run/agenix/padel-auth\\"; }; };"}}}\n---\nBody`,
+    )
+    const clawdis = parseClawdisMetadata(frontmatter)
+    expect(clawdis?.config?.requiredEnv).toEqual(['PADEL_AUTH_FILE'])
+    expect(clawdis?.config?.stateDirs).toEqual(['.config/padel'])
+    expect(clawdis?.config?.example).toBe(
+      'config = { env = { PADEL_AUTH_FILE = "/run/agenix/padel-auth"; }; };',
+    )
+  })
+
+  it('parses cli help output', () => {
+    const frontmatter = parseFrontmatter(
+      `---\nmetadata: {"clawdbot":{"cliHelp":"padel --help\\nUsage: padel [command]\\n"}}\n---\nBody`,
+    )
+    const clawdis = parseClawdisMetadata(frontmatter)
+    expect(clawdis?.cliHelp).toBe('padel --help\nUsage: padel [command]')
+  })
+
   it('sanitizes file paths', () => {
     expect(sanitizePath('good/file.md')).toBe('good/file.md')
     expect(sanitizePath('../bad/file.md')).toBeNull()

@@ -1,4 +1,3 @@
-import { relative } from 'node:path'
 import { intro, outro } from '@clack/prompts'
 import { readGlobalConfig } from '../../config.js'
 import { hashSkillFiles, listTextFiles, readSkillOrigin } from '../../skills.js'
@@ -12,7 +11,6 @@ import {
   checkRegistrySyncState,
   dedupeSkillsBySlug,
   formatActionableLine,
-  formatActionableStatus,
   formatBulletList,
   formatCommaList,
   formatList,
@@ -134,12 +132,6 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
 
   const synced = candidates.filter((candidate) => candidate.status === 'synced')
   const actionable = candidates.filter((candidate) => candidate.status !== 'synced')
-
-  const installRoot = opts.dir
-  const actionableInInstallRoot = actionable.filter((candidate) =>
-    isWithinRoot(candidate.folder, installRoot),
-  )
-  const uploadable = actionable.filter((candidate) => !isWithinRoot(candidate.folder, installRoot))
   const bump = options.bump ?? 'patch'
 
   if (actionable.length === 0) {
@@ -153,31 +145,15 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
   printSection(
     'To sync',
     formatBulletList(
-      uploadable.map((candidate) => formatActionableLine(candidate, bump)),
+      actionable.map((candidate) => formatActionableLine(candidate, bump)),
       20,
     ),
   )
-
-  if (actionableInInstallRoot.length > 0) {
-    printSection(
-      'Modified installed skills (not uploadable)',
-      formatBulletList(
-        actionableInInstallRoot.map((candidate) => {
-          const upstream =
-            candidate.origin?.slug && candidate.origin.slug !== candidate.slug
-              ? `fork-of ${candidate.origin.slug}`
-              : `copy to new folder/slug to publish as fork`
-          return `${candidate.slug}  ${formatActionableStatus(candidate, bump)}  (${upstream})`
-        }),
-        10,
-      ),
-    )
-  }
   if (synced.length > 0) {
     printSection('Already synced', formatSyncedDisplay(synced))
   }
 
-  const selected = await selectToUpload(uploadable, {
+  const selected = await selectToUpload(actionable, {
     allowPrompt,
     all: Boolean(options.all),
     bump,
@@ -217,13 +193,6 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
   }
 
   outro(`Uploaded ${selected.length} skill(s).`)
-}
-
-function isWithinRoot(folder: string, root: string) {
-  const rel = relative(root, folder)
-  if (!rel) return true
-  if (rel === '.') return true
-  return !rel.startsWith('..') && !rel.startsWith('../') && rel !== '..'
 }
 
 function normalizeRegistry(value: string) {
