@@ -70,12 +70,12 @@ export function getSiteMode(): SiteMode {
 }
 
 export function getSiteName(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? 'onlycrabs.ai' : 'ClawdHub'
+  return mode === 'souls' ? 'SoulHub' : 'ClawdHub'
 }
 
 export function getSiteDescription(mode: SiteMode = getSiteMode()) {
   return mode === 'souls'
-    ? 'onlycrabs.ai — the home for SOUL.md bundles and personal system lore.'
+    ? 'SoulHub — the home for SOUL.md bundles and personal system lore.'
     : 'ClawdHub — a fast skill registry for agents, with vector search.'
 }
 

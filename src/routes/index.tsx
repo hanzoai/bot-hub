@@ -336,7 +336,7 @@ function OnlyCrabsHome() {
         <div className="hero-inner">
           <div className="hero-copy fade-up" data-delay="1">
             <span className="hero-badge">SOUL.md, shared.</span>
-            <h1 className="hero-title">onlycrabs.ai, where system lore lives.</h1>
+            <h1 className="hero-title">SoulHub, where system lore lives.</h1>
             <p className="hero-subtitle">
               Share SOUL.md bundles, version them like docs, and keep personal system lore in one
               public place.

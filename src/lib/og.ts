@@ -33,8 +33,7 @@ type SoulMeta = {
 }
 
 const DEFAULT_DESCRIPTION = 'ClawdHub — a fast skill registry for agents, with vector search.'
-const DEFAULT_SOUL_DESCRIPTION =
-  'onlycrabs.ai — the home for SOUL.md bundles and personal system lore.'
+const DEFAULT_SOUL_DESCRIPTION = 'SoulHub — the home for SOUL.md bundles and personal system lore.'
 const OG_SKILL_IMAGE_LAYOUT_VERSION = '5'
 const OG_SOUL_IMAGE_LAYOUT_VERSION = '1'
 
@@ -125,9 +124,9 @@ export function buildSoulMeta(source: SoulMetaSource): SoulMeta {
   const displayName = clean(source.displayName) || clean(source.slug)
   const summary = clean(source.summary)
   const version = clean(source.version)
-  const title = `${displayName} — onlycrabs.ai`
+  const title = `${displayName} — SoulHub`
   const description =
-    summary || (owner ? `Soul by @${owner} on onlycrabs.ai.` : DEFAULT_SOUL_DESCRIPTION)
+    summary || (owner ? `Soul by @${owner} on SoulHub.` : DEFAULT_SOUL_DESCRIPTION)
   const url = `${siteUrl}/souls/${source.slug}`
   const imageParams = new URLSearchParams()
   imageParams.set('v', OG_SOUL_IMAGE_LAYOUT_VERSION)

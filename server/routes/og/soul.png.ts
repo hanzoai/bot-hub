@@ -46,10 +46,9 @@ async function ensureWasm() {
   await wasmInitPromise
 }
 
-function buildFooter(host: string | null, slug: string, owner: string | null) {
-  const base = host ? host : 'onlycrabs.ai'
-  if (owner) return `${base}/@${owner}/${slug}`
-  return `${base}/souls/${slug}`
+function buildFooter(slug: string, owner: string | null) {
+  if (owner) return `@${owner}/${slug}`
+  return `souls/${slug}`
 }
 
 export default defineEventHandler(async (event) => {
@@ -75,9 +74,9 @@ export default defineEventHandler(async (event) => {
   const title = titleFromQuery || meta?.displayName || slug
   const description = descriptionFromQuery || meta?.summary || ''
 
-  const ownerLabel = owner ? `@${owner}` : 'onlycrabs.ai'
+  const ownerLabel = owner ? `@${owner}` : 'SoulHub'
   const versionLabel = version ? `v${version}` : 'latest'
-  const footer = buildFooter(getRequestHost(event), slug, owner || null)
+  const footer = buildFooter(slug, owner || null)
 
   const cacheKey = version ? 'public, max-age=31536000, immutable' : 'public, max-age=3600'
   setHeader(event, 'Cache-Control', cacheKey)
