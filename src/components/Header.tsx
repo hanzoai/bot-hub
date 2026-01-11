@@ -5,7 +5,7 @@ import { Menu, Monitor, Moon, Sun } from 'lucide-react'
 import { useMemo, useRef } from 'react'
 import { api } from '../../convex/_generated/api'
 import { gravatarUrl } from '../lib/gravatar'
-import { getClawdHubSiteUrl, getOnlyCrabsSiteUrl, getSiteMode, getSiteName } from '../lib/site'
+import { getClawdHubSiteUrl, getSiteMode, getSiteName } from '../lib/site'
 import { applyTheme, useThemeMode } from '../lib/theme'
 import { startThemeTransition } from '../lib/theme-transition'
 import {
@@ -26,7 +26,6 @@ export default function Header() {
   const siteMode = getSiteMode()
   const siteName = useMemo(() => getSiteName(siteMode), [siteMode])
   const isSoulMode = siteMode === 'souls'
-  const onlyCrabsUrl = getOnlyCrabsSiteUrl()
   const clawdHubUrl = getClawdHubSiteUrl()
 
   const avatar = me?.image ?? (me?.email ? gravatarUrl(me.email) : undefined)
@@ -57,11 +56,7 @@ export default function Header() {
           <span className="brand-name">{siteName}</span>
         </Link>
         <nav className="nav-links">
-          {isSoulMode ? (
-            <a href={clawdHubUrl}>ClawdHub</a>
-          ) : (
-            <a href={onlyCrabsUrl}>onlycrabs.ai</a>
-          )}
+          {isSoulMode ? <a href={clawdHubUrl}>ClawdHub</a> : null}
           <Link
             to={isSoulMode ? '/souls' : '/skills'}
             search={
@@ -97,13 +92,11 @@ export default function Header() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  {isSoulMode ? (
+                {isSoulMode ? (
+                  <DropdownMenuItem asChild>
                     <a href={clawdHubUrl}>ClawdHub</a>
-                  ) : (
-                    <a href={onlyCrabsUrl}>onlycrabs.ai</a>
-                  )}
-                </DropdownMenuItem>
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem asChild>
                   <Link
                     to={isSoulMode ? '/souls' : '/skills'}
