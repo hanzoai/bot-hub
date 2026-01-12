@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useAction, useQuery } from 'convex/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { SkillCard } from '../../components/SkillCard'
@@ -54,6 +54,7 @@ export function SkillsIndex() {
   const [searchLimit, setSearchLimit] = useState(pageSize)
   const [isSearching, setIsSearching] = useState(false)
   const searchRequest = useRef(0)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const trimmedQuery = useMemo(() => query.trim(), [query])
   const hasQuery = trimmedQuery.length > 0
@@ -172,7 +173,6 @@ export function SkillsIndex() {
     return results
   }, [dir, filtered, sort])
 
-  const showing = sorted.length
   const isLoadingSkills = hasQuery
     ? isSearching && searchResults.length === 0
     : isLoadingList
@@ -182,6 +182,32 @@ export function SkillsIndex() {
   const isLoadingMore = hasQuery
     ? isSearching && searchResults.length > 0
     : listPage === undefined && pages.length > 0
+  const canAutoLoad = typeof IntersectionObserver !== 'undefined'
+
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !canLoadMore) return
+    if (hasQuery) {
+      setSearchLimit((value) => value + pageSize)
+    } else if (nextCursor) {
+      setCursor(nextCursor)
+    }
+  }, [canLoadMore, hasQuery, isLoadingMore, nextCursor])
+
+  useEffect(() => {
+    if (!canLoadMore || typeof IntersectionObserver === 'undefined') return
+    const target = loadMoreRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          loadMore()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [canLoadMore, loadMore])
 
   return (
     <main className="section">
@@ -193,9 +219,7 @@ export function SkillsIndex() {
           <p className="section-subtitle" style={{ marginBottom: 0 }}>
             {isLoadingSkills
               ? 'Loading skills…'
-              : `${showing} skill${showing === 1 ? '' : 's'}${
-                  highlightedOnly ? ' (highlighted)' : ''
-                }.`}
+              : `Browse the skill library${highlightedOnly ? ' (highlighted)' : ''}.`}
           </p>
         </div>
         <div className="skills-toolbar">
@@ -364,23 +388,17 @@ export function SkillsIndex() {
 
       {canLoadMore ? (
         <div
+          ref={canAutoLoad ? loadMoreRef : null}
           className="card"
           style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}
         >
-          <button
-            className="btn"
-            type="button"
-            disabled={isLoadingMore}
-            onClick={() => {
-              if (hasQuery) {
-                setSearchLimit((value) => value + pageSize)
-              } else if (nextCursor) {
-                setCursor(nextCursor)
-              }
-            }}
-          >
-            {isLoadingMore ? 'Loading…' : 'Load more'}
-          </button>
+          {canAutoLoad ? (
+            isLoadingMore ? 'Loading more…' : 'Scroll to load more'
+          ) : (
+            <button className="btn" type="button" onClick={loadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          )}
         </div>
       ) : null}
     </main>
