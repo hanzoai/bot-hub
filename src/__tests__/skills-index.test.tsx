@@ -6,6 +6,7 @@ import { SkillsIndex } from '../routes/skills/index'
 
 const navigateMock = vi.fn()
 const useQueryMock = vi.fn()
+const useActionMock = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (_config: { component: unknown; validateSearch: unknown }) => ({
@@ -16,18 +17,24 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('convex/react', () => ({
+  useAction: (...args: unknown[]) => useActionMock(...args),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
 }))
 
 describe('SkillsIndex', () => {
   beforeEach(() => {
     useQueryMock.mockReset()
+    useActionMock.mockReset()
     navigateMock.mockReset()
-    useQueryMock.mockReturnValue([])
+    useActionMock.mockReturnValue(() => Promise.resolve([]))
+    useQueryMock.mockReturnValue({ items: [], nextCursor: null })
   })
 
-  it('caps listWithLatest query limit', () => {
+  it('requests the first skills page', () => {
     render(<SkillsIndex />)
-    expect(useQueryMock).toHaveBeenCalledWith(expect.anything(), { limit: 200 })
+    expect(useQueryMock).toHaveBeenCalledWith(expect.anything(), {
+      cursor: undefined,
+      limit: 50,
+    })
   })
 })

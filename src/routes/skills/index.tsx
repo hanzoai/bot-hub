@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useAction, useQuery } from 'convex/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { SkillCard } from '../../components/SkillCard'
 
 const sortKeys = ['newest', 'downloads', 'installs', 'stars', 'name', 'updated'] as const
+const pageSize = 50
 type SortKey = (typeof sortKeys)[number]
 type SortDir = 'asc' | 'desc'
 
@@ -41,29 +42,107 @@ export function SkillsIndex() {
   const view = search.view ?? 'list'
   const highlightedOnly = search.highlighted ?? false
   const [query, setQuery] = useState(search.q ?? '')
+  const searchSkills = useAction(api.search.searchSkills)
+  const [pages, setPages] = useState<
+    Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
+  >([])
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [searchResults, setSearchResults] = useState<
+    Array<{ skill: Doc<'skills'>; version: Doc<'skillVersions'> | null; score: number }>
+  >([])
+  const [searchLimit, setSearchLimit] = useState(pageSize)
+  const [isSearching, setIsSearching] = useState(false)
+  const searchRequest = useRef(0)
 
-  const items = useQuery(api.skills.listWithLatest, { limit: 200 }) as
-    | Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
+  const trimmedQuery = useMemo(() => query.trim(), [query])
+  const hasQuery = trimmedQuery.length > 0
+
+  const listPage = useQuery(
+    api.skills.listPublicPage,
+    hasQuery ? 'skip' : { cursor: cursor ?? undefined, limit: pageSize },
+  ) as
+    | {
+        items: Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
+        nextCursor: string | null
+      }
     | undefined
-  const isLoadingSkills = items === undefined
+  const isLoadingList = !hasQuery && pages.length === 0 && listPage === undefined
 
   useEffect(() => {
     setQuery(search.q ?? '')
   }, [search.q])
 
-  const filtered = useMemo(() => {
-    const value = query.trim().toLowerCase()
-    const all = (items ?? []).filter((entry) =>
-      highlightedOnly ? entry.skill.batch === 'highlighted' : true,
-    )
-    if (!value) return all
-    return all.filter((entry) => {
-      const skill = entry.skill
-      if (skill.slug.toLowerCase().includes(value)) return true
-      if (skill.displayName.toLowerCase().includes(value)) return true
-      return (skill.summary ?? '').toLowerCase().includes(value)
-    })
-  }, [highlightedOnly, query, items])
+  useEffect(() => {
+    if (hasQuery) return
+    setPages([])
+    setCursor(null)
+    setNextCursor(null)
+  }, [hasQuery])
+
+  useEffect(() => {
+    if (hasQuery || !listPage) return
+    setNextCursor(listPage.nextCursor)
+    setPages((prev) => (cursor ? [...prev, ...listPage.items] : listPage.items))
+  }, [cursor, hasQuery, listPage])
+
+  useEffect(() => {
+    if (!hasQuery) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
+    setSearchResults([])
+    setSearchLimit(pageSize)
+  }, [hasQuery, highlightedOnly, trimmedQuery])
+
+  useEffect(() => {
+    if (!hasQuery) return
+    searchRequest.current += 1
+    const requestId = searchRequest.current
+    setIsSearching(true)
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const data = (await searchSkills({
+            query: trimmedQuery,
+            highlightedOnly,
+            limit: searchLimit,
+          })) as Array<{
+            skill: Doc<'skills'>
+            version: Doc<'skillVersions'> | null
+            score: number
+          }>
+          if (requestId === searchRequest.current) {
+            setSearchResults(data)
+          }
+        } finally {
+          if (requestId === searchRequest.current) {
+            setIsSearching(false)
+          }
+        }
+      })()
+    }, 220)
+    return () => window.clearTimeout(handle)
+  }, [hasQuery, highlightedOnly, searchLimit, searchSkills, trimmedQuery])
+
+  const baseItems = useMemo(() => {
+    if (hasQuery) {
+      return searchResults.map((entry) => ({
+        skill: entry.skill,
+        latestVersion: entry.version,
+      }))
+    }
+    return pages
+  }, [hasQuery, pages, searchResults])
+
+  const filtered = useMemo(
+    () =>
+      baseItems.filter((entry) =>
+        highlightedOnly ? entry.skill.batch === 'highlighted' : true,
+      ),
+    [baseItems, highlightedOnly],
+  )
 
   const sorted = useMemo(() => {
     const multiplier = dir === 'asc' ? 1 : -1
@@ -94,9 +173,15 @@ export function SkillsIndex() {
   }, [dir, filtered, sort])
 
   const showing = sorted.length
-  const total = items?.filter((entry) =>
-    highlightedOnly ? entry.skill.batch === 'highlighted' : true,
-  ).length
+  const isLoadingSkills = hasQuery
+    ? isSearching && searchResults.length === 0
+    : isLoadingList
+  const canLoadMore = hasQuery
+    ? !isSearching && searchResults.length === searchLimit && searchResults.length > 0
+    : nextCursor !== null
+  const isLoadingMore = hasQuery
+    ? isSearching && searchResults.length > 0
+    : listPage === undefined && pages.length > 0
 
   return (
     <main className="section">
@@ -108,7 +193,7 @@ export function SkillsIndex() {
           <p className="section-subtitle" style={{ marginBottom: 0 }}>
             {isLoadingSkills
               ? 'Loading skills…'
-              : `${showing}${typeof total === 'number' ? ` of ${total}` : ''} skills${
+              : `${showing} skill${showing === 1 ? '' : 's'}${
                   highlightedOnly ? ' (highlighted)' : ''
                 }.`}
           </p>
@@ -276,6 +361,28 @@ export function SkillsIndex() {
           })}
         </div>
       )}
+
+      {canLoadMore ? (
+        <div
+          className="card"
+          style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}
+        >
+          <button
+            className="btn"
+            type="button"
+            disabled={isLoadingMore}
+            onClick={() => {
+              if (hasQuery) {
+                setSearchLimit((value) => value + pageSize)
+              } else if (nextCursor) {
+                setCursor(nextCursor)
+              }
+            }}
+          >
+            {isLoadingMore ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      ) : null}
     </main>
   )
 }
