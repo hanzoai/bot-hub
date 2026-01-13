@@ -1,5 +1,5 @@
 /* @vitest-environment jsdom */
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SkillsIndex } from '../routes/skills/index'
@@ -36,5 +36,10 @@ describe('SkillsIndex', () => {
       cursor: undefined,
       limit: 50,
     })
+  })
+
+  it('renders an empty state when no skills are returned', () => {
+    render(<SkillsIndex />)
+    expect(screen.getByText('No skills match that filter.')).toBeTruthy()
   })
 })

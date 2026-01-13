@@ -58,6 +58,7 @@ export function SkillsIndex() {
 
   const trimmedQuery = useMemo(() => query.trim(), [query])
   const hasQuery = trimmedQuery.length > 0
+  const searchKey = trimmedQuery ? `${trimmedQuery}::${highlightedOnly ? '1' : '0'}` : ''
 
   const listPage = useQuery(
     api.skills.listPublicPage,
@@ -88,14 +89,14 @@ export function SkillsIndex() {
   }, [cursor, hasQuery, listPage])
 
   useEffect(() => {
-    if (!hasQuery) {
+    if (!searchKey) {
       setSearchResults([])
       setIsSearching(false)
       return
     }
     setSearchResults([])
     setSearchLimit(pageSize)
-  }, [hasQuery, highlightedOnly, trimmedQuery])
+  }, [searchKey])
 
   useEffect(() => {
     if (!hasQuery) return
@@ -139,9 +140,7 @@ export function SkillsIndex() {
 
   const filtered = useMemo(
     () =>
-      baseItems.filter((entry) =>
-        highlightedOnly ? entry.skill.batch === 'highlighted' : true,
-      ),
+      baseItems.filter((entry) => (highlightedOnly ? entry.skill.batch === 'highlighted' : true)),
     [baseItems, highlightedOnly],
   )
 
@@ -173,9 +172,7 @@ export function SkillsIndex() {
     return results
   }, [dir, filtered, sort])
 
-  const isLoadingSkills = hasQuery
-    ? isSearching && searchResults.length === 0
-    : isLoadingList
+  const isLoadingSkills = hasQuery ? isSearching && searchResults.length === 0 : isLoadingList
   const canLoadMore = hasQuery
     ? !isSearching && searchResults.length === searchLimit && searchResults.length > 0
     : nextCursor !== null
@@ -318,7 +315,7 @@ export function SkillsIndex() {
         <div className="card">
           <div className="loading-indicator">Loading skills…</div>
         </div>
-      ) : showing === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="card">No skills match that filter.</div>
       ) : view === 'cards' ? (
         <div className="grid">
@@ -393,7 +390,11 @@ export function SkillsIndex() {
           style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}
         >
           {canAutoLoad ? (
-            isLoadingMore ? 'Loading more…' : 'Scroll to load more'
+            isLoadingMore ? (
+              'Loading more…'
+            ) : (
+              'Scroll to load more'
+            )
           ) : (
             <button className="btn" type="button" onClick={loadMore} disabled={isLoadingMore}>
               {isLoadingMore ? 'Loading…' : 'Load more'}
