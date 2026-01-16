@@ -10,7 +10,7 @@ export function Footer() {
           <div className="site-footer-copy">
             {siteName} · A{' '}
             <a href="https://clawd.bot" target="_blank" rel="noreferrer">
-              ClawdBot
+              Clawdbot
             </a>{' '}
             project ·{' '}
             <a href="https://github.com/clawdbot/clawdhub" target="_blank" rel="noreferrer">
