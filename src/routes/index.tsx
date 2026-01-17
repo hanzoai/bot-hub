@@ -103,9 +103,16 @@ function SkillsHome() {
               <Link to="/upload" search={{ updateSlug: undefined }} className="btn btn-primary">
                 Publish a skill
               </Link>
-              <Link to="/search" search={{ q: undefined, highlighted: undefined }} className="btn">
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  setSearchMode(true)
+                  inputRef.current?.focus()
+                }}
+              >
                 Explore search
-              </Link>
+              </button>
             </div>
           </div>
           <div className="hero-card hero-search-card fade-up" data-delay="2">
