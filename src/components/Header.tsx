@@ -75,7 +75,7 @@ export default function Header() {
             Upload
           </Link>
           {isSoulMode ? null : <Link to="/import">Import</Link>}
-          <Link to="/search" search={{ q: undefined, highlighted: undefined }}>
+          <Link to="/" search={{ q: undefined, highlighted: undefined, search: true }}>
             Search
           </Link>
           {me ? <Link to="/stars">Stars</Link> : null}
@@ -124,7 +124,7 @@ export default function Header() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link to="/search" search={{ q: undefined, highlighted: undefined }}>
+                  <Link to="/" search={{ q: undefined, highlighted: undefined, search: true }}>
                     Search
                   </Link>
                 </DropdownMenuItem>
