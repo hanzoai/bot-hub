@@ -10,6 +10,7 @@
     "build": "bun --bun vite build",
     "preview": "bun --bun vite preview",
     "docs:list": "bun scripts/docs-list.ts",
+    "check:peers": "bun scripts/check-peer-deps.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vitest run -c vitest.e2e.config.ts",
@@ -23,7 +24,7 @@
     "format": "biome format --write ."
   },
   "dependencies": {
-    "@auth/core": "^0.41.1",
+    "@auth/core": "^0.37.4",
     "@convex-dev/auth": "^0.0.90",
     "@fontsource/bricolage-grotesque": "^5.2.10",
     "@fontsource/ibm-plex-mono": "^5.2.7",
