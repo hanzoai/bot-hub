@@ -11,8 +11,22 @@ import {
   parseArk,
 } from 'clawdhub-schema'
 import { unzipSync } from 'fflate'
+import { Agent, setGlobalDispatcher } from 'undici'
 import { describe, expect, it } from 'vitest'
 import { readGlobalConfig } from '../packages/clawdhub/src/config'
+
+const REQUEST_TIMEOUT_MS = 15_000
+
+try {
+  setGlobalDispatcher(
+    new Agent({
+      allowH2: true,
+      connect: { timeout: REQUEST_TIMEOUT_MS },
+    }),
+  )
+} catch {
+  // ignore dispatcher setup failures
+}
 
 function mustGetToken() {
   const fromEnv = process.env.CLAWDHUB_E2E_TOKEN?.trim()
@@ -31,6 +45,16 @@ async function makeTempConfig(registry: string, token: string | null) {
   return { dir, path }
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort('Timeout'), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 describe('clawdhub e2e', () => {
   it('prints CLI version via --cli-version', async () => {
     const result = spawnSync('bun', ['clawdhub', '--cli-version'], {
@@ -47,7 +71,9 @@ describe('clawdhub e2e', () => {
     url.searchParams.set('q', 'gif')
     url.searchParams.set('limit', '5')
 
-    const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+    const response = await fetchWithTimeout(url.toString(), {
+      headers: { Accept: 'application/json' },
+    })
     expect(response.ok).toBe(true)
     const json = (await response.json()) as unknown
     const parsed = parseArk(ApiV1SearchResponseSchema, json, 'API response')
@@ -103,7 +129,7 @@ describe('clawdhub e2e', () => {
     const cfg = await makeTempConfig(registry, token)
     try {
       const whoamiUrl = new URL(ApiRoutes.whoami, registry)
-      const whoamiRes = await fetch(whoamiUrl.toString(), {
+      const whoamiRes = await fetchWithTimeout(whoamiUrl.toString(), {
         headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       })
       expect(whoamiRes.ok).toBe(true)
@@ -310,7 +336,7 @@ describe('clawdhub e2e', () => {
       const downloadUrl = new URL(ApiRoutes.download, registry)
       downloadUrl.searchParams.set('slug', slug)
       downloadUrl.searchParams.set('version', '1.0.1')
-      const zipRes = await fetch(downloadUrl.toString())
+      const zipRes = await fetchWithTimeout(downloadUrl.toString())
       expect(zipRes.ok).toBe(true)
       const zipBytes = new Uint8Array(await zipRes.arrayBuffer())
       const unzipped = unzipSync(zipBytes)
@@ -374,7 +400,8 @@ describe('clawdhub e2e', () => {
       )
       expect(update.status).toBe(0)
 
-      const metaRes = await fetch(`${registry}${ApiRoutes.skills}/${slug}`, {
+      const metaUrl = new URL(`${ApiRoutes.skills}/${slug}`, registry)
+      const metaRes = await fetchWithTimeout(metaUrl.toString(), {
         headers: { Accept: 'application/json' },
       })
       expect(metaRes.status).toBe(200)
@@ -401,12 +428,12 @@ describe('clawdhub e2e', () => {
       )
       expect(del.status).toBe(0)
 
-      const metaAfterDelete = await fetch(metaUrl.toString(), {
+      const metaAfterDelete = await fetchWithTimeout(metaUrl.toString(), {
         headers: { Accept: 'application/json' },
       })
       expect(metaAfterDelete.status).toBe(404)
 
-      const downloadAfterDelete = await fetch(downloadUrl.toString())
+      const downloadAfterDelete = await fetchWithTimeout(downloadUrl.toString())
       expect(downloadAfterDelete.status).toBe(404)
 
       const undelete = spawnSync(
@@ -431,7 +458,7 @@ describe('clawdhub e2e', () => {
       )
       expect(undelete.status).toBe(0)
 
-      const metaAfterUndelete = await fetch(metaUrl.toString(), {
+      const metaAfterUndelete = await fetchWithTimeout(metaUrl.toString(), {
         headers: { Accept: 'application/json' },
       })
       expect(metaAfterUndelete.status).toBe(200)

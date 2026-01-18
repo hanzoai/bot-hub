@@ -13,6 +13,11 @@ type HydratedEntry = {
 
 type SearchResult = HydratedEntry & { score: number }
 
+function getNextCandidateLimit(current: number, max: number) {
+  const next = Math.min(current * 2, max)
+  return next > current ? next : null
+}
+
 export const searchSkills: ReturnType<typeof action> = action({
   args: {
     query: v.string(),
@@ -63,7 +68,9 @@ export const searchSkills: ReturnType<typeof action> = action({
         break
       }
 
-      candidateLimit = Math.min(candidateLimit * 2, maxCandidate)
+      const nextLimit = getNextCandidateLimit(candidateLimit, maxCandidate)
+      if (!nextLimit) break
+      candidateLimit = nextLimit
     }
 
     return exactMatches
@@ -147,7 +154,9 @@ export const searchSouls: ReturnType<typeof action> = action({
         break
       }
 
-      candidateLimit = Math.min(candidateLimit * 2, maxCandidate)
+      const nextLimit = getNextCandidateLimit(candidateLimit, maxCandidate)
+      if (!nextLimit) break
+      candidateLimit = nextLimit
     }
 
     return exactMatches
@@ -177,3 +186,5 @@ export const hydrateSoulResults = internalQuery({
     return entries
   },
 })
+
+export const __test = { getNextCandidateLimit }
