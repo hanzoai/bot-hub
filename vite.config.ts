@@ -19,7 +19,24 @@ const plexMonoPath = require.resolve(
   '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2',
 )
 
+const convexReactPath = require.resolve('convex/dist/esm/react/index.js')
+const convexBrowserPath = require.resolve('convex/dist/esm/browser/index.js')
+const convexValuesPath = require.resolve('convex/dist/esm/values/index.js')
+const convexAuthReactPath = require.resolve('@convex-dev/auth/dist/react/index.js')
+
 const config = defineConfig({
+  resolve: {
+    dedupe: ['convex', '@convex-dev/auth', 'react', 'react-dom'],
+    alias: {
+      'convex/react': convexReactPath,
+      'convex/browser': convexBrowserPath,
+      'convex/values': convexValuesPath,
+      '@convex-dev/auth/react': convexAuthReactPath,
+    },
+  },
+  optimizeDeps: {
+    include: ['convex/dist/esm/react/index.js', 'convex/dist/esm/browser/index.js'],
+  },
   plugins: [
     devtools(),
     nitro({
