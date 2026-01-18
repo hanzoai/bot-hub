@@ -3,6 +3,7 @@ import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { action, internalQuery } from './_generated/server'
 import { generateEmbedding } from './lib/embeddings'
+import { matchesExactTokens, tokenize } from './lib/searchText'
 
 type HydratedEntry = {
   embeddingId: Id<'skillEmbeddings'>
@@ -21,31 +22,57 @@ export const searchSkills: ReturnType<typeof action> = action({
   handler: async (ctx, args): Promise<SearchResult[]> => {
     const query = args.query.trim()
     if (!query) return []
+    const queryTokens = tokenize(query)
+    if (queryTokens.length === 0) return []
     const vector = await generateEmbedding(query)
-    const results = await ctx.vectorSearch('skillEmbeddings', 'by_embedding', {
-      vector,
-      limit: args.limit ?? 10,
-      filter: (q) => q.or(q.eq('visibility', 'latest'), q.eq('visibility', 'latest-approved')),
-    })
+    const limit = args.limit ?? 10
+    const maxCandidate = Math.min(Math.max(limit * 10, 200), 1000)
+    let candidateLimit = Math.max(limit * 3, 50)
+    let hydrated: HydratedEntry[] = []
+    let scoreById = new Map<Id<'skillEmbeddings'>, number>()
+    let exactMatches: HydratedEntry[] = []
 
-    const hydrated = (await ctx.runQuery(internal.search.hydrateResults, {
-      embeddingIds: results.map((result) => result._id),
-    })) as HydratedEntry[]
+    while (candidateLimit <= maxCandidate) {
+      const results = await ctx.vectorSearch('skillEmbeddings', 'by_embedding', {
+        vector,
+        limit: candidateLimit,
+        filter: (q) => q.or(q.eq('visibility', 'latest'), q.eq('visibility', 'latest-approved')),
+      })
 
-    const scoreById = new Map<Id<'skillEmbeddings'>, number>(
-      results.map((result) => [result._id, result._score]),
-    )
+      hydrated = (await ctx.runQuery(internal.search.hydrateResults, {
+        embeddingIds: results.map((result) => result._id),
+      })) as HydratedEntry[]
 
-    const filtered = args.highlightedOnly
-      ? hydrated.filter((entry) => entry.skill?.batch === 'highlighted')
-      : hydrated
+      scoreById = new Map<Id<'skillEmbeddings'>, number>(
+        results.map((result) => [result._id, result._score]),
+      )
 
-    return filtered
+      const filtered = args.highlightedOnly
+        ? hydrated.filter((entry) => entry.skill?.batch === 'highlighted')
+        : hydrated
+
+      exactMatches = filtered.filter((entry) =>
+        matchesExactTokens(queryTokens, [
+          entry.skill?.displayName,
+          entry.skill?.slug,
+          entry.skill?.summary,
+        ]),
+      )
+
+      if (exactMatches.length >= limit || results.length < candidateLimit) {
+        break
+      }
+
+      candidateLimit = Math.min(candidateLimit * 2, maxCandidate)
+    }
+
+    return exactMatches
       .map((entry) => ({
         ...entry,
         score: scoreById.get(entry.embeddingId) ?? 0,
       }))
       .filter((entry) => entry.skill)
+      .slice(0, limit)
   },
 })
 
@@ -83,27 +110,53 @@ export const searchSouls: ReturnType<typeof action> = action({
   handler: async (ctx, args): Promise<SoulSearchResult[]> => {
     const query = args.query.trim()
     if (!query) return []
+    const queryTokens = tokenize(query)
+    if (queryTokens.length === 0) return []
     const vector = await generateEmbedding(query)
-    const results = await ctx.vectorSearch('soulEmbeddings', 'by_embedding', {
-      vector,
-      limit: args.limit ?? 10,
-      filter: (q) => q.or(q.eq('visibility', 'latest'), q.eq('visibility', 'latest-approved')),
-    })
+    const limit = args.limit ?? 10
+    const maxCandidate = Math.min(Math.max(limit * 10, 200), 1000)
+    let candidateLimit = Math.max(limit * 3, 50)
+    let hydrated: HydratedSoulEntry[] = []
+    let scoreById = new Map<Id<'soulEmbeddings'>, number>()
+    let exactMatches: HydratedSoulEntry[] = []
 
-    const hydrated = (await ctx.runQuery(internal.search.hydrateSoulResults, {
-      embeddingIds: results.map((result) => result._id),
-    })) as HydratedSoulEntry[]
+    while (candidateLimit <= maxCandidate) {
+      const results = await ctx.vectorSearch('soulEmbeddings', 'by_embedding', {
+        vector,
+        limit: candidateLimit,
+        filter: (q) => q.or(q.eq('visibility', 'latest'), q.eq('visibility', 'latest-approved')),
+      })
 
-    const scoreById = new Map<Id<'soulEmbeddings'>, number>(
-      results.map((result) => [result._id, result._score]),
-    )
+      hydrated = (await ctx.runQuery(internal.search.hydrateSoulResults, {
+        embeddingIds: results.map((result) => result._id),
+      })) as HydratedSoulEntry[]
 
-    return hydrated
+      scoreById = new Map<Id<'soulEmbeddings'>, number>(
+        results.map((result) => [result._id, result._score]),
+      )
+
+      exactMatches = hydrated.filter((entry) =>
+        matchesExactTokens(queryTokens, [
+          entry.soul?.displayName,
+          entry.soul?.slug,
+          entry.soul?.summary,
+        ]),
+      )
+
+      if (exactMatches.length >= limit || results.length < candidateLimit) {
+        break
+      }
+
+      candidateLimit = Math.min(candidateLimit * 2, maxCandidate)
+    }
+
+    return exactMatches
       .map((entry) => ({
         ...entry,
         score: scoreById.get(entry.embeddingId) ?? 0,
       }))
       .filter((entry) => entry.soul)
+      .slice(0, limit)
   },
 })
 
