@@ -63,6 +63,12 @@ function SkillsHome() {
   }, [highlightedOnly, navigate, searchMode, trimmedQuery])
 
   useEffect(() => {
+    if (searchMode && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [searchMode])
+
+  useEffect(() => {
     if (!trimmedQuery) {
       setResults([])
       setIsSearching(false)
@@ -310,6 +316,12 @@ function OnlyCrabsHome() {
       replace: true,
     })
   }, [navigate, searchMode, trimmedQuery])
+
+  useEffect(() => {
+    if (searchMode && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [searchMode])
 
   useEffect(() => {
     if (!trimmedQuery) {
