@@ -11,8 +11,14 @@ import { getSiteMode } from '../lib/site'
 export const Route = createFileRoute('/')({
   validateSearch: (search) => ({
     q: typeof search.q === 'string' && search.q.trim() ? search.q : undefined,
-    highlighted: search.highlighted === '1' || search.highlighted === 'true' || search.highlighted === true ? true : undefined,
-    search: search.search === '1' || search.search === 'true' || search.search === true ? true : undefined,
+    highlighted:
+      search.highlighted === '1' || search.highlighted === 'true' || search.highlighted === true
+        ? true
+        : undefined,
+    search:
+      search.search === '1' || search.search === 'true' || search.search === true
+        ? true
+        : undefined,
   }),
   component: Home,
 })
@@ -35,7 +41,9 @@ function SkillsHome() {
     Array<{ skill: Doc<'skills'>; version: Doc<'skillVersions'> | null; score: number }>
   >([])
   const [isSearching, setIsSearching] = useState(false)
-  const [searchMode, setSearchMode] = useState(Boolean(search.q || search.highlighted || search.search))
+  const [searchMode, setSearchMode] = useState(
+    Boolean(search.q || search.highlighted || search.search),
+  )
   const searchRequest = useRef(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const trimmedQuery = useMemo(() => query.trim(), [query])

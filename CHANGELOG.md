@@ -5,6 +5,9 @@
 ### Added
 - CLI: add `explore` command for latest updates, with limit clamping + tests/docs (thanks @jdrhyne, #14).
 
+### Fixed
+- Web: keep search mode navigation and state in sync (thanks @NACC96, #12).
+
 ## 0.2.0 - 2026-01-13
 
 ### Added
