@@ -115,8 +115,8 @@ export interface FileRoutesByFullPath {
   '/skills/$slug': typeof SkillsSlugRoute
   '/souls/$slug': typeof SoulsSlugRoute
   '/u/$handle': typeof UHandleRoute
-  '/skills': typeof SkillsIndexRoute
-  '/souls': typeof SoulsIndexRoute
+  '/skills/': typeof SkillsIndexRoute
+  '/souls/': typeof SoulsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -169,8 +169,8 @@ export interface FileRouteTypes {
     | '/skills/$slug'
     | '/souls/$slug'
     | '/u/$handle'
-    | '/skills'
-    | '/souls'
+    | '/skills/'
+    | '/souls/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -286,14 +286,14 @@ declare module '@tanstack/react-router' {
     '/souls/': {
       id: '/souls/'
       path: '/souls'
-      fullPath: '/souls'
+      fullPath: '/souls/'
       preLoaderRoute: typeof SoulsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/skills/': {
       id: '/skills/'
       path: '/skills'
-      fullPath: '/skills'
+      fullPath: '/skills/'
       preLoaderRoute: typeof SkillsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
