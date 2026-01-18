@@ -1,17 +1,17 @@
-import { useAction, useConvexAuth, useMutation, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../../convex/_generated/api'
 import type { Doc } from '../../convex/_generated/dataModel'
+import { useAuthStatus } from '../lib/useAuthStatus'
 
 type SoulDetailPageProps = {
   slug: string
 }
 
 export function SoulDetailPage({ slug }: SoulDetailPageProps) {
-  const { isAuthenticated } = useConvexAuth()
-  const me = useQuery(api.users.me)
+  const { isAuthenticated, me } = useAuthStatus()
   const result = useQuery(api.souls.getBySlug, { slug })
   const toggleStar = useMutation(api.soulStars.toggle)
   const addComment = useMutation(api.soulComments.add)

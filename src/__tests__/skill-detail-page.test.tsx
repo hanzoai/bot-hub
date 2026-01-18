@@ -4,6 +4,7 @@ import { vi } from 'vitest'
 import { SkillDetailPage } from '../components/SkillDetailPage'
 
 const navigateMock = vi.fn()
+const useAuthStatusMock = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
@@ -13,10 +14,13 @@ const useQueryMock = vi.fn()
 const getReadmeMock = vi.fn()
 
 vi.mock('convex/react', () => ({
-  useConvexAuth: () => ({ isAuthenticated: false }),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
   useMutation: () => vi.fn(),
   useAction: () => getReadmeMock,
+}))
+
+vi.mock('../lib/useAuthStatus', () => ({
+  useAuthStatus: () => useAuthStatusMock(),
 }))
 
 describe('SkillDetailPage', () => {
@@ -24,7 +28,13 @@ describe('SkillDetailPage', () => {
     useQueryMock.mockReset()
     getReadmeMock.mockReset()
     navigateMock.mockReset()
+    useAuthStatusMock.mockReset()
     getReadmeMock.mockResolvedValue({ text: '' })
+    useAuthStatusMock.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      me: null,
+    })
     useQueryMock.mockImplementation((_fn: unknown, args: unknown) => {
       if (args === 'skip') return undefined
       return undefined
@@ -33,7 +43,6 @@ describe('SkillDetailPage', () => {
 
   it('shows a loading indicator while loading', () => {
     useQueryMock
-      .mockImplementationOnce(() => null) // me
       .mockImplementationOnce(() => undefined) // getBySlug
 
     render(<SkillDetailPage slug="weather" />)
@@ -43,7 +52,6 @@ describe('SkillDetailPage', () => {
 
   it('shows not found when skill query resolves to null', async () => {
     useQueryMock
-      .mockImplementationOnce(() => null) // me
       .mockImplementationOnce(() => null) // getBySlug
 
     render(<SkillDetailPage slug="missing-skill" />)
@@ -52,7 +60,6 @@ describe('SkillDetailPage', () => {
 
   it('redirects legacy routes to canonical owner/slug', async () => {
     useQueryMock
-      .mockImplementationOnce(() => null) // me
       .mockImplementationOnce(() => ({
         skill: {
           _id: 'skills:1',

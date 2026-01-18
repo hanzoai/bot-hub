@@ -15,16 +15,20 @@ const publishVersion = vi.fn()
 const generateChangelogPreview = vi.fn()
 const fetchMock = vi.fn()
 const useQueryMock = vi.fn()
+const useAuthStatusMock = vi.fn()
 let useActionCallCount = 0
 
 vi.mock('convex/react', () => ({
-  useConvexAuth: () => ({ isAuthenticated: true }),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
   useMutation: () => generateUploadUrl,
   useAction: () => {
     useActionCallCount += 1
     return useActionCallCount % 2 === 1 ? publishVersion : generateChangelogPreview
   },
+}))
+
+vi.mock('../lib/useAuthStatus', () => ({
+  useAuthStatus: () => useAuthStatusMock(),
 }))
 
 describe('Upload route', () => {
@@ -34,7 +38,13 @@ describe('Upload route', () => {
     generateChangelogPreview.mockReset()
     fetchMock.mockReset()
     useQueryMock.mockReset()
+    useAuthStatusMock.mockReset()
     useActionCallCount = 0
+    useAuthStatusMock.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+      me: { _id: 'users:1' },
+    })
     useQueryMock.mockImplementation((_fn: unknown, args: unknown) => {
       if (args === 'skip') return undefined
       return null

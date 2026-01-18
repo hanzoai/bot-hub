@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useAction, useConvexAuth } from 'convex/react'
+import { useAction } from 'convex/react'
 import { useMemo, useState } from 'react'
 import { api } from '../../convex/_generated/api'
+import { useAuthStatus } from '../lib/useAuthStatus'
 import { formatBytes } from '../lib/uploadUtils'
 
 export const Route = createFileRoute('/import')({
@@ -37,7 +38,7 @@ type CandidatePreview = {
 }
 
 function ImportGitHub() {
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isAuthenticated, isLoading } = useAuthStatus()
   const previewImport = useAction(api.githubImport.previewGitHubImport)
   const previewCandidate = useAction(api.githubImport.previewGitHubImportCandidate)
   const importSkill = useAction(api.githubImport.importGitHubSkill)

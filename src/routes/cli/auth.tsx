@@ -1,17 +1,17 @@
 import { useAuthActions } from '@convex-dev/auth/react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useConvexAuth, useMutation, useQuery } from 'convex/react'
+import { useMutation } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
+import { useAuthStatus } from '../../lib/useAuthStatus'
 
 export const Route = createFileRoute('/cli/auth')({
   component: CliAuth,
 })
 
 function CliAuth() {
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isAuthenticated, isLoading, me } = useAuthStatus()
   const { signIn } = useAuthActions()
-  const me = useQuery(api.users.me)
   const createToken = useMutation(api.tokens.create)
 
   const search = Route.useSearch() as {

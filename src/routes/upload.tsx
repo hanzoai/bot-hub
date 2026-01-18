@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useAction, useConvexAuth, useMutation, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import semver from 'semver'
 import { api } from '../../convex/_generated/api'
 import { getSiteMode } from '../lib/site'
+import { useAuthStatus } from '../lib/useAuthStatus'
 import { expandFiles } from '../lib/uploadFiles'
 import {
   formatBytes,
@@ -24,7 +25,7 @@ export const Route = createFileRoute('/upload')({
 })
 
 export function Upload() {
-  const { isAuthenticated } = useConvexAuth()
+  const { isAuthenticated } = useAuthStatus()
   const { updateSlug } = useSearch({ from: '/upload' })
   const siteMode = getSiteMode()
   const isSoulMode = siteMode === 'souls'

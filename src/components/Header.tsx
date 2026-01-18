@@ -1,13 +1,12 @@
 import { useAuthActions } from '@convex-dev/auth/react'
 import { Link } from '@tanstack/react-router'
-import { useConvexAuth, useQuery } from 'convex/react'
 import { Menu, Monitor, Moon, Sun } from 'lucide-react'
 import { useMemo, useRef } from 'react'
-import { api } from '../../convex/_generated/api'
 import { gravatarUrl } from '../lib/gravatar'
 import { getClawdHubSiteUrl, getSiteMode, getSiteName } from '../lib/site'
 import { applyTheme, useThemeMode } from '../lib/theme'
 import { startThemeTransition } from '../lib/theme-transition'
+import { useAuthStatus } from '../lib/useAuthStatus'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +17,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 export default function Header() {
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isAuthenticated, isLoading, me } = useAuthStatus()
   const { signIn, signOut } = useAuthActions()
-  const me = useQuery(api.users.me)
   const { mode, setMode } = useThemeMode()
   const toggleRef = useRef<HTMLDivElement | null>(null)
   const siteMode = getSiteMode()
