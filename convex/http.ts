@@ -26,6 +26,8 @@ import {
   soulsDeleteRouterV1Http,
   soulsGetRouterV1Http,
   soulsPostRouterV1Http,
+  starsDeleteRouterV1Http,
+  starsPostRouterV1Http,
   whoamiV1Http,
 } from './httpApiV1'
 
@@ -79,6 +81,18 @@ http.route({
   pathPrefix: `${ApiRoutes.skills}/`,
   method: 'DELETE',
   handler: skillsDeleteRouterV1Http,
+})
+
+http.route({
+  pathPrefix: `${ApiRoutes.stars}/`,
+  method: 'POST',
+  handler: starsPostRouterV1Http,
+})
+
+http.route({
+  pathPrefix: `${ApiRoutes.stars}/`,
+  method: 'DELETE',
+  handler: starsDeleteRouterV1Http,
 })
 
 http.route({

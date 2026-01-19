@@ -1047,6 +1047,56 @@ async function soulsDeleteRouterV1Handler(ctx: ActionCtx, request: Request) {
 }
 
 export const soulsDeleteRouterV1Http = httpAction(soulsDeleteRouterV1Handler)
+
+async function starsPostRouterV1Handler(ctx: ActionCtx, request: Request) {
+  const rate = await applyRateLimit(ctx, request, 'write')
+  if (!rate.ok) return rate.response
+
+  const segments = getPathSegments(request, '/api/v1/stars/')
+  if (segments.length !== 1) return text('Not found', 404, rate.headers)
+  const slug = segments[0]?.trim().toLowerCase() ?? ''
+
+  try {
+    const { userId } = await requireApiTokenUser(ctx, request)
+    const skill = await ctx.runQuery(internal.skills.getSkillBySlugInternal, { slug })
+    if (!skill) return text('Skill not found', 404, rate.headers)
+
+    const result = await ctx.runMutation(internal.stars.addStarInternal, {
+      userId,
+      skillId: skill._id,
+    })
+    return json(result, 200, rate.headers)
+  } catch {
+    return text('Unauthorized', 401, rate.headers)
+  }
+}
+
+export const starsPostRouterV1Http = httpAction(starsPostRouterV1Handler)
+
+async function starsDeleteRouterV1Handler(ctx: ActionCtx, request: Request) {
+  const rate = await applyRateLimit(ctx, request, 'write')
+  if (!rate.ok) return rate.response
+
+  const segments = getPathSegments(request, '/api/v1/stars/')
+  if (segments.length !== 1) return text('Not found', 404, rate.headers)
+  const slug = segments[0]?.trim().toLowerCase() ?? ''
+
+  try {
+    const { userId } = await requireApiTokenUser(ctx, request)
+    const skill = await ctx.runQuery(internal.skills.getSkillBySlugInternal, { slug })
+    if (!skill) return text('Skill not found', 404, rate.headers)
+
+    const result = await ctx.runMutation(internal.stars.removeStarInternal, {
+      userId,
+      skillId: skill._id,
+    })
+    return json(result, 200, rate.headers)
+  } catch {
+    return text('Unauthorized', 401, rate.headers)
+  }
+}
+
+export const starsDeleteRouterV1Http = httpAction(starsDeleteRouterV1Handler)
 export const __handlers = {
   searchSkillsV1Handler,
   resolveSkillVersionV1Handler,
@@ -1060,5 +1110,7 @@ export const __handlers = {
   publishSoulV1Handler,
   soulsPostRouterV1Handler,
   soulsDeleteRouterV1Handler,
+  starsPostRouterV1Handler,
+  starsDeleteRouterV1Handler,
   whoamiV1Handler,
 }

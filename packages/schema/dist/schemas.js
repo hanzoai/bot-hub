@@ -192,6 +192,16 @@ export const ApiV1PublishResponseSchema = type({
 export const ApiV1DeleteResponseSchema = type({
     ok: 'true',
 });
+export const ApiV1StarResponseSchema = type({
+    ok: 'true',
+    starred: 'boolean',
+    alreadyStarred: 'boolean',
+});
+export const ApiV1UnstarResponseSchema = type({
+    ok: 'true',
+    unstarred: 'boolean',
+    alreadyUnstarred: 'boolean',
+});
 export const SkillInstallSpecSchema = type({
     id: 'string?',
     kind: '"brew"|"node"|"go"|"uv"',

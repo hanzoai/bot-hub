@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import type { Doc } from './_generated/dataModel'
-import { mutation, query } from './_generated/server'
+import { internalMutation, mutation, query } from './_generated/server'
 import { requireUser } from './lib/access'
 
 export const isStarred = query({
@@ -66,5 +66,52 @@ export const listByUser = query({
       if (skill) skills.push(skill)
     }
     return skills
+  },
+})
+
+export const addStarInternal = internalMutation({
+  args: { userId: v.id('users'), skillId: v.id('skills') },
+  handler: async (ctx, args) => {
+    const skill = await ctx.db.get(args.skillId)
+    if (!skill) throw new Error('Skill not found')
+    const existing = await ctx.db
+      .query('stars')
+      .withIndex('by_skill_user', (q) => q.eq('skillId', args.skillId).eq('userId', args.userId))
+      .unique()
+    if (existing) return { ok: true as const, starred: true, alreadyStarred: true }
+
+    await ctx.db.insert('stars', {
+      skillId: args.skillId,
+      userId: args.userId,
+      createdAt: Date.now(),
+    })
+
+    await ctx.db.patch(skill._id, {
+      stats: { ...skill.stats, stars: skill.stats.stars + 1 },
+      updatedAt: Date.now(),
+    })
+
+    return { ok: true as const, starred: true, alreadyStarred: false }
+  },
+})
+
+export const removeStarInternal = internalMutation({
+  args: { userId: v.id('users'), skillId: v.id('skills') },
+  handler: async (ctx, args) => {
+    const skill = await ctx.db.get(args.skillId)
+    if (!skill) throw new Error('Skill not found')
+    const existing = await ctx.db
+      .query('stars')
+      .withIndex('by_skill_user', (q) => q.eq('skillId', args.skillId).eq('userId', args.userId))
+      .unique()
+    if (!existing) return { ok: true as const, unstarred: false, alreadyUnstarred: true }
+
+    await ctx.db.delete(existing._id)
+    await ctx.db.patch(skill._id, {
+      stats: { ...skill.stats, stars: Math.max(0, skill.stats.stars - 1) },
+      updatedAt: Date.now(),
+    })
+
+    return { ok: true as const, unstarred: true, alreadyUnstarred: false }
   },
 })

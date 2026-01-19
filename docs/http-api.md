@@ -140,6 +140,20 @@ Publishes a new version.
 
 Soft-delete / restore a skill (owner/admin only).
 
+### `POST /api/v1/stars/{slug}` / `DELETE /api/v1/stars/{slug}`
+
+Add/remove a star (highlights). Both endpoints are idempotent.
+
+Responses:
+
+```json
+{ "ok": true, "starred": true, "alreadyStarred": false }
+```
+
+```json
+{ "ok": true, "unstarred": true, "alreadyUnstarred": false }
+```
+
 ## Legacy CLI endpoints (deprecated)
 
 Still supported for older CLI versions:

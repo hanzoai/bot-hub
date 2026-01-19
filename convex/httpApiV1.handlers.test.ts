@@ -498,4 +498,62 @@ describe('httpApiV1 handlers', () => {
     )
     expect(response2.status).toBe(200)
   })
+
+  it('stars require auth', async () => {
+    vi.mocked(requireApiTokenUser).mockRejectedValueOnce(new Error('Unauthorized'))
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const response = await __handlers.starsPostRouterV1Handler(
+      makeCtx({ runMutation }),
+      new Request('https://example.com/api/v1/stars/demo', { method: 'POST' }),
+    )
+    expect(response.status).toBe(401)
+  })
+
+  it('stars add succeeds', async () => {
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runQuery = vi.fn().mockResolvedValue({ _id: 'skills:1' })
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce({ ok: true, starred: true, alreadyStarred: false })
+    const response = await __handlers.starsPostRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/stars/demo', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer clh_test' },
+      }),
+    )
+    expect(response.status).toBe(200)
+    const json = await response.json()
+    expect(json.ok).toBe(true)
+    expect(json.starred).toBe(true)
+  })
+
+  it('stars delete succeeds', async () => {
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runQuery = vi.fn().mockResolvedValue({ _id: 'skills:1' })
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce({ ok: true, unstarred: true, alreadyUnstarred: false })
+    const response = await __handlers.starsDeleteRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/stars/demo', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer clh_test' },
+      }),
+    )
+    expect(response.status).toBe(200)
+    const json = await response.json()
+    expect(json.ok).toBe(true)
+    expect(json.unstarred).toBe(true)
+  })
 })

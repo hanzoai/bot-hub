@@ -1002,6 +1002,13 @@ code {
   margin-top: auto;
 }
 
+.skill-card-footer-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .hero-install {
   display: grid;
   gap: 10px;

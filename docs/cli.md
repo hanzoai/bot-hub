@@ -47,6 +47,12 @@ Stores your API token + cached registry URL.
 
 - Verifies the stored token via `/api/v1/whoami`.
 
+### `star <slug>` / `unstar <slug>`
+
+- Adds/removes a skill from your highlights.
+- Calls `POST /api/v1/stars/<slug>` and `DELETE /api/v1/stars/<slug>`.
+- `--yes` skips confirmation.
+
 ### `search <query...>`
 
 - Calls `/api/v1/search?q=...`.

@@ -221,6 +221,16 @@ export declare const ApiV1PublishResponseSchema: import("arktype/internal/varian
 export declare const ApiV1DeleteResponseSchema: import("arktype/internal/variants/object.ts").ObjectType<{
     ok: true;
 }, {}>;
+export declare const ApiV1StarResponseSchema: import("arktype/internal/variants/object.ts").ObjectType<{
+    ok: true;
+    starred: boolean;
+    alreadyStarred: boolean;
+}, {}>;
+export declare const ApiV1UnstarResponseSchema: import("arktype/internal/variants/object.ts").ObjectType<{
+    ok: true;
+    unstarred: boolean;
+    alreadyUnstarred: boolean;
+}, {}>;
 export declare const SkillInstallSpecSchema: import("arktype/internal/variants/object.ts").ObjectType<{
     kind: "brew" | "node" | "go" | "uv";
     id?: string | undefined;
