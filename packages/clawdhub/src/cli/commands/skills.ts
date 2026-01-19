@@ -242,13 +242,27 @@ export async function cmdList(opts: GlobalOpts) {
   }
 }
 
-export async function cmdExplore(opts: GlobalOpts, limit = 25) {
+type ExploreSort = 'newest' | 'downloads' | 'rating' | 'installs' | 'installsAllTime' | 'trending'
+type ApiExploreSort =
+  | 'updated'
+  | 'downloads'
+  | 'stars'
+  | 'installsCurrent'
+  | 'installsAllTime'
+  | 'trending'
+
+export async function cmdExplore(
+  opts: GlobalOpts,
+  options: { limit?: number; sort?: string; json?: boolean } = {},
+) {
   const registry = await getRegistry(opts, { cache: true })
   const spinner = createSpinner('Fetching latest skills')
   try {
     const url = new URL(ApiRoutes.skills, registry)
-    const boundedLimit = clampLimit(limit)
+    const boundedLimit = clampLimit(options.limit ?? 25)
+    const { apiSort } = resolveExploreSort(options.sort)
     url.searchParams.set('limit', String(boundedLimit))
+    if (apiSort !== 'updated') url.searchParams.set('sort', apiSort)
     const result = await apiRequest(
       registry,
       { method: 'GET', url: url.toString() },
@@ -256,6 +270,10 @@ export async function cmdExplore(opts: GlobalOpts, limit = 25) {
     )
 
     spinner.stop()
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2))
+      return
+    }
     if (result.items.length === 0) {
       console.log('No skills found.')
       return
@@ -284,7 +302,7 @@ export function formatExploreLine(item: {
 
 export function clampLimit(limit: number, fallback = 25) {
   if (!Number.isFinite(limit)) return fallback
-  return Math.min(Math.max(1, limit), 50)
+  return Math.min(Math.max(1, limit), 200)
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -308,6 +326,37 @@ function formatRelativeTime(timestamp: number): string {
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str
   return `${str.slice(0, maxLen - 1)}…`
+}
+
+function resolveExploreSort(raw?: string): { sort: ExploreSort; apiSort: ApiExploreSort } {
+  const normalized = raw?.trim().toLowerCase()
+  if (!normalized || normalized === 'newest' || normalized === 'updated') {
+    return { sort: 'newest', apiSort: 'updated' }
+  }
+  if (normalized === 'downloads' || normalized === 'download') {
+    return { sort: 'downloads', apiSort: 'downloads' }
+  }
+  if (normalized === 'rating' || normalized === 'stars' || normalized === 'star') {
+    return { sort: 'rating', apiSort: 'stars' }
+  }
+  if (
+    normalized === 'installs' ||
+    normalized === 'install' ||
+    normalized === 'installscurrent' ||
+    normalized === 'installs-current' ||
+    normalized === 'current'
+  ) {
+    return { sort: 'installs', apiSort: 'installsCurrent' }
+  }
+  if (normalized === 'installsalltime' || normalized === 'installs-all-time') {
+    return { sort: 'installsAllTime', apiSort: 'installsAllTime' }
+  }
+  if (normalized === 'trending') {
+    return { sort: 'trending', apiSort: 'trending' }
+  }
+  fail(
+    `Invalid sort "${raw}". Use newest, downloads, rating, installs, installsAllTime, or trending.`,
+  )
 }
 
 async function resolveSkillVersion(registry: string, slug: string, hash: string) {

@@ -190,15 +190,21 @@ program
   .description('Browse latest updated skills from the registry')
   .option(
     '--limit <n>',
-    'Number of skills to show (max 50)',
+    'Number of skills to show (max 200)',
     (value) => Number.parseInt(value, 10),
     25,
   )
+  .option(
+    '--sort <order>',
+    'Sort by newest, downloads, rating, installs, installsAllTime, or trending',
+    'newest',
+  )
+  .option('--json', 'Output JSON')
   .action(async (options) => {
     const opts = await resolveGlobalOpts()
     const limit =
       typeof options.limit === 'number' && Number.isFinite(options.limit) ? options.limit : 25
-    await cmdExplore(opts, limit)
+    await cmdExplore(opts, { limit, sort: options.sort, json: options.json })
   })
 
 program

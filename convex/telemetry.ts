@@ -4,6 +4,7 @@ import type { Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { internalMutation, mutation, query } from './_generated/server'
 import { requireUser } from './lib/access'
+import { applySkillStatDeltas, bumpDailySkillStats } from './lib/skillStats'
 
 const TELEMETRY_STALE_MS = 120 * 24 * 60 * 60 * 1000
 
@@ -157,23 +158,12 @@ async function clearTelemetryForUser(ctx: MutationCtx, params: { userId: Id<'use
       await ctx.db.delete(entry._id)
       continue
     }
-    const stats = skill.stats as {
-      downloads: number
-      installsCurrent?: number
-      installsAllTime?: number
-      stars: number
-      versions: number
-      comments: number
-    }
+    const patch = applySkillStatDeltas(skill, {
+      installsCurrent: entry.activeRoots > 0 ? -1 : 0,
+      installsAllTime: -1,
+    })
     await ctx.db.patch(skill._id, {
-      stats: {
-        ...stats,
-        installsCurrent: Math.max(
-          0,
-          (stats.installsCurrent ?? 0) - (entry.activeRoots > 0 ? 1 : 0),
-        ),
-        installsAllTime: Math.max(0, (stats.installsAllTime ?? 0) - 1),
-      },
+      ...patch,
       updatedAt: Date.now(),
     })
     await ctx.db.delete(entry._id)
@@ -383,23 +373,24 @@ async function bumpSkillInstallCounts(
 ) {
   const skill = await ctx.db.get(params.skillId)
   if (!skill) return
-  const stats = skill.stats as {
-    downloads: number
-    installsCurrent?: number
-    installsAllTime?: number
-    stars: number
-    versions: number
-    comments: number
-  }
+  const now = Date.now()
+  const patch = applySkillStatDeltas(skill, {
+    installsAllTime: params.deltaAllTime,
+    installsCurrent: params.deltaCurrent,
+  })
 
   await ctx.db.patch(skill._id, {
-    stats: {
-      ...stats,
-      installsAllTime: Math.max(0, (stats.installsAllTime ?? 0) + params.deltaAllTime),
-      installsCurrent: Math.max(0, (stats.installsCurrent ?? 0) + params.deltaCurrent),
-    },
-    updatedAt: Date.now(),
+    ...patch,
+    updatedAt: now,
   })
+
+  if (params.deltaAllTime > 0) {
+    await bumpDailySkillStats(ctx, {
+      skillId: params.skillId,
+      now,
+      installs: params.deltaAllTime,
+    })
+  }
 }
 
 async function expireStaleRoots(

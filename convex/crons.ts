@@ -10,4 +10,18 @@ crons.interval(
   { batchSize: 50, maxBatches: 5 },
 )
 
+crons.interval(
+  'trending-leaderboard',
+  { minutes: 60 },
+  internal.leaderboards.rebuildTrendingLeaderboardInternal,
+  { limit: 200 },
+)
+
+crons.interval(
+  'skill-stats-backfill',
+  { minutes: 10 },
+  internal.statsMaintenance.runSkillStatBackfillInternal,
+  { batchSize: 200, maxBatches: 5 },
+)
+
 export default crons

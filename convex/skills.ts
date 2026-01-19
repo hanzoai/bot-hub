@@ -1,10 +1,11 @@
 import { ConvexError, v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
-import type { MutationCtx } from './_generated/server'
+import type { MutationCtx, QueryCtx } from './_generated/server'
 import { action, internalMutation, internalQuery, mutation, query } from './_generated/server'
 import { assertRole, requireUser, requireUserFromAction } from './lib/access'
 import { generateChangelogPreview as buildChangelogPreview } from './lib/changelog'
+import { buildTrendingLeaderboard, getTrendingRange } from './lib/leaderboards'
 import {
   fetchText,
   type PublishResult,
@@ -20,6 +21,7 @@ type FileTextResult = { path: string; text: string; size: number; sha256: string
 
 const MAX_DIFF_FILE_BYTES = 200 * 1024
 const MAX_LIST_LIMIT = 50
+const MAX_PUBLIC_LIST_LIMIT = 200
 const MAX_LIST_BULK_LIMIT = 200
 const MAX_LIST_TAKE = 1000
 
@@ -154,29 +156,118 @@ export const listPublicPage = query({
   args: {
     cursor: v.optional(v.string()),
     limit: v.optional(v.number()),
+    sort: v.optional(
+      v.union(
+        v.literal('updated'),
+        v.literal('downloads'),
+        v.literal('stars'),
+        v.literal('installsCurrent'),
+        v.literal('installsAllTime'),
+        v.literal('trending'),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
-    const limit = clampInt(args.limit ?? 24, 1, MAX_LIST_LIMIT)
-    const { page, isDone, continueCursor } = await ctx.db
-      .query('skills')
-      .withIndex('by_updated', (q) => q)
-      .order('desc')
-      .paginate({ cursor: args.cursor ?? null, numItems: limit })
+    const sort = args.sort ?? 'updated'
+    const limit = clampInt(args.limit ?? 24, 1, MAX_PUBLIC_LIST_LIMIT)
 
+    if (sort === 'updated') {
+      const { page, isDone, continueCursor } = await ctx.db
+        .query('skills')
+        .withIndex('by_updated', (q) => q)
+        .order('desc')
+        .paginate({ cursor: args.cursor ?? null, numItems: limit })
+
+      const items: Array<{
+        skill: Doc<'skills'>
+        latestVersion: Doc<'skillVersions'> | null
+      }> = []
+
+      for (const skill of page) {
+        if (skill.softDeletedAt) continue
+        const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
+        items.push({ skill, latestVersion })
+      }
+
+      return { items, nextCursor: isDone ? null : continueCursor }
+    }
+
+    if (sort === 'trending') {
+      const entries = await getTrendingEntries(ctx, limit)
+      const items: Array<{
+        skill: Doc<'skills'>
+        latestVersion: Doc<'skillVersions'> | null
+      }> = []
+
+      for (const entry of entries) {
+        const skill = await ctx.db.get(entry.skillId)
+        if (!skill || skill.softDeletedAt) continue
+        const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
+        items.push({ skill, latestVersion })
+        if (items.length >= limit) break
+      }
+
+      return { items, nextCursor: null }
+    }
+
+    const index = sortToIndex(sort)
+    const page = await ctx.db
+      .query('skills')
+      .withIndex(index, (q) => q)
+      .order('desc')
+      .take(Math.min(limit * 5, MAX_LIST_TAKE))
+
+    const filtered = page.filter((skill) => !skill.softDeletedAt).slice(0, limit)
     const items: Array<{
       skill: Doc<'skills'>
       latestVersion: Doc<'skillVersions'> | null
     }> = []
 
-    for (const skill of page) {
-      if (skill.softDeletedAt) continue
+    for (const skill of filtered) {
       const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
       items.push({ skill, latestVersion })
     }
 
-    return { items, nextCursor: isDone ? null : continueCursor }
+    return { items, nextCursor: null }
   },
 })
+
+function sortToIndex(
+  sort: 'downloads' | 'stars' | 'installsCurrent' | 'installsAllTime',
+):
+  | 'by_stats_downloads'
+  | 'by_stats_stars'
+  | 'by_stats_installs_current'
+  | 'by_stats_installs_all_time' {
+  switch (sort) {
+    case 'downloads':
+      return 'by_stats_downloads'
+    case 'stars':
+      return 'by_stats_stars'
+    case 'installsCurrent':
+      return 'by_stats_installs_current'
+    case 'installsAllTime':
+      return 'by_stats_installs_all_time'
+  }
+}
+
+async function getTrendingEntries(ctx: QueryCtx, limit: number) {
+  const now = Date.now()
+  const { startDay, endDay } = getTrendingRange(now)
+  const latest = await ctx.db
+    .query('skillLeaderboards')
+    .withIndex('by_kind', (q) => q.eq('kind', 'trending'))
+    .order('desc')
+    .take(1)
+
+  const leaderboard = latest[0]
+  if (leaderboard && leaderboard.rangeStartDay === startDay && leaderboard.rangeEndDay === endDay) {
+    return leaderboard.items.slice(0, limit)
+  }
+
+  const fallback = await buildTrendingLeaderboard(ctx, { limit, now })
+  return fallback.items
+}
 
 export const listVersions = query({
   args: { skillId: v.id('skills'), limit: v.optional(v.number()) },
@@ -587,6 +678,10 @@ export const insertVersion = internalMutation({
         tags: {},
         softDeletedAt: undefined,
         badges: { redactionApproved: undefined },
+        statsDownloads: 0,
+        statsStars: 0,
+        statsInstallsCurrent: 0,
+        statsInstallsAllTime: 0,
         stats: {
           downloads: 0,
           installsCurrent: 0,

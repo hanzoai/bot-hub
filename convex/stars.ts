@@ -2,6 +2,7 @@ import { v } from 'convex/values'
 import type { Doc } from './_generated/dataModel'
 import { internalMutation, mutation, query } from './_generated/server'
 import { requireUser } from './lib/access'
+import { applySkillStatDeltas } from './lib/skillStats'
 
 export const isStarred = query({
   args: { skillId: v.id('skills') },
@@ -29,8 +30,9 @@ export const toggle = mutation({
 
     if (existing) {
       await ctx.db.delete(existing._id)
+      const patch = applySkillStatDeltas(skill, { stars: -1 })
       await ctx.db.patch(skill._id, {
-        stats: { ...skill.stats, stars: Math.max(0, skill.stats.stars - 1) },
+        ...patch,
         updatedAt: Date.now(),
       })
       return { starred: false }
@@ -43,7 +45,7 @@ export const toggle = mutation({
     })
 
     await ctx.db.patch(skill._id, {
-      stats: { ...skill.stats, stars: skill.stats.stars + 1 },
+      ...applySkillStatDeltas(skill, { stars: 1 }),
       updatedAt: Date.now(),
     })
 
@@ -87,7 +89,7 @@ export const addStarInternal = internalMutation({
     })
 
     await ctx.db.patch(skill._id, {
-      stats: { ...skill.stats, stars: skill.stats.stars + 1 },
+      ...applySkillStatDeltas(skill, { stars: 1 }),
       updatedAt: Date.now(),
     })
 
@@ -108,7 +110,7 @@ export const removeStarInternal = internalMutation({
 
     await ctx.db.delete(existing._id)
     await ctx.db.patch(skill._id, {
-      stats: { ...skill.stats, stars: Math.max(0, skill.stats.stars - 1) },
+      ...applySkillStatDeltas(skill, { stars: -1 }),
       updatedAt: Date.now(),
     })
 

@@ -158,6 +158,31 @@ describe('httpApiV1 handlers', () => {
     expect(json.items[0].tags.latest).toBe('1.0.0')
   })
 
+  it('lists skills supports sort aliases', async () => {
+    const checks: Array<[string, string]> = [
+      ['rating', 'stars'],
+      ['installs', 'installsCurrent'],
+      ['installs-all-time', 'installsAllTime'],
+      ['trending', 'trending'],
+    ]
+
+    for (const [input, expected] of checks) {
+      const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+        if ('sort' in args || 'cursor' in args || 'limit' in args) {
+          expect(args.sort).toBe(expected)
+          return { items: [], nextCursor: null }
+        }
+        return null
+      })
+      const runMutation = vi.fn().mockResolvedValue(okRate())
+      const response = await __handlers.listSkillsV1Handler(
+        makeCtx({ runQuery, runMutation }),
+        new Request(`https://example.com/api/v1/skills?sort=${input}`),
+      )
+      expect(response.status).toBe(200)
+    }
+  })
+
   it('get skill returns 404 when missing', async () => {
     const runQuery = vi.fn().mockResolvedValue(null)
     const runMutation = vi.fn().mockResolvedValue(okRate())

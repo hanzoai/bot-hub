@@ -49,6 +49,10 @@ const skills = defineTable({
     ),
   }),
   batch: v.optional(v.string()),
+  statsDownloads: v.optional(v.number()),
+  statsStars: v.optional(v.number()),
+  statsInstallsCurrent: v.optional(v.number()),
+  statsInstallsAllTime: v.optional(v.number()),
   stats: v.object({
     downloads: v.number(),
     installsCurrent: v.optional(v.number()),
@@ -63,6 +67,10 @@ const skills = defineTable({
   .index('by_slug', ['slug'])
   .index('by_owner', ['ownerUserId'])
   .index('by_updated', ['updatedAt'])
+  .index('by_stats_downloads', ['statsDownloads', 'updatedAt'])
+  .index('by_stats_stars', ['statsStars', 'updatedAt'])
+  .index('by_stats_installs_current', ['statsInstallsCurrent', 'updatedAt'])
+  .index('by_stats_installs_all_time', ['statsInstallsAllTime', 'updatedAt'])
   .index('by_batch', ['batch'])
 
 const souls = defineTable({
@@ -176,6 +184,38 @@ const skillEmbeddings = defineTable({
     dimensions: EMBEDDING_DIMENSIONS,
     filterFields: ['visibility'],
   })
+
+const skillDailyStats = defineTable({
+  skillId: v.id('skills'),
+  day: v.number(),
+  downloads: v.number(),
+  installs: v.number(),
+  updatedAt: v.number(),
+})
+  .index('by_skill_day', ['skillId', 'day'])
+  .index('by_day', ['day'])
+
+const skillLeaderboards = defineTable({
+  kind: v.string(),
+  generatedAt: v.number(),
+  rangeStartDay: v.number(),
+  rangeEndDay: v.number(),
+  items: v.array(
+    v.object({
+      skillId: v.id('skills'),
+      score: v.number(),
+      installs: v.number(),
+      downloads: v.number(),
+    }),
+  ),
+}).index('by_kind', ['kind', 'generatedAt'])
+
+const skillStatBackfillState = defineTable({
+  key: v.string(),
+  cursor: v.optional(v.string()),
+  doneAt: v.optional(v.number()),
+  updatedAt: v.number(),
+}).index('by_key', ['key'])
 
 const soulEmbeddings = defineTable({
   soulId: v.id('souls'),
@@ -323,6 +363,9 @@ export default defineSchema({
   soulVersionFingerprints,
   skillEmbeddings,
   soulEmbeddings,
+  skillDailyStats,
+  skillLeaderboards,
+  skillStatBackfillState,
   comments,
   soulComments,
   stars,

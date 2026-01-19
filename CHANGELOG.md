@@ -1,9 +1,13 @@
 # Changelog
 
-## 0.2.1 - Unreleased
+## 0.3.0 - 2026-01-19
 
 ### Added
 - CLI: add `explore` command for latest updates, with limit clamping + tests/docs (thanks @jdrhyne, #14).
+- CLI: `explore --json` output + new sorts (`installs`, `installsAllTime`, `trending`) and limit up to 200.
+- API: `/api/v1/skills` supports installs + trending sorts (7-day installs).
+- API: idempotent `POST/DELETE /api/v1/stars/{slug}` endpoints.
+- Registry: trending leaderboard + daily stats backfill for installs-based sorts.
 
 ### Fixed
 - Web: keep search mode navigation and state in sync (thanks @NACC96, #12).

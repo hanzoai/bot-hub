@@ -364,6 +364,10 @@ export const seedSkillMutation = internalMutation({
       tags: {},
       softDeletedAt: undefined,
       badges: { redactionApproved: undefined },
+      statsDownloads: 0,
+      statsStars: 0,
+      statsInstallsCurrent: 0,
+      statsInstallsAllTime: 0,
       stats: {
         downloads: 0,
         installsCurrent: 0,
@@ -413,6 +417,10 @@ export const seedSkillMutation = internalMutation({
     await ctx.db.patch(skillId, {
       latestVersionId: versionId,
       tags: { latest: versionId },
+      statsDownloads: 0,
+      statsStars: 0,
+      statsInstallsCurrent: 0,
+      statsInstallsAllTime: 0,
       stats: {
         downloads: 0,
         installsCurrent: 0,

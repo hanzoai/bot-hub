@@ -44,8 +44,13 @@ Response:
 
 Query params:
 
-- `limit` (optional): integer
-- `cursor` (optional): pagination cursor
+- `limit` (optional): integer (1–200)
+- `cursor` (optional): pagination cursor (only for `sort=updated`)
+- `sort` (optional): `updated` (default), `downloads`, `stars` (alias: `rating`), `installsCurrent` (alias: `installs`), `installsAllTime`, `trending`
+
+Notes:
+
+- `trending` ranks by installs in the last 7 days (telemetry-based).
 
 Response:
 

@@ -43,7 +43,9 @@ describe('explore helpers', () => {
     expect(clampLimit(0)).toBe(1)
     expect(clampLimit(1)).toBe(1)
     expect(clampLimit(50)).toBe(50)
-    expect(clampLimit(99)).toBe(50)
+    expect(clampLimit(99)).toBe(99)
+    expect(clampLimit(200)).toBe(200)
+    expect(clampLimit(250)).toBe(200)
     expect(clampLimit(Number.NaN)).toBe(25)
     expect(clampLimit(Number.POSITIVE_INFINITY)).toBe(25)
     expect(clampLimit(Number.NaN, 10)).toBe(10)
@@ -68,7 +70,7 @@ describe('cmdExplore', () => {
   it('clamps limit and handles empty results', async () => {
     mockApiRequest.mockResolvedValue({ items: [] })
 
-    await cmdExplore(makeOpts(), 0)
+    await cmdExplore(makeOpts(), { limit: 0 })
 
     const [, args] = mockApiRequest.mock.calls[0] ?? []
     const url = new URL(String(args?.url))
@@ -87,12 +89,37 @@ describe('cmdExplore', () => {
     }
     mockApiRequest.mockResolvedValue({ items: [item] })
 
-    await cmdExplore(makeOpts(), 100)
+    await cmdExplore(makeOpts(), { limit: 250 })
 
     const [, args] = mockApiRequest.mock.calls[0] ?? []
     const url = new URL(String(args?.url))
-    expect(url.searchParams.get('limit')).toBe('50')
+    expect(url.searchParams.get('limit')).toBe('200')
     expect(mockLog).toHaveBeenCalledWith(formatExploreLine(item))
     nowSpy.mockRestore()
+  })
+
+  it('supports sort and json output', async () => {
+    const payload = { items: [], nextCursor: null }
+    mockApiRequest.mockResolvedValue(payload)
+
+    await cmdExplore(makeOpts(), { limit: 10, sort: 'installs', json: true })
+
+    const [, args] = mockApiRequest.mock.calls[0] ?? []
+    const url = new URL(String(args?.url))
+    expect(url.searchParams.get('limit')).toBe('10')
+    expect(url.searchParams.get('sort')).toBe('installsCurrent')
+    expect(mockLog).toHaveBeenCalledWith(JSON.stringify(payload, null, 2))
+  })
+
+  it('supports all-time installs and trending sorts', async () => {
+    mockApiRequest.mockResolvedValue({ items: [], nextCursor: null })
+
+    await cmdExplore(makeOpts(), { limit: 5, sort: 'installsAllTime' })
+    await cmdExplore(makeOpts(), { limit: 5, sort: 'trending' })
+
+    const first = new URL(String(mockApiRequest.mock.calls[0]?.[1]?.url))
+    const second = new URL(String(mockApiRequest.mock.calls[1]?.[1]?.url))
+    expect(first.searchParams.get('sort')).toBe('installsAllTime')
+    expect(second.searchParams.get('sort')).toBe('trending')
   })
 })

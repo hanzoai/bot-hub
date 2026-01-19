@@ -191,11 +191,14 @@ async function listSkillsV1Handler(ctx: ActionCtx, request: Request) {
 
   const url = new URL(request.url)
   const limit = toOptionalNumber(url.searchParams.get('limit'))
-  const cursor = url.searchParams.get('cursor')?.trim() || undefined
+  const rawCursor = url.searchParams.get('cursor')?.trim() || undefined
+  const sort = parseListSort(url.searchParams.get('sort'))
+  const cursor = sort === 'updated' ? rawCursor : undefined
 
   const result = (await ctx.runQuery(api.skills.listPublicPage, {
     limit,
     cursor,
+    sort,
   })) as ListSkillsResult
 
   const items = await Promise.all(
@@ -751,6 +754,33 @@ function toOptionalNumber(value: string | null) {
   if (!value) return undefined
   const parsed = Number.parseInt(value, 10)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+type SkillListSort =
+  | 'updated'
+  | 'downloads'
+  | 'stars'
+  | 'installsCurrent'
+  | 'installsAllTime'
+  | 'trending'
+
+function parseListSort(value: string | null): SkillListSort {
+  const normalized = value?.trim().toLowerCase()
+  if (normalized === 'downloads') return 'downloads'
+  if (normalized === 'stars' || normalized === 'rating') return 'stars'
+  if (
+    normalized === 'installs' ||
+    normalized === 'install' ||
+    normalized === 'installscurrent' ||
+    normalized === 'installs-current'
+  ) {
+    return 'installsCurrent'
+  }
+  if (normalized === 'installsalltime' || normalized === 'installs-all-time') {
+    return 'installsAllTime'
+  }
+  if (normalized === 'trending') return 'trending'
+  return 'updated'
 }
 
 async function sha256Hex(bytes: Uint8Array) {

@@ -30,7 +30,8 @@ Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Ret
 Public read:
 
 - `GET /api/v1/search?q=...`
-- `GET /api/v1/skills?limit=&cursor=`
+- `GET /api/v1/skills?limit=&cursor=&sort=`
+  - `sort`: `updated` (default), `downloads`, `stars` (`rating`), `installsCurrent` (`installs`), `installsAllTime`, `trending`
 - `GET /api/v1/skills/{slug}`
 - `GET /api/v1/skills/{slug}/versions?limit=&cursor=`
 - `GET /api/v1/skills/{slug}/versions/{version}`
