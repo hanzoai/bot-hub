@@ -8,11 +8,14 @@ type SkillCardProps = {
   chip?: string
   summaryFallback: string
   meta: ReactNode
+  href?: string
 }
 
-export function SkillCard({ skill, badge, chip, summaryFallback, meta }: SkillCardProps) {
+export function SkillCard({ skill, badge, chip, summaryFallback, meta, href }: SkillCardProps) {
+  const link = href ?? `/skills/${skill.slug}`
+
   return (
-    <Link to="/skills/$slug" params={{ slug: skill.slug }} className="card skill-card">
+    <Link to={link} className="card skill-card">
       {badge || chip ? (
         <div className="skill-card-tags">
           {badge ? <div className="tag">{badge}</div> : null}

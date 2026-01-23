@@ -21,13 +21,34 @@ function parseDir(value: unknown, sort: SortKey): SortDir {
   return sort === 'name' ? 'asc' : 'desc'
 }
 
+type SkillListEntry = {
+  skill: Doc<'skills'>
+  latestVersion: Doc<'skillVersions'> | null
+  ownerHandle?: string | null
+}
+
+type SkillSearchEntry = {
+  skill: Doc<'skills'>
+  version: Doc<'skillVersions'> | null
+  score: number
+  ownerHandle?: string | null
+}
+
+function buildSkillHref(skill: Doc<'skills'>, ownerHandle?: string | null) {
+  const owner = ownerHandle ?? 'unknown'
+  return `/${encodeURIComponent(owner)}/${encodeURIComponent(skill.slug)}`
+}
+
 export const Route = createFileRoute('/skills/')({
   validateSearch: (search) => {
     return {
       q: typeof search.q === 'string' && search.q.trim() ? search.q : undefined,
       sort: typeof search.sort === 'string' ? parseSort(search.sort) : undefined,
       dir: search.dir === 'asc' || search.dir === 'desc' ? search.dir : undefined,
-      highlighted: search.highlighted === '1' || search.highlighted === 'true' ? true : undefined,
+      highlighted:
+        search.highlighted === '1' || search.highlighted === 'true' || search.highlighted === true
+          ? true
+          : undefined,
       view: search.view === 'cards' || search.view === 'list' ? search.view : undefined,
     }
   },
@@ -43,14 +64,10 @@ export function SkillsIndex() {
   const highlightedOnly = search.highlighted ?? false
   const [query, setQuery] = useState(search.q ?? '')
   const searchSkills = useAction(api.search.searchSkills)
-  const [pages, setPages] = useState<
-    Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
-  >([])
+  const [pages, setPages] = useState<Array<SkillListEntry>>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [searchResults, setSearchResults] = useState<
-    Array<{ skill: Doc<'skills'>; version: Doc<'skillVersions'> | null; score: number }>
-  >([])
+  const [searchResults, setSearchResults] = useState<Array<SkillSearchEntry>>([])
   const [searchLimit, setSearchLimit] = useState(pageSize)
   const [isSearching, setIsSearching] = useState(false)
   const searchRequest = useRef(0)
@@ -65,7 +82,7 @@ export function SkillsIndex() {
     hasQuery ? 'skip' : { cursor: cursor ?? undefined, limit: pageSize },
   ) as
     | {
-        items: Array<{ skill: Doc<'skills'>; latestVersion: Doc<'skillVersions'> | null }>
+        items: Array<SkillListEntry>
         nextCursor: string | null
       }
     | undefined
@@ -110,11 +127,7 @@ export function SkillsIndex() {
             query: trimmedQuery,
             highlightedOnly,
             limit: searchLimit,
-          })) as Array<{
-            skill: Doc<'skills'>
-            version: Doc<'skillVersions'> | null
-            score: number
-          }>
+          })) as Array<SkillSearchEntry>
           if (requestId === searchRequest.current) {
             setSearchResults(data)
           }
@@ -133,6 +146,7 @@ export function SkillsIndex() {
       return searchResults.map((entry) => ({
         skill: entry.skill,
         latestVersion: entry.version,
+        ownerHandle: entry.ownerHandle ?? null,
       }))
     }
     return pages
@@ -322,10 +336,12 @@ export function SkillsIndex() {
           {sorted.map((entry) => {
             const skill = entry.skill
             const isPlugin = Boolean(entry.latestVersion?.parsed?.clawdis?.nix?.plugin)
+            const skillHref = buildSkillHref(skill, entry.ownerHandle)
             return (
               <SkillCard
                 key={skill._id}
                 skill={skill}
+                href={skillHref}
                 badge={skill.batch === 'highlighted' ? 'Highlighted' : undefined}
                 chip={isPlugin ? 'Plugin bundle (nix)' : undefined}
                 summaryFallback="Agent-ready skill pack."
@@ -344,13 +360,9 @@ export function SkillsIndex() {
           {sorted.map((entry) => {
             const skill = entry.skill
             const isPlugin = Boolean(entry.latestVersion?.parsed?.clawdis?.nix?.plugin)
+            const skillHref = buildSkillHref(skill, entry.ownerHandle)
             return (
-              <Link
-                key={skill._id}
-                className="skills-row"
-                to="/skills/$slug"
-                params={{ slug: skill.slug }}
-              >
+              <Link key={skill._id} className="skills-row" to={skillHref}>
                 <div className="skills-row-main">
                   <div className="skills-row-title">
                     <span>{skill.displayName}</span>

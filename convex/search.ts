@@ -9,6 +9,7 @@ type HydratedEntry = {
   embeddingId: Id<'skillEmbeddings'>
   skill: Doc<'skills'> | null
   version: Doc<'skillVersions'> | null
+  ownerHandle: string | null
 }
 
 type SearchResult = HydratedEntry & { score: number }
@@ -86,18 +87,31 @@ export const searchSkills: ReturnType<typeof action> = action({
 export const hydrateResults = internalQuery({
   args: { embeddingIds: v.array(v.id('skillEmbeddings')) },
   handler: async (ctx, args): Promise<HydratedEntry[]> => {
-    const entries: HydratedEntry[] = []
+    const ownerHandleCache = new Map<Id<'users'>, Promise<string | null>>()
 
-    for (const embeddingId of args.embeddingIds) {
-      const embedding = await ctx.db.get(embeddingId)
-      if (!embedding) continue
-      const skill = await ctx.db.get(embedding.skillId)
-      if (skill?.softDeletedAt) continue
-      const version = await ctx.db.get(embedding.versionId)
-      entries.push({ embeddingId, skill, version })
+    const getOwnerHandle = (ownerUserId: Id<'users'>) => {
+      const cached = ownerHandleCache.get(ownerUserId)
+      if (cached) return cached
+      const handlePromise = ctx.db.get(ownerUserId).then((owner) => owner?.handle ?? owner?._id ?? null)
+      ownerHandleCache.set(ownerUserId, handlePromise)
+      return handlePromise
     }
 
-    return entries
+    const entries = await Promise.all(
+      args.embeddingIds.map(async (embeddingId) => {
+        const embedding = await ctx.db.get(embeddingId)
+        if (!embedding) return null
+        const skill = await ctx.db.get(embedding.skillId)
+        if (skill?.softDeletedAt) return null
+        const [version, ownerHandle] = await Promise.all([
+          ctx.db.get(embedding.versionId),
+          getOwnerHandle(skill.ownerUserId),
+        ])
+        return { embeddingId, skill, version, ownerHandle }
+      }),
+    )
+
+    return entries.filter((entry): entry is HydratedEntry => entry !== null)
   },
 })
 
