@@ -25,6 +25,39 @@ const MAX_PUBLIC_LIST_LIMIT = 200
 const MAX_LIST_BULK_LIMIT = 200
 const MAX_LIST_TAKE = 1000
 
+async function resolveOwnerHandle(ctx: QueryCtx, ownerUserId: Id<'users'>) {
+  const owner = await ctx.db.get(ownerUserId)
+  return owner?.handle ?? owner?._id ?? null
+}
+
+type PublicSkillEntry = {
+  skill: Doc<'skills'>
+  latestVersion: Doc<'skillVersions'> | null
+  ownerHandle: string | null
+}
+
+async function buildPublicSkillEntries(ctx: QueryCtx, skills: Doc<'skills'>[]) {
+  const ownerHandleCache = new Map<Id<'users'>, Promise<string | null>>()
+
+  const getOwnerHandle = (ownerUserId: Id<'users'>) => {
+    const cached = ownerHandleCache.get(ownerUserId)
+    if (cached) return cached
+    const handlePromise = resolveOwnerHandle(ctx, ownerUserId)
+    ownerHandleCache.set(ownerUserId, handlePromise)
+    return handlePromise
+  }
+
+  return Promise.all(
+    skills.map(async (skill) => {
+      const [latestVersion, ownerHandle] = await Promise.all([
+        skill.latestVersionId ? ctx.db.get(skill.latestVersionId) : null,
+        getOwnerHandle(skill.ownerUserId),
+      ])
+      return { skill, latestVersion, ownerHandle }
+    }),
+  ) satisfies Promise<PublicSkillEntry[]>
+}
+
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
@@ -178,35 +211,24 @@ export const listPublicPage = query({
         .order('desc')
         .paginate({ cursor: args.cursor ?? null, numItems: limit })
 
-      const items: Array<{
-        skill: Doc<'skills'>
-        latestVersion: Doc<'skillVersions'> | null
-      }> = []
-
-      for (const skill of page) {
-        if (skill.softDeletedAt) continue
-        const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
-        items.push({ skill, latestVersion })
-      }
+      const skills = page.filter((skill) => !skill.softDeletedAt)
+      const items = await buildPublicSkillEntries(ctx, skills)
 
       return { items, nextCursor: isDone ? null : continueCursor }
     }
 
     if (sort === 'trending') {
       const entries = await getTrendingEntries(ctx, limit)
-      const items: Array<{
-        skill: Doc<'skills'>
-        latestVersion: Doc<'skillVersions'> | null
-      }> = []
+      const skills: Doc<'skills'>[] = []
 
       for (const entry of entries) {
         const skill = await ctx.db.get(entry.skillId)
         if (!skill || skill.softDeletedAt) continue
-        const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
-        items.push({ skill, latestVersion })
-        if (items.length >= limit) break
+        skills.push(skill)
+        if (skills.length >= limit) break
       }
 
+      const items = await buildPublicSkillEntries(ctx, skills)
       return { items, nextCursor: null }
     }
 
@@ -218,16 +240,7 @@ export const listPublicPage = query({
       .take(Math.min(limit * 5, MAX_LIST_TAKE))
 
     const filtered = page.filter((skill) => !skill.softDeletedAt).slice(0, limit)
-    const items: Array<{
-      skill: Doc<'skills'>
-      latestVersion: Doc<'skillVersions'> | null
-    }> = []
-
-    for (const skill of filtered) {
-      const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
-      items.push({ skill, latestVersion })
-    }
-
+    const items = await buildPublicSkillEntries(ctx, filtered)
     return { items, nextCursor: null }
   },
 })

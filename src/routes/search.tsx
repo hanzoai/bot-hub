@@ -7,11 +7,10 @@ export const Route = createFileRoute('/search')({
   }),
   beforeLoad: ({ search }) => {
     throw redirect({
-      to: '/',
+      to: '/skills',
       search: {
         q: search.q || undefined,
         highlighted: search.highlighted || undefined,
-        search: true,
       },
       replace: true,
     })

@@ -8,7 +8,7 @@ vi.mock('@tanstack/react-router', () => ({
 import { Route } from '../routes/search'
 
 describe('search route', () => {
-  it('redirects to home with search mode enabled', () => {
+  it('redirects to the skills index', () => {
     const beforeLoad = Route.__config.beforeLoad as (args: {
       search: { q?: string; highlighted?: boolean }
     }) => void
@@ -22,18 +22,17 @@ describe('search route', () => {
 
     expect(thrown).toEqual({
       redirect: {
-        to: '/',
+        to: '/skills',
         search: {
           q: 'crab',
           highlighted: true,
-          search: true,
         },
         replace: true,
       },
     })
   })
 
-  it('redirects to home with search flag even without query', () => {
+  it('redirects to the skills index without query', () => {
     const beforeLoad = Route.__config.beforeLoad as (args: {
       search: { q?: string; highlighted?: boolean }
     }) => void
@@ -47,11 +46,10 @@ describe('search route', () => {
 
     expect(thrown).toEqual({
       redirect: {
-        to: '/',
+        to: '/skills',
         search: {
           q: undefined,
           highlighted: undefined,
-          search: true,
         },
         replace: true,
       },
