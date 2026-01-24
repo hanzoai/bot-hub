@@ -4,6 +4,7 @@
 
 ### Fixed
 - Registry: drop missing skills during search hydration (thanks @aaronn, #28).
+- CLI: use path-based skill metadata lookup for updates (thanks @daveonkels, #22).
 
 ## 0.3.0 - 2026-01-19
 

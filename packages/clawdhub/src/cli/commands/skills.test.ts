@@ -1,11 +1,14 @@
 /* @vitest-environment node */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ApiRoutes } from '../../schema/index.js'
 import type { GlobalOpts } from '../types'
 
 const mockApiRequest = vi.fn()
+const mockDownloadZip = vi.fn()
 vi.mock('../../http.js', () => ({
   apiRequest: (...args: unknown[]) => mockApiRequest(...args),
+  downloadZip: (...args: unknown[]) => mockDownloadZip(...args),
 }))
 
 const mockGetRegistry = vi.fn(async () => 'https://clawdhub.com')
@@ -13,13 +16,51 @@ vi.mock('../registry.js', () => ({
   getRegistry: () => mockGetRegistry(),
 }))
 
-const mockSpinner = { stop: vi.fn(), fail: vi.fn() }
+const mockSpinner = {
+  stop: vi.fn(),
+  fail: vi.fn(),
+  start: vi.fn(),
+  succeed: vi.fn(),
+  isSpinning: false,
+  text: '',
+}
 vi.mock('../ui.js', () => ({
   createSpinner: vi.fn(() => mockSpinner),
+  fail: (message: string) => {
+    throw new Error(message)
+  },
   formatError: (error: unknown) => (error instanceof Error ? error.message : String(error)),
+  isInteractive: () => false,
+  promptConfirm: vi.fn(async () => false),
 }))
 
-const { clampLimit, cmdExplore, formatExploreLine } = await import('./skills')
+vi.mock('../../skills.js', () => ({
+  extractZipToDir: vi.fn(),
+  hashSkillFiles: vi.fn(),
+  listTextFiles: vi.fn(),
+  readLockfile: vi.fn(),
+  readSkillOrigin: vi.fn(),
+  writeLockfile: vi.fn(),
+  writeSkillOrigin: vi.fn(),
+}))
+
+vi.mock('node:fs/promises', () => ({
+  mkdir: vi.fn(),
+  rm: vi.fn(),
+  stat: vi.fn(),
+}))
+
+const { clampLimit, cmdExplore, cmdUpdate, formatExploreLine } = await import('./skills')
+const {
+  extractZipToDir,
+  hashSkillFiles,
+  listTextFiles,
+  readLockfile,
+  readSkillOrigin,
+  writeLockfile,
+  writeSkillOrigin,
+} = await import('../../skills.js')
+const { rm, stat } = await import('node:fs/promises')
 
 const mockLog = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -121,5 +162,29 @@ describe('cmdExplore', () => {
     const second = new URL(String(mockApiRequest.mock.calls[1]?.[1]?.url))
     expect(first.searchParams.get('sort')).toBe('installsAllTime')
     expect(second.searchParams.get('sort')).toBe('trending')
+  })
+})
+
+describe('cmdUpdate', () => {
+  it('uses path-based skill lookup when no local fingerprint is available', async () => {
+    mockApiRequest.mockResolvedValue({ latestVersion: { version: '1.0.0' } })
+    mockDownloadZip.mockResolvedValue(new Uint8Array([1, 2, 3]))
+    vi.mocked(readLockfile).mockResolvedValue({
+      skills: { demo: { version: '0.1.0', installedAt: 123 } },
+    })
+    vi.mocked(writeLockfile).mockResolvedValue()
+    vi.mocked(readSkillOrigin).mockResolvedValue(null)
+    vi.mocked(writeSkillOrigin).mockResolvedValue()
+    vi.mocked(extractZipToDir).mockResolvedValue()
+    vi.mocked(listTextFiles).mockResolvedValue([])
+    vi.mocked(hashSkillFiles).mockReturnValue({ fingerprint: 'hash', files: [] })
+    vi.mocked(stat).mockRejectedValue(new Error('missing'))
+    vi.mocked(rm).mockResolvedValue()
+
+    await cmdUpdate(makeOpts(), 'demo', {}, false)
+
+    const [, args] = mockApiRequest.mock.calls[0] ?? []
+    expect(args?.path).toBe(`${ApiRoutes.skills}/${encodeURIComponent('demo')}`)
+    expect(args?.url).toBeUndefined()
   })
 })
