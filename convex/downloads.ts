@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { zipSync } from 'fflate'
 import { api } from './_generated/api'
 import { httpAction, mutation } from './_generated/server'
-import { insertStatEvent } from './skillStatEvents'
+import { applySkillStatDeltas, bumpDailySkillStats } from './lib/skillStats'
 
 export const downloadZip = httpAction(async (ctx, request) => {
   const url = new URL(request.url)
@@ -70,9 +70,12 @@ export const increment = mutation({
   handler: async (ctx, args) => {
     const skill = await ctx.db.get(args.skillId)
     if (!skill) return
-    await insertStatEvent(ctx, {
-      skillId: skill._id,
-      kind: 'download',
+    const now = Date.now()
+    const patch = applySkillStatDeltas(skill, { downloads: 1 })
+    await ctx.db.patch(skill._id, {
+      ...patch,
+      updatedAt: now,
     })
+    await bumpDailySkillStats(ctx, { skillId: skill._id, now, downloads: 1 })
   },
 })

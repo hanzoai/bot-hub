@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SkillsIndex } from '../routes/skills/index'
 
 const navigateMock = vi.fn()
+const useQueryMock = vi.fn()
 const useActionMock = vi.fn()
-const usePaginatedQueryMock = vi.fn()
 let searchMock: Record<string, unknown> = {}
 
 vi.mock('@tanstack/react-router', () => ({
@@ -20,25 +20,17 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('convex/react', () => ({
   useAction: (...args: unknown[]) => useActionMock(...args),
-}))
-
-vi.mock('convex-helpers/react', () => ({
-  usePaginatedQuery: (...args: unknown[]) => usePaginatedQueryMock(...args),
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
 }))
 
 describe('SkillsIndex', () => {
   beforeEach(() => {
-    usePaginatedQueryMock.mockReset()
+    useQueryMock.mockReset()
     useActionMock.mockReset()
     navigateMock.mockReset()
     searchMock = {}
     useActionMock.mockReturnValue(() => Promise.resolve([]))
-    // Default: return empty results with Exhausted status
-    usePaginatedQueryMock.mockReturnValue({
-      results: [],
-      status: 'Exhausted',
-      loadMore: vi.fn(),
-    })
+    useQueryMock.mockReturnValue({ items: [], nextCursor: null })
   })
 
   afterEach(() => {
@@ -48,12 +40,10 @@ describe('SkillsIndex', () => {
 
   it('requests the first skills page', () => {
     render(<SkillsIndex />)
-    // usePaginatedQuery should be called with the API endpoint and empty args
-    expect(usePaginatedQueryMock).toHaveBeenCalledWith(
-      expect.anything(),
-      {},
-      { initialNumItems: 25 },
-    )
+    expect(useQueryMock).toHaveBeenCalledWith(expect.anything(), {
+      cursor: undefined,
+      limit: 50,
+    })
   })
 
   it('renders an empty state when no skills are returned', () => {
@@ -65,29 +55,19 @@ describe('SkillsIndex', () => {
     searchMock = { q: 'remind' }
     const actionFn = vi.fn().mockResolvedValue([])
     useActionMock.mockReturnValue(actionFn)
+    useQueryMock.mockReturnValue(undefined)
     vi.useFakeTimers()
 
     render(<SkillsIndex />)
 
-    // usePaginatedQuery should be called with 'skip' when there's a search query
-    expect(usePaginatedQueryMock).toHaveBeenCalledWith(expect.anything(), 'skip', {
-      initialNumItems: 25,
-    })
+    expect(useQueryMock).toHaveBeenCalledWith(expect.anything(), 'skip')
     await act(async () => {
       await vi.runAllTimersAsync()
     })
     expect(actionFn).toHaveBeenCalledWith({
       query: 'remind',
       highlightedOnly: false,
-      limit: 25,
-    })
-    await act(async () => {
-      await vi.runAllTimersAsync()
-    })
-    expect(actionFn).toHaveBeenCalledWith({
-      query: 'remind',
-      highlightedOnly: false,
-      limit: 25,
+      limit: 50,
     })
   })
 
@@ -96,9 +76,10 @@ describe('SkillsIndex', () => {
     vi.stubGlobal('IntersectionObserver', undefined)
     const actionFn = vi
       .fn()
-      .mockResolvedValueOnce(makeSearchResults(25))
       .mockResolvedValueOnce(makeSearchResults(50))
+      .mockResolvedValueOnce(makeSearchResults(100))
     useActionMock.mockReturnValue(actionFn)
+    useQueryMock.mockReturnValue(undefined)
     vi.useFakeTimers()
 
     render(<SkillsIndex />)
@@ -115,7 +96,7 @@ describe('SkillsIndex', () => {
     expect(actionFn).toHaveBeenLastCalledWith({
       query: 'remind',
       highlightedOnly: false,
-      limit: 50,
+      limit: 100,
     })
   })
 })

@@ -7,7 +7,7 @@ import { matchesExactTokens, tokenize } from './lib/searchText'
 
 type HydratedEntry = {
   embeddingId: Id<'skillEmbeddings'>
-  skill: Doc<'skills'>
+  skill: Doc<'skills'> | null
   version: Doc<'skillVersions'> | null
   ownerHandle: string | null
 }

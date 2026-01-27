@@ -1,13 +1,11 @@
-import { paginationOptsValidator } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
-import { paginator } from 'convex-helpers/server/pagination'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { action, internalMutation, internalQuery, mutation, query } from './_generated/server'
 import { assertRole, requireUser, requireUserFromAction } from './lib/access'
 import { generateChangelogPreview as buildChangelogPreview } from './lib/changelog'
-import { buildTrendingLeaderboard } from './lib/leaderboards'
+import { buildTrendingLeaderboard, getTrendingRange } from './lib/leaderboards'
 import {
   fetchText,
   type PublishResult,
@@ -15,7 +13,6 @@ import {
   queueHighlightedWebhook,
 } from './lib/skillPublish'
 import { getFrontmatterValue, hashSkillFiles } from './lib/skills'
-import schema from './schema'
 
 export { publishVersionForUser } from './lib/skillPublish'
 
@@ -189,7 +186,6 @@ export const listWithLatest = query({
   },
 })
 
-// TODO: Delete listPublicPage once all clients have migrated to listPublicPageV2
 export const listPublicPage = query({
   args: {
     cursor: v.optional(v.string()),
@@ -250,37 +246,6 @@ export const listPublicPage = query({
   },
 })
 
-/**
- * V2 of listPublicPage using convex-helpers paginator for better cache behavior.
- *
- * Key differences from V1:
- * - Uses `paginator` from convex-helpers (doesn't track end-cursor internally, better caching)
- * - Uses `by_active_updated` index to filter soft-deleted skills at query level
- * - Returns standard pagination shape compatible with usePaginatedQuery
- */
-export const listPublicPageV2 = query({
-  args: {
-    paginationOpts: paginationOptsValidator,
-  },
-  handler: async (ctx, args) => {
-    // Use the new index to filter out soft-deleted skills at query time.
-    // softDeletedAt === undefined means active (non-deleted) skills only.
-    const result = await paginator(ctx.db, schema)
-      .query('skills')
-      .withIndex('by_active_updated', (q) => q.eq('softDeletedAt', undefined))
-      .order('desc')
-      .paginate(args.paginationOpts)
-
-    // Build the public skill entries (fetch latestVersion + ownerHandle)
-    const items = await buildPublicSkillEntries(ctx, result.page)
-
-    return {
-      ...result,
-      page: items,
-    }
-  },
-})
-
 function sortToIndex(
   sort: 'downloads' | 'stars' | 'installsCurrent' | 'installsAllTime',
 ):
@@ -301,20 +266,20 @@ function sortToIndex(
 }
 
 async function getTrendingEntries(ctx: QueryCtx, limit: number) {
-  // Use the pre-computed leaderboard from the hourly cron job.
-  // Avoid Date.now() here to keep the query deterministic and cacheable.
+  const now = Date.now()
+  const { startDay, endDay } = getTrendingRange(now)
   const latest = await ctx.db
     .query('skillLeaderboards')
     .withIndex('by_kind', (q) => q.eq('kind', 'trending'))
     .order('desc')
     .take(1)
 
-  if (latest[0]) {
-    return latest[0].items.slice(0, limit)
+  const leaderboard = latest[0]
+  if (leaderboard && leaderboard.rangeStartDay === startDay && leaderboard.rangeEndDay === endDay) {
+    return leaderboard.items.slice(0, limit)
   }
 
-  // No leaderboard exists yet (cold start) - compute on the fly
-  const fallback = await buildTrendingLeaderboard(ctx, { limit, now: Date.now() })
+  const fallback = await buildTrendingLeaderboard(ctx, { limit, now })
   return fallback.items
 }
 
