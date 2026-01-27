@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useAction, useQuery } from 'convex/react'
+import { useAction } from 'convex/react'
+import { usePaginatedQuery } from 'convex-helpers/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import { SkillCard } from '../../components/SkillCard'
 
 const sortKeys = ['newest', 'downloads', 'installs', 'stars', 'name', 'updated'] as const
-const pageSize = 50
+const pageSize = 25
 type SortKey = (typeof sortKeys)[number]
 type SortDir = 'asc' | 'desc'
 
@@ -64,9 +65,6 @@ export function SkillsIndex() {
   const highlightedOnly = search.highlighted ?? false
   const [query, setQuery] = useState(search.q ?? '')
   const searchSkills = useAction(api.search.searchSkills)
-  const [pages, setPages] = useState<Array<SkillListEntry>>([])
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<Array<SkillSearchEntry>>([])
   const [searchLimit, setSearchLimit] = useState(pageSize)
   const [isSearching, setIsSearching] = useState(false)
@@ -77,33 +75,24 @@ export function SkillsIndex() {
   const hasQuery = trimmedQuery.length > 0
   const searchKey = trimmedQuery ? `${trimmedQuery}::${highlightedOnly ? '1' : '0'}` : ''
 
-  const listPage = useQuery(
-    api.skills.listPublicPage,
-    hasQuery ? 'skip' : { cursor: cursor ?? undefined, limit: pageSize },
-  ) as
-    | {
-        items: Array<SkillListEntry>
-        nextCursor: string | null
-      }
-    | undefined
-  const isLoadingList = !hasQuery && pages.length === 0 && listPage === undefined
+  // Use convex-helpers usePaginatedQuery for better cache behavior
+  const {
+    results: paginatedResults,
+    status: paginationStatus,
+    loadMore: loadMorePaginated,
+  } = usePaginatedQuery(api.skills.listPublicPageV2, hasQuery ? 'skip' : {}, {
+    initialNumItems: pageSize,
+  })
+
+  // Derive loading states from pagination status
+  // status: 'LoadingFirstPage' | 'CanLoadMore' | 'LoadingMore' | 'Exhausted'
+  const isLoadingList = paginationStatus === 'LoadingFirstPage'
+  const canLoadMoreList = paginationStatus === 'CanLoadMore'
+  const isLoadingMoreList = paginationStatus === 'LoadingMore'
 
   useEffect(() => {
     setQuery(search.q ?? '')
   }, [search.q])
-
-  useEffect(() => {
-    if (hasQuery) return
-    setPages([])
-    setCursor(null)
-    setNextCursor(null)
-  }, [hasQuery])
-
-  useEffect(() => {
-    if (hasQuery || !listPage) return
-    setNextCursor(listPage.nextCursor)
-    setPages((prev) => (cursor ? [...prev, ...listPage.items] : listPage.items))
-  }, [cursor, hasQuery, listPage])
 
   useEffect(() => {
     if (!searchKey) {
@@ -149,8 +138,9 @@ export function SkillsIndex() {
         ownerHandle: entry.ownerHandle ?? null,
       }))
     }
-    return pages
-  }, [hasQuery, pages, searchResults])
+    // paginatedResults is an array of page items from usePaginatedQuery
+    return paginatedResults as Array<SkillListEntry>
+  }, [hasQuery, paginatedResults, searchResults])
 
   const filtered = useMemo(
     () =>
@@ -189,20 +179,18 @@ export function SkillsIndex() {
   const isLoadingSkills = hasQuery ? isSearching && searchResults.length === 0 : isLoadingList
   const canLoadMore = hasQuery
     ? !isSearching && searchResults.length === searchLimit && searchResults.length > 0
-    : nextCursor !== null
-  const isLoadingMore = hasQuery
-    ? isSearching && searchResults.length > 0
-    : listPage === undefined && pages.length > 0
+    : canLoadMoreList
+  const isLoadingMore = hasQuery ? isSearching && searchResults.length > 0 : isLoadingMoreList
   const canAutoLoad = typeof IntersectionObserver !== 'undefined'
 
   const loadMore = useCallback(() => {
     if (isLoadingMore || !canLoadMore) return
     if (hasQuery) {
       setSearchLimit((value) => value + pageSize)
-    } else if (nextCursor) {
-      setCursor(nextCursor)
+    } else {
+      loadMorePaginated(pageSize)
     }
-  }, [canLoadMore, hasQuery, isLoadingMore, nextCursor])
+  }, [canLoadMore, hasQuery, isLoadingMore, loadMorePaginated])
 
   useEffect(() => {
     if (!canLoadMore || typeof IntersectionObserver === 'undefined') return
