@@ -3,7 +3,7 @@ import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { action, internalQuery } from './_generated/server'
 import { generateEmbedding } from './lib/embeddings'
-import { isSkillHighlighted } from './lib/badges'
+import { getSkillBadgeMaps, isSkillHighlighted } from './lib/badges'
 import { matchesExactTokens, tokenize } from './lib/searchText'
 
 type HydratedEntry = {
@@ -61,9 +61,18 @@ export const searchSkills: ReturnType<typeof action> = action({
         results.map((result) => [result._id, result._score]),
       )
 
+      const badgeMapBySkillId = await getSkillBadgeMaps(
+        ctx,
+        hydrated.map((entry) => entry.skill._id),
+      )
+      const hydratedWithBadges = hydrated.map((entry) => ({
+        ...entry,
+        skill: { ...entry.skill, badges: badgeMapBySkillId.get(entry.skill._id) ?? {} },
+      }))
+
       const filtered = args.highlightedOnly
-        ? hydrated.filter((entry) => (entry.skill ? isSkillHighlighted(entry.skill) : false))
-        : hydrated
+        ? hydratedWithBadges.filter((entry) => isSkillHighlighted(entry.skill))
+        : hydratedWithBadges
 
       exactMatches = filtered.filter((entry) =>
         matchesExactTokens(queryTokens, [

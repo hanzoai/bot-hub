@@ -191,6 +191,21 @@ const skillVersionFingerprints = defineTable({
   .index('by_fingerprint', ['fingerprint'])
   .index('by_skill_fingerprint', ['skillId', 'fingerprint'])
 
+const skillBadges = defineTable({
+  skillId: v.id('skills'),
+  kind: v.union(
+    v.literal('highlighted'),
+    v.literal('official'),
+    v.literal('deprecated'),
+    v.literal('redactionApproved'),
+  ),
+  byUserId: v.id('users'),
+  at: v.number(),
+})
+  .index('by_skill', ['skillId'])
+  .index('by_skill_kind', ['skillId', 'kind'])
+  .index('by_kind_at', ['kind', 'at'])
+
 const soulVersionFingerprints = defineTable({
   soulId: v.id('souls'),
   versionId: v.id('soulVersions'),
@@ -427,6 +442,7 @@ export default defineSchema({
   skillVersions,
   soulVersions,
   skillVersionFingerprints,
+  skillBadges,
   soulVersionFingerprints,
   skillEmbeddings,
   soulEmbeddings,

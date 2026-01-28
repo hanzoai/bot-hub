@@ -5,6 +5,7 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { generateChangelogForPublish } from './changelog'
 import { generateEmbedding } from './embeddings'
+import { getSkillBadgeMap, isSkillHighlighted } from './badges'
 import {
   buildEmbeddingText,
   getFrontmatterMetadata,
@@ -216,13 +217,14 @@ export async function queueHighlightedWebhook(ctx: MutationCtx, skillId: Id<'ski
   const owner = await ctx.db.get(skill.ownerUserId)
   const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
 
+  const badges = await getSkillBadgeMap(ctx, skillId)
   const payload: WebhookSkillPayload = {
     slug: skill.slug,
     displayName: skill.displayName,
     summary: skill.summary ?? undefined,
     version: latestVersion?.version ?? undefined,
     ownerHandle: owner?.handle ?? owner?.name ?? undefined,
-    highlighted: Boolean(skill.badges?.highlighted),
+    highlighted: isSkillHighlighted({ badges }),
     tags: Object.keys(skill.tags ?? {}),
   }
 
@@ -268,7 +270,7 @@ async function schedulePublishWebhook(
     summary: result.skill.summary ?? undefined,
     version: params.version,
     ownerHandle: result.owner?.handle ?? result.owner?.name ?? undefined,
-    highlighted: Boolean(result.skill.badges?.highlighted),
+    highlighted: isSkillHighlighted(result.skill),
     tags: Object.keys(result.skill.tags ?? {}),
   }
 

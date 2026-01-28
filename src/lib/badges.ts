@@ -1,11 +1,15 @@
-import type { Doc } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 
-type SkillLike = Pick<Doc<'skills'>, 'badges' | 'batch'>
+type BadgeKind = Doc<'skillBadges'>['kind']
+
+type SkillBadgeMap = Partial<Record<BadgeKind, { byUserId: Id<'users'>; at: number }>>
+
+type SkillLike = { badges?: SkillBadgeMap | null }
 
 type BadgeLabel = 'Deprecated' | 'Official' | 'Highlighted'
 
 export function isSkillHighlighted(skill: SkillLike) {
-  return Boolean(skill.badges?.highlighted) || skill.batch === 'highlighted'
+  return Boolean(skill.badges?.highlighted)
 }
 
 export function isSkillOfficial(skill: SkillLike) {

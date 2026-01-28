@@ -1,10 +1,15 @@
-import type { Doc } from '../_generated/dataModel'
+import type { Doc, Id } from '../_generated/dataModel'
+import type { QueryCtx } from '../_generated/server'
 
-type SkillBadgeSource = Pick<Doc<'skills'>, 'badges'>
+type BadgeKind = Doc<'skillBadges'>['kind']
 
-type HighlightBadge = { byUserId: Doc<'users'>['_id']; at: number }
-type OfficialBadge = { byUserId: Doc<'users'>['_id']; at: number }
-type DeprecatedBadge = { byUserId: Doc<'users'>['_id']; at: number }
+export type SkillBadgeMap = Partial<
+  Record<BadgeKind, { byUserId: Id<'users'>; at: number }>
+>
+
+export type SkillBadgeSource = { badges?: SkillBadgeMap | null }
+
+type BadgeCtx = Pick<QueryCtx, 'db'>
 
 export function isSkillHighlighted(skill: SkillBadgeSource) {
   return Boolean(skill.badges?.highlighted)
@@ -18,17 +23,30 @@ export function isSkillDeprecated(skill: SkillBadgeSource) {
   return Boolean(skill.badges?.deprecated)
 }
 
-export function buildHighlightBadge(userId: Doc<'users'>['_id'], at: number) {
-  const badge: HighlightBadge = { byUserId: userId, at }
-  return badge
+export function buildBadgeMap(records: Doc<'skillBadges'>[]): SkillBadgeMap {
+  return records.reduce<SkillBadgeMap>((acc, record) => {
+    acc[record.kind] = { byUserId: record.byUserId, at: record.at }
+    return acc
+  }, {})
 }
 
-export function buildOfficialBadge(userId: Doc<'users'>['_id'], at: number) {
-  const badge: OfficialBadge = { byUserId: userId, at }
-  return badge
+export async function getSkillBadgeMap(
+  ctx: BadgeCtx,
+  skillId: Id<'skills'>,
+): Promise<SkillBadgeMap> {
+  const records = await ctx.db
+    .query('skillBadges')
+    .withIndex('by_skill', (q) => q.eq('skillId', skillId))
+    .collect()
+  return buildBadgeMap(records)
 }
 
-export function buildDeprecatedBadge(userId: Doc<'users'>['_id'], at: number) {
-  const badge: DeprecatedBadge = { byUserId: userId, at }
-  return badge
+export async function getSkillBadgeMaps(
+  ctx: BadgeCtx,
+  skillIds: Array<Id<'skills'>>,
+): Promise<Map<Id<'skills'>, SkillBadgeMap>> {
+  const entries = await Promise.all(
+    skillIds.map(async (skillId) => [skillId, await getSkillBadgeMap(ctx, skillId)] as const),
+  )
+  return new Map(entries)
 }
