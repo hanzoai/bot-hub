@@ -1,13 +1,13 @@
 import type { Doc } from '../_generated/dataModel'
 
-type SkillBadgeSource = Pick<Doc<'skills'>, 'badges' | 'batch'>
+type SkillBadgeSource = Pick<Doc<'skills'>, 'badges'>
 
 type HighlightBadge = { byUserId: Doc<'users'>['_id']; at: number }
 type OfficialBadge = { byUserId: Doc<'users'>['_id']; at: number }
 type DeprecatedBadge = { byUserId: Doc<'users'>['_id']; at: number }
 
 export function isSkillHighlighted(skill: SkillBadgeSource) {
-  return Boolean(skill.badges?.highlighted) || skill.batch === 'highlighted'
+  return Boolean(skill.badges?.highlighted)
 }
 
 export function isSkillOfficial(skill: SkillBadgeSource) {

@@ -168,9 +168,13 @@ export const list = query({
     const takeLimit = Math.min(limit * 5, MAX_LIST_TAKE)
     if (args.batch) {
       if (args.batch === 'highlighted') {
-        const entries = await ctx.db.query('skills').order('desc').take(takeLimit)
+        const entries = await ctx.db.query('skills').order('desc').take(MAX_LIST_TAKE)
         return entries
           .filter((skill) => !skill.softDeletedAt && isSkillHighlighted(skill))
+          .sort(
+            (a, b) =>
+              (b.badges?.highlighted?.at ?? 0) - (a.badges?.highlighted?.at ?? 0),
+          )
           .slice(0, limit)
       }
       const entries = await ctx.db
@@ -206,7 +210,7 @@ export const listWithLatest = query({
     let entries: Doc<'skills'>[] = []
     if (args.batch) {
       if (args.batch === 'highlighted') {
-        entries = await ctx.db.query('skills').order('desc').take(takeLimit)
+        entries = await ctx.db.query('skills').order('desc').take(MAX_LIST_TAKE)
       } else {
         entries = await ctx.db
           .query('skills')
@@ -228,9 +232,16 @@ export const listWithLatest = query({
     const filtered = entries
       .filter((skill) => !skill.softDeletedAt)
       .filter((skill) => (args.batch === 'highlighted' ? isSkillHighlighted(skill) : true))
-      .slice(0, limit)
+    const ordered =
+      args.batch === 'highlighted'
+        ? filtered.sort(
+            (a, b) =>
+              (b.badges?.highlighted?.at ?? 0) - (a.badges?.highlighted?.at ?? 0),
+          )
+        : filtered
+    const limited = ordered.slice(0, limit)
     const items = await Promise.all(
-      filtered.map(async (skill) => ({
+      limited.map(async (skill) => ({
         skill,
         latestVersion: skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null,
       })),
