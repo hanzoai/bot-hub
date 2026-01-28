@@ -171,7 +171,9 @@ export async function publishSoulVersionForUser(
     embedding,
   })) as PublishResult
 
-  const owner = (await ctx.runQuery(api.users.getById, { userId })) as Doc<'users'> | null
+  const owner = (await ctx.runQuery(internal.users.getByIdInternal, { userId })) as
+    | Doc<'users'>
+    | null
   const ownerHandle = owner?.handle ?? owner?.name ?? userId
 
   void ctx.scheduler

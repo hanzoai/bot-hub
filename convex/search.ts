@@ -5,10 +5,11 @@ import { action, internalQuery } from './_generated/server'
 import { generateEmbedding } from './lib/embeddings'
 import { getSkillBadgeMaps, isSkillHighlighted } from './lib/badges'
 import { matchesExactTokens, tokenize } from './lib/searchText'
+import { toPublicSkill, toPublicSoul } from './lib/public'
 
 type HydratedEntry = {
   embeddingId: Id<'skillEmbeddings'>
-  skill: Doc<'skills'>
+  skill: NonNullable<ReturnType<typeof toPublicSkill>>
   version: Doc<'skillVersions'> | null
   ownerHandle: string | null
 }
@@ -67,7 +68,10 @@ export const searchSkills: ReturnType<typeof action> = action({
       )
       const hydratedWithBadges = hydrated.map((entry) => ({
         ...entry,
-        skill: { ...entry.skill, badges: badgeMapBySkillId.get(entry.skill._id) ?? {} },
+        skill: {
+          ...entry.skill,
+          badges: badgeMapBySkillId.get(entry.skill._id) ?? {},
+        },
       }))
 
       const filtered = args.highlightedOnly
@@ -75,11 +79,7 @@ export const searchSkills: ReturnType<typeof action> = action({
         : hydratedWithBadges
 
       exactMatches = filtered.filter((entry) =>
-        matchesExactTokens(queryTokens, [
-          entry.skill?.displayName,
-          entry.skill?.slug,
-          entry.skill?.summary,
-        ]),
+        matchesExactTokens(queryTokens, [entry.skill.displayName, entry.skill.slug, entry.skill.summary]),
       )
 
       if (exactMatches.length >= limit || results.length < candidateLimit) {
@@ -126,7 +126,9 @@ export const hydrateResults = internalQuery({
           ctx.db.get(embedding.versionId),
           getOwnerHandle(skill.ownerUserId),
         ])
-        return { embeddingId, skill, version, ownerHandle }
+        const publicSkill = toPublicSkill(skill)
+        if (!publicSkill) return null
+        return { embeddingId, skill: publicSkill, version, ownerHandle }
       }),
     )
 
@@ -136,7 +138,7 @@ export const hydrateResults = internalQuery({
 
 type HydratedSoulEntry = {
   embeddingId: Id<'soulEmbeddings'>
-  soul: Doc<'souls'> | null
+  soul: NonNullable<ReturnType<typeof toPublicSoul>>
   version: Doc<'soulVersions'> | null
 }
 
@@ -183,11 +185,7 @@ export const searchSouls: ReturnType<typeof action> = action({
       )
 
       exactMatches = hydrated.filter((entry) =>
-        matchesExactTokens(queryTokens, [
-          entry.soul?.displayName,
-          entry.soul?.slug,
-          entry.soul?.summary,
-        ]),
+        matchesExactTokens(queryTokens, [entry.soul.displayName, entry.soul.slug, entry.soul.summary]),
       )
 
       if (exactMatches.length >= limit || results.length < candidateLimit) {
@@ -220,7 +218,9 @@ export const hydrateSoulResults = internalQuery({
       const soul = await ctx.db.get(embedding.soulId)
       if (soul?.softDeletedAt) continue
       const version = await ctx.db.get(embedding.versionId)
-      entries.push({ embeddingId, soul, version })
+      const publicSoul = toPublicSoul(soul)
+      if (!publicSoul) continue
+      entries.push({ embeddingId, soul: publicSoul, version })
     }
 
     return entries
