@@ -6,11 +6,11 @@ import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
 import { action, internalMutation, internalQuery, mutation, query } from './_generated/server'
 import { assertAdmin, assertModerator, requireUser, requireUserFromAction } from './lib/access'
-import { toPublicSkill, toPublicUser } from './lib/public'
 import { getSkillBadgeMap, getSkillBadgeMaps, isSkillHighlighted } from './lib/badges'
 import { generateChangelogPreview as buildChangelogPreview } from './lib/changelog'
 import { buildTrendingLeaderboard } from './lib/leaderboards'
 import { deriveModerationFlags } from './lib/moderation'
+import { toPublicSkill, toPublicUser } from './lib/public'
 import {
   fetchText,
   type PublishResult,
@@ -321,8 +321,7 @@ export const listWithLatest = query({
     const ordered =
       args.batch === 'highlighted'
         ? [...withBadges].sort(
-            (a, b) =>
-              (b.badges?.highlighted?.at ?? 0) - (a.badges?.highlighted?.at ?? 0),
+            (a, b) => (b.badges?.highlighted?.at ?? 0) - (a.badges?.highlighted?.at ?? 0),
           )
         : withBadges
     const limited = ordered.slice(0, limit)
@@ -332,10 +331,14 @@ export const listWithLatest = query({
         latestVersion: skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null,
       })),
     )
-    return items.filter((item): item is {
-      skill: NonNullable<ReturnType<typeof toPublicSkill>>
-      latestVersion: Doc<'skillVersions'> | null
-    } => Boolean(item.skill))
+    return items.filter(
+      (
+        item,
+      ): item is {
+        skill: NonNullable<ReturnType<typeof toPublicSkill>>
+        latestVersion: Doc<'skillVersions'> | null
+      } => Boolean(item.skill),
+    )
   },
 })
 
@@ -350,8 +353,9 @@ export const listForManagement = query({
     const limit = clampInt(args.limit ?? 50, 1, MAX_LIST_BULK_LIMIT)
     const takeLimit = Math.min(limit * 5, MAX_LIST_TAKE)
     const entries = await ctx.db.query('skills').order('desc').take(takeLimit)
-    const filtered = (args.includeDeleted ? entries : entries.filter((skill) => !skill.softDeletedAt))
-      .slice(0, limit)
+    const filtered = (
+      args.includeDeleted ? entries : entries.filter((skill) => !skill.softDeletedAt)
+    ).slice(0, limit)
     return buildManagementSkillEntries(ctx, filtered)
   },
 })
@@ -362,7 +366,10 @@ export const listRecentVersions = query({
     const { user } = await requireUser(ctx)
     assertModerator(user)
     const limit = clampInt(args.limit ?? 20, 1, MAX_LIST_BULK_LIMIT)
-    const versions = await ctx.db.query('skillVersions').order('desc').take(limit * 2)
+    const versions = await ctx.db
+      .query('skillVersions')
+      .order('desc')
+      .take(limit * 2)
     const entries = versions.filter((version) => !version.softDeletedAt).slice(0, limit)
 
     const results: Array<{

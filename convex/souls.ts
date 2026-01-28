@@ -93,7 +93,10 @@ export const listPublicPage = query({
       .order('desc')
       .paginate({ cursor: args.cursor ?? null, numItems: limit })
 
-    const items: Array<{ soul: NonNullable<ReturnType<typeof toPublicSoul>>; latestVersion: Doc<'soulVersions'> | null }> = []
+    const items: Array<{
+      soul: NonNullable<ReturnType<typeof toPublicSoul>>
+      latestVersion: Doc<'soulVersions'> | null
+    }> = []
 
     for (const soul of page) {
       if (soul.softDeletedAt) continue
