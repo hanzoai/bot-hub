@@ -168,7 +168,11 @@ export const list = query({
     const takeLimit = Math.min(limit * 5, MAX_LIST_TAKE)
     if (args.batch) {
       if (args.batch === 'highlighted') {
-        const entries = await ctx.db.query('skills').order('desc').take(MAX_LIST_TAKE)
+        const entries = await ctx.db
+          .query('skills')
+          .withIndex('by_batch', (q) => q.eq('batch', 'highlighted'))
+          .order('desc')
+          .take(MAX_LIST_TAKE)
         return entries
           .filter((skill) => !skill.softDeletedAt && isSkillHighlighted(skill))
           .sort(
@@ -210,7 +214,11 @@ export const listWithLatest = query({
     let entries: Doc<'skills'>[] = []
     if (args.batch) {
       if (args.batch === 'highlighted') {
-        entries = await ctx.db.query('skills').order('desc').take(MAX_LIST_TAKE)
+        entries = await ctx.db
+          .query('skills')
+          .withIndex('by_batch', (q) => q.eq('batch', 'highlighted'))
+          .order('desc')
+          .take(MAX_LIST_TAKE)
       } else {
         entries = await ctx.db
           .query('skills')
