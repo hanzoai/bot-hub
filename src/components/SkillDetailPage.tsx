@@ -44,6 +44,7 @@ export function SkillDetailPage({
   const { isAuthenticated, me } = useAuthStatus()
   const result = useQuery(api.skills.getBySlug, { slug }) as SkillBySlugResult | undefined
   const toggleStar = useMutation(api.stars.toggle)
+  const reportSkill = useMutation(api.skills.report)
   const addComment = useMutation(api.comments.add)
   const removeComment = useMutation(api.comments.remove)
   const updateTags = useMutation(api.skills.updateTags)
@@ -253,6 +254,32 @@ export function SkillDetailPage({
                       aria-label={isStarred ? 'Unstar skill' : 'Star skill'}
                     >
                       <span aria-hidden="true">★</span>
+                    </button>
+                  ) : null}
+                  {isAuthenticated ? (
+                    <button
+                      className="btn btn-ghost"
+                      type="button"
+                      onClick={async () => {
+                        const reason = window.prompt('Report this skill? Add a reason if you want.')
+                        if (reason === null) return
+                        try {
+                          const result = await reportSkill({
+                            skillId: skill._id,
+                            reason: reason.trim() || undefined,
+                          })
+                          if (result.reported) {
+                            window.alert('Thanks — your report has been submitted.')
+                          } else {
+                            window.alert('You have already reported this skill.')
+                          }
+                        } catch (error) {
+                          console.error('Failed to report skill', error)
+                          window.alert('Unable to submit report. Please try again.')
+                        }
+                      }}
+                    >
+                      Report
                     </button>
                   ) : null}
                   {isStaff ? (

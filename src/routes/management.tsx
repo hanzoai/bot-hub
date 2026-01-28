@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import {
@@ -32,6 +32,16 @@ type DuplicateCandidateEntry = {
   owner: Doc<'users'> | null
 }
 
+type SkillBySlugResult = {
+  skill: Doc<'skills'>
+  latestVersion: Doc<'skillVersions'> | null
+  owner: Doc<'users'> | null
+  canonical: {
+    skill: { slug: string; displayName: string }
+    owner: { handle: string | null; userId: Id<'users'> | null }
+  } | null
+} | null
+
 function resolveOwnerParam(handle: string | null | undefined, ownerId?: Id<'users'>) {
   return handle?.trim() || (ownerId ? String(ownerId) : 'unknown')
 }
@@ -52,16 +62,17 @@ function Management() {
   const users = useQuery(api.users.list, admin ? { limit: 50 } : 'skip') as
     | Doc<'users'>[]
     | undefined
-  const skills = useQuery(
-    api.skills.listForManagement,
-    staff ? { limit: 50, includeDeleted: true } : 'skip',
-  ) as ManagementSkillEntry[] | undefined
+  const selectedSlug = search.skill?.trim()
+  const selectedSkill = useQuery(
+    api.skills.getBySlug,
+    staff && selectedSlug ? { slug: selectedSlug } : 'skip',
+  ) as SkillBySlugResult | undefined
   const recentVersions = useQuery(
     api.skills.listRecentVersions,
     staff ? { limit: 20 } : 'skip',
   ) as RecentVersionEntry[] | undefined
-  const flaggedSkills = useQuery(
-    api.skills.listFlaggedSkills,
+  const reportedSkills = useQuery(
+    api.skills.listReportedSkills,
     staff ? { limit: 25 } : 'skip',
   ) as ManagementSkillEntry[] | undefined
   const duplicateCandidates = useQuery(
@@ -75,27 +86,17 @@ function Management() {
   const hardDelete = useMutation(api.skills.hardDelete)
   const changeOwner = useMutation(api.skills.changeOwner)
   const setDuplicate = useMutation(api.skills.setDuplicate)
-  const setRedactionApproved = useMutation(api.skills.setRedactionApproved)
   const setOfficialBadge = useMutation(api.skills.setOfficialBadge)
   const setDeprecatedBadge = useMutation(api.skills.setDeprecatedBadge)
 
-  const [duplicateInputs, setDuplicateInputs] = useState<Record<string, string>>({})
-  const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({})
+  const [selectedDuplicate, setSelectedDuplicate] = useState('')
+  const [selectedOwner, setSelectedOwner] = useState('')
 
-  const skillById = useMemo(() => {
-    return new Map((skills ?? []).map((entry) => [entry.skill._id, entry.skill]))
-  }, [skills])
-
-  const skillFilter = search.skill?.trim()
-  const skillFilterValue = skillFilter?.toLowerCase()
-  const filteredSkills = useMemo(() => {
-    if (!skillFilterValue) return skills ?? []
-    return (skills ?? []).filter((entry) => {
-      const slug = entry.skill.slug.toLowerCase()
-      const name = entry.skill.displayName.toLowerCase()
-      return slug.includes(skillFilterValue) || name.includes(skillFilterValue)
-    })
-  }, [skills, skillFilterValue])
+  useEffect(() => {
+    if (!selectedSkill?.skill) return
+    setSelectedDuplicate(selectedSkill.canonical?.skill?.slug ?? '')
+    setSelectedOwner(String(selectedSkill.skill.ownerUserId))
+  }, [selectedSkill?.skill?._id])
 
   if (!staff) {
     return (
@@ -105,7 +106,7 @@ function Management() {
     )
   }
 
-  if (!skills || !recentVersions || !flaggedSkills || !duplicateCandidates) {
+  if (!recentVersions || !reportedSkills || !duplicateCandidates) {
     return (
       <main className="section">
         <div className="card">Loading management console…</div>
@@ -120,28 +121,79 @@ function Management() {
 
       <div className="card">
         <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
-          Moderation queue
+          Reported skills
         </h2>
-        {skillFilter ? (
+        <div className="management-list">
+          {reportedSkills.length === 0 ? (
+            <div className="stat">No reports yet.</div>
+          ) : (
+            reportedSkills.map((entry) => {
+              const { skill, latestVersion, owner } = entry
+              const ownerParam = resolveOwnerParam(owner?.handle ?? null, owner?._id ?? skill.ownerUserId)
+              return (
+                <div key={skill._id} className="management-item">
+                  <div className="management-item-main">
+                    <Link to="/$owner/$slug" params={{ owner: ownerParam, slug: skill.slug }}>
+                      {skill.displayName}
+                    </Link>
+                    <div className="section-subtitle" style={{ margin: 0 }}>
+                      @{owner?.handle ?? owner?.name ?? 'user'} · v{latestVersion?.version ?? '—'} ·
+                      {skill.reportCount ?? 0} report{(skill.reportCount ?? 0) === 1 ? '' : 's'}
+                      {skill.lastReportedAt ? ` · last ${formatTimestamp(skill.lastReportedAt)}` : ''}
+                    </div>
+                  </div>
+                  <div className="management-actions">
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={() =>
+                        void setSoftDeleted({ skillId: skill._id, deleted: !skill.softDeletedAt })
+                      }
+                    >
+                      {skill.softDeletedAt ? 'Restore' : 'Hide'}
+                    </button>
+                    {admin ? (
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => {
+                          if (!window.confirm(`Hard delete ${skill.displayName}?`)) return
+                          void hardDelete({ skillId: skill._id })
+                        }}
+                      >
+                        Hard delete
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
+          Skill tools
+        </h2>
+        {selectedSlug ? (
           <div className="section-subtitle" style={{ marginTop: 8 }}>
-            Filtering by "{skillFilter}" ·{' '}
+            Managing "{selectedSlug}" ·{' '}
             <Link to="/management" search={{ skill: undefined }}>
-              Clear filter
+              Clear selection
             </Link>
           </div>
         ) : null}
-        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-          {filteredSkills.length === 0 ? (
-            <div className="stat">No skills found.</div>
-          ) : (
-            filteredSkills.map((entry) => {
-              const { skill, latestVersion, owner } = entry
+        <div className="management-list">
+          {!selectedSlug ? (
+            <div className="stat">Use the Manage button on a skill to open tooling here.</div>
+          ) : selectedSkill === undefined ? (
+            <div className="stat">Loading skill…</div>
+          ) : !selectedSkill?.skill ? (
+            <div className="stat">No skill found for "{selectedSlug}".</div>
+          ) : (() => {
+              const { skill, latestVersion, owner, canonical } = selectedSkill
               const ownerParam = resolveOwnerParam(owner?.handle ?? null, owner?._id ?? skill.ownerUserId)
-              const canonicalSlug = skill.canonicalSkillId
-                ? skillById.get(skill.canonicalSkillId)?.slug
-                : ''
-              const duplicateValue = duplicateInputs[skill._id] ?? canonicalSlug ?? ''
-              const ownerValue = ownerInputs[skill._id] ?? skill.ownerUserId
               const moderationStatus =
                 skill.moderationStatus ?? (skill.softDeletedAt ? 'hidden' : 'active')
               const isHighlighted = isSkillHighlighted(skill)
@@ -150,8 +202,8 @@ function Management() {
               const badges = getSkillBadges(skill)
 
               return (
-                <div key={skill._id} className="stat" style={{ alignItems: 'stretch' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
+                <div key={skill._id} className="management-item">
+                  <div className="management-item-main">
                     <Link to="/$owner/$slug" params={{ owner: ownerParam, slug: skill.slug }}>
                       {skill.displayName}
                     </Link>
@@ -161,7 +213,7 @@ function Management() {
                       {badges.length ? ` · ${badges.join(', ').toLowerCase()}` : ''}
                     </div>
                     {skill.moderationFlags?.length ? (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <div className="management-tags">
                         {skill.moderationFlags.map((flag: string) => (
                           <span key={flag} className="tag">
                             {flag}
@@ -169,22 +221,14 @@ function Management() {
                         ))}
                       </div>
                     ) : null}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span className="mono" style={{ fontSize: 12 }}>
-                          duplicate of
-                        </span>
+                    <div className="management-controls">
+                      <label className="management-control">
+                        <span className="mono">duplicate of</span>
                         <input
                           className="search-input"
-                          style={{ minWidth: 180 }}
-                          value={duplicateValue}
-                          onChange={(event) =>
-                            setDuplicateInputs((prev) => ({
-                              ...prev,
-                              [skill._id]: event.target.value,
-                            }))
-                          }
-                          placeholder="canonical slug"
+                          value={selectedDuplicate}
+                          onChange={(event) => setSelectedDuplicate(event.target.value)}
+                          placeholder={canonical?.skill?.slug ?? 'canonical slug'}
                         />
                       </label>
                       <button
@@ -193,25 +237,18 @@ function Management() {
                         onClick={() =>
                           void setDuplicate({
                             skillId: skill._id,
-                            canonicalSlug: duplicateValue.trim() || undefined,
+                            canonicalSlug: selectedDuplicate.trim() || undefined,
                           })
                         }
                       >
                         Set duplicate
                       </button>
                       {admin ? (
-                        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <span className="mono" style={{ fontSize: 12 }}>
-                            owner
-                          </span>
+                        <label className="management-control">
+                          <span className="mono">owner</span>
                           <select
-                            value={ownerValue}
-                            onChange={(event) =>
-                              setOwnerInputs((prev) => ({
-                                ...prev,
-                                [skill._id]: event.target.value,
-                              }))
-                            }
+                            value={selectedOwner}
+                            onChange={(event) => setSelectedOwner(event.target.value)}
                           >
                             {(users ?? []).map((user) => (
                               <option key={user._id} value={user._id}>
@@ -225,7 +262,7 @@ function Management() {
                             onClick={() =>
                               void changeOwner({
                                 skillId: skill._id,
-                                ownerUserId: ownerValue as Doc<'users'>['_id'],
+                                ownerUserId: selectedOwner as Doc<'users'>['_id'],
                               })
                             }
                           >
@@ -235,7 +272,10 @@ function Management() {
                       ) : null}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="management-actions">
+                    <Link className="btn" to="/$owner/$slug" params={{ owner: ownerParam, slug: skill.slug }}>
+                      View
+                    </Link>
                     <button
                       className="btn"
                       type="button"
@@ -275,18 +315,6 @@ function Management() {
                           className="btn"
                           type="button"
                           onClick={() =>
-                            void setRedactionApproved({
-                              skillId: skill._id,
-                              approved: !skill.badges?.redactionApproved,
-                            })
-                          }
-                        >
-                          {skill.badges?.redactionApproved ? 'Clear badge' : 'Approve redaction'}
-                        </button>
-                        <button
-                          className="btn"
-                          type="button"
-                          onClick={() =>
                             void setOfficialBadge({
                               skillId: skill._id,
                               official: !isOfficial,
@@ -312,66 +340,7 @@ function Management() {
                   </div>
                 </div>
               )
-            })
-          )}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 20 }}>
-        <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
-          Malicious watch
-        </h2>
-        <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-          {flaggedSkills.length === 0 ? (
-            <div className="stat">No flagged skills.</div>
-          ) : (
-            flaggedSkills.map((entry) => (
-              <div key={entry.skill._id} className="stat" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  <strong>{entry.skill.displayName}</strong>
-                  <div className="section-subtitle" style={{ margin: 0 }}>
-                    @{entry.owner?.handle ?? entry.owner?.name ?? 'user'} ·
-                    {entry.skill.moderationFlags?.join(', ')}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <Link
-                    to="/$owner/$slug"
-                    params={{
-                      owner: resolveOwnerParam(entry.owner?.handle ?? null, entry.owner?._id ?? entry.skill.ownerUserId),
-                      slug: entry.skill.slug,
-                    }}
-                  >
-                    View
-                  </Link>
-                  <button
-                    className="btn"
-                    type="button"
-                    onClick={() =>
-                      void setSoftDeleted({
-                        skillId: entry.skill._id,
-                        deleted: !entry.skill.softDeletedAt,
-                      })
-                    }
-                  >
-                    {entry.skill.softDeletedAt ? 'Restore' : 'Hide'}
-                  </button>
-                  {admin ? (
-                    <button
-                      className="btn"
-                      type="button"
-                      onClick={() => {
-                        if (!window.confirm(`Hard delete ${entry.skill.displayName}?`)) return
-                        void hardDelete({ skillId: entry.skill._id })
-                      }}
-                    >
-                      Hard delete
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ))
-          )}
+            })()}
         </div>
       </div>
 
@@ -379,56 +348,83 @@ function Management() {
         <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
           Duplicate candidates
         </h2>
-        <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+        <div className="management-list">
           {duplicateCandidates.length === 0 ? (
             <div className="stat">No duplicate candidates.</div>
           ) : (
             duplicateCandidates.map((entry) => (
-              <div key={entry.skill._id} className="stat" style={{ alignItems: 'stretch' }}>
-                <div>
-                  <strong>{entry.skill.displayName}</strong>
+              <div key={entry.skill._id} className="management-item">
+                <div className="management-item-main">
+                  <Link
+                    to="/$owner/$slug"
+                    params={{
+                      owner: resolveOwnerParam(
+                        entry.owner?.handle ?? null,
+                        entry.owner?._id ?? entry.skill.ownerUserId,
+                      ),
+                      slug: entry.skill.slug,
+                    }}
+                  >
+                    {entry.skill.displayName}
+                  </Link>
                   <div className="section-subtitle" style={{ margin: 0 }}>
                     @{entry.owner?.handle ?? entry.owner?.name ?? 'user'} ·
-                    v{entry.latestVersion?.version ?? '—'}
+                    v{entry.latestVersion?.version ?? '—'} · fingerprint {entry.fingerprint?.slice(0, 8)}
                   </div>
-                  <div className="section-subtitle" style={{ margin: 0 }}>
-                    Fingerprint {entry.fingerprint?.slice(0, 8)}
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  {entry.matches.map((match) => (
-                    <div key={match.skill._id} className="stat" style={{ justifyContent: 'space-between' }}>
-                      <div>
-                        <strong>{match.skill.displayName}</strong>
-                        <div className="section-subtitle" style={{ margin: 0 }}>
-                          @{match.owner?.handle ?? match.owner?.name ?? 'user'} · {match.skill.slug}
+                  <div className="management-sublist">
+                    {entry.matches.map((match) => (
+                      <div key={match.skill._id} className="management-subitem">
+                        <div>
+                          <strong>{match.skill.displayName}</strong>
+                          <div className="section-subtitle" style={{ margin: 0 }}>
+                            @{match.owner?.handle ?? match.owner?.name ?? 'user'} · {match.skill.slug}
+                          </div>
+                        </div>
+                        <div className="management-actions">
+                          <Link
+                            className="btn"
+                            to="/$owner/$slug"
+                            params={{
+                              owner: resolveOwnerParam(
+                                match.owner?.handle ?? null,
+                                match.owner?._id ?? match.skill.ownerUserId,
+                              ),
+                              slug: match.skill.slug,
+                            }}
+                          >
+                            View
+                          </Link>
+                          <button
+                            className="btn"
+                            type="button"
+                            onClick={() =>
+                              void setDuplicate({
+                                skillId: entry.skill._id,
+                                canonicalSlug: match.skill.slug,
+                              })
+                            }
+                          >
+                            Mark duplicate
+                          </button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <Link
-                          to="/$owner/$slug"
-                          params={{
-                            owner: resolveOwnerParam(match.owner?.handle ?? null, match.owner?._id ?? match.skill.ownerUserId),
-                            slug: match.skill.slug,
-                          }}
-                        >
-                          View
-                        </Link>
-                        <button
-                          className="btn"
-                          type="button"
-                          onClick={() =>
-                            void setDuplicate({
-                              skillId: entry.skill._id,
-                              canonicalSlug: match.skill.slug,
-                            })
-                          }
-                        >
-                          Mark duplicate
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+                <div className="management-actions">
+                  <Link
+                    className="btn"
+                    to="/$owner/$slug"
+                    params={{
+                      owner: resolveOwnerParam(
+                        entry.owner?.handle ?? null,
+                        entry.owner?._id ?? entry.skill.ownerUserId,
+                      ),
+                      slug: entry.skill.slug,
+                    }}
+                  >
+                    View
+                  </Link>
                 </div>
               </div>
             ))
@@ -440,29 +436,35 @@ function Management() {
         <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
           Recent pushes
         </h2>
-        <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+        <div className="management-list">
           {recentVersions.length === 0 ? (
             <div className="stat">No recent versions.</div>
           ) : (
             recentVersions.map((entry) => (
-              <div key={entry.version._id} className="stat" style={{ justifyContent: 'space-between' }}>
-                <div>
+              <div key={entry.version._id} className="management-item">
+                <div className="management-item-main">
                   <strong>{entry.skill?.displayName ?? 'Unknown skill'}</strong>
                   <div className="section-subtitle" style={{ margin: 0 }}>
                     v{entry.version.version} · @{entry.owner?.handle ?? entry.owner?.name ?? 'user'}
                   </div>
                 </div>
-                {entry.skill ? (
-                  <Link
-                    to="/$owner/$slug"
-                    params={{
-                      owner: resolveOwnerParam(entry.owner?.handle ?? null, entry.owner?._id ?? entry.skill.ownerUserId),
-                      slug: entry.skill.slug,
-                    }}
-                  >
-                    View
-                  </Link>
-                ) : null}
+                <div className="management-actions">
+                  {entry.skill ? (
+                    <Link
+                      className="btn"
+                      to="/$owner/$slug"
+                      params={{
+                        owner: resolveOwnerParam(
+                          entry.owner?.handle ?? null,
+                          entry.owner?._id ?? entry.skill.ownerUserId,
+                        ),
+                        slug: entry.skill.slug,
+                      }}
+                    >
+                      View
+                    </Link>
+                  ) : null}
+                </div>
               </div>
             ))
           )}
@@ -474,23 +476,27 @@ function Management() {
           <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
             Users
           </h2>
-          <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+          <div className="management-list">
             {(users ?? []).map((user) => (
-              <div key={user._id} className="stat" style={{ justifyContent: 'space-between' }}>
-                <span className="mono">@{user.handle ?? user.name ?? 'user'}</span>
-                <select
-                  value={user.role ?? 'user'}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    if (value === 'admin' || value === 'moderator' || value === 'user') {
-                      void setRole({ userId: user._id, role: value })
-                    }
-                  }}
-                >
-                  <option value="user">User</option>
-                  <option value="moderator">Moderator</option>
-                  <option value="admin">Admin</option>
-                </select>
+              <div key={user._id} className="management-item">
+                <div className="management-item-main">
+                  <span className="mono">@{user.handle ?? user.name ?? 'user'}</span>
+                </div>
+                <div className="management-actions">
+                  <select
+                    value={user.role ?? 'user'}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      if (value === 'admin' || value === 'moderator' || value === 'user') {
+                        void setRole({ userId: user._id, role: value })
+                      }
+                    }}
+                  >
+                    <option value="user">User</option>
+                    <option value="moderator">Moderator</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
               </div>
             ))}
           </div>

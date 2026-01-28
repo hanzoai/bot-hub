@@ -285,7 +285,7 @@ export const listRecentVersions = query({
   },
 })
 
-export const listFlaggedSkills = query({
+export const listReportedSkills = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const { user } = await requireUser(ctx)
@@ -293,10 +293,11 @@ export const listFlaggedSkills = query({
     const limit = clampInt(args.limit ?? 25, 1, MAX_LIST_BULK_LIMIT)
     const takeLimit = Math.min(limit * 5, MAX_LIST_TAKE)
     const entries = await ctx.db.query('skills').order('desc').take(takeLimit)
-    const flagged = entries
-      .filter((skill) => (skill.moderationFlags?.length ?? 0) > 0)
+    const reported = entries
+      .filter((skill) => (skill.reportCount ?? 0) > 0)
+      .sort((a, b) => (b.lastReportedAt ?? 0) - (a.lastReportedAt ?? 0))
       .slice(0, limit)
-    return buildManagementSkillEntries(ctx, flagged)
+    return buildManagementSkillEntries(ctx, reported)
   },
 })
 
@@ -350,6 +351,38 @@ export const listDuplicateCandidates = query({
     }
 
     return results
+  },
+})
+
+export const report = mutation({
+  args: { skillId: v.id('skills'), reason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { userId } = await requireUser(ctx)
+    const skill = await ctx.db.get(args.skillId)
+    if (!skill || skill.softDeletedAt) throw new Error('Skill not found')
+
+    const existing = await ctx.db
+      .query('skillReports')
+      .withIndex('by_skill_user', (q) => q.eq('skillId', args.skillId).eq('userId', userId))
+      .unique()
+    if (existing) return { ok: true as const, reported: false, alreadyReported: true }
+
+    const now = Date.now()
+    const reason = args.reason?.trim()
+    await ctx.db.insert('skillReports', {
+      skillId: args.skillId,
+      userId,
+      reason: reason ? reason.slice(0, 500) : undefined,
+      createdAt: now,
+    })
+
+    await ctx.db.patch(skill._id, {
+      reportCount: (skill.reportCount ?? 0) + 1,
+      lastReportedAt: now,
+      updatedAt: now,
+    })
+
+    return { ok: true as const, reported: true, alreadyReported: false }
   },
 })
 
@@ -1244,6 +1277,7 @@ export const insertVersion = internalMutation({
         moderationStatus: 'active',
         moderationFlags: moderationFlags.length ? moderationFlags : undefined,
         reportCount: 0,
+        lastReportedAt: undefined,
         statsDownloads: 0,
         statsStars: 0,
         statsInstallsCurrent: 0,

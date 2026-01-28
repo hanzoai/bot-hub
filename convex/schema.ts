@@ -78,6 +78,7 @@ const skills = defineTable({
   hiddenAt: v.optional(v.number()),
   hiddenBy: v.optional(v.id('users')),
   reportCount: v.optional(v.number()),
+  lastReportedAt: v.optional(v.number()),
   batch: v.optional(v.string()),
   statsDownloads: v.optional(v.number()),
   statsStars: v.optional(v.number()),
@@ -302,6 +303,16 @@ const comments = defineTable({
   .index('by_skill', ['skillId'])
   .index('by_user', ['userId'])
 
+const skillReports = defineTable({
+  skillId: v.id('skills'),
+  userId: v.id('users'),
+  reason: v.optional(v.string()),
+  createdAt: v.number(),
+})
+  .index('by_skill', ['skillId'])
+  .index('by_user', ['userId'])
+  .index('by_skill_user', ['skillId', 'userId'])
+
 const soulComments = defineTable({
   soulId: v.id('souls'),
   userId: v.id('users'),
@@ -424,6 +435,7 @@ export default defineSchema({
   skillStatBackfillState,
   skillStatEvents,
   comments,
+  skillReports,
   soulComments,
   stars,
   soulStars,
