@@ -2,10 +2,10 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { action, internalQuery } from './_generated/server'
-import { generateEmbedding } from './lib/embeddings'
 import { getSkillBadgeMaps, isSkillHighlighted, type SkillBadgeMap } from './lib/badges'
-import { matchesExactTokens, tokenize } from './lib/searchText'
+import { generateEmbedding } from './lib/embeddings'
 import { toPublicSkill, toPublicSoul } from './lib/public'
+import { matchesExactTokens, tokenize } from './lib/searchText'
 
 type HydratedEntry = {
   embeddingId: Id<'skillEmbeddings'>
@@ -79,7 +79,11 @@ export const searchSkills: ReturnType<typeof action> = action({
         : hydratedWithBadges
 
       exactMatches = filtered.filter((entry) =>
-        matchesExactTokens(queryTokens, [entry.skill.displayName, entry.skill.slug, entry.skill.summary]),
+        matchesExactTokens(queryTokens, [
+          entry.skill.displayName,
+          entry.skill.slug,
+          entry.skill.summary,
+        ]),
       )
 
       if (exactMatches.length >= limit || results.length < candidateLimit) {
@@ -185,7 +189,11 @@ export const searchSouls: ReturnType<typeof action> = action({
       )
 
       exactMatches = hydrated.filter((entry) =>
-        matchesExactTokens(queryTokens, [entry.soul.displayName, entry.soul.slug, entry.soul.summary]),
+        matchesExactTokens(queryTokens, [
+          entry.soul.displayName,
+          entry.soul.slug,
+          entry.soul.summary,
+        ]),
       )
 
       if (exactMatches.length >= limit || results.length < candidateLimit) {
