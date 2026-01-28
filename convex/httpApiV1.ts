@@ -267,6 +267,7 @@ async function skillsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
         owner: result.owner
           ? {
               handle: result.owner.handle ?? null,
+              userId: result.owner._id,
               displayName: result.owner.displayName ?? null,
               image: result.owner.image ?? null,
             }

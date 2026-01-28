@@ -32,31 +32,34 @@ function Stars() {
         {skills.length === 0 ? (
           <div className="card">No stars yet.</div>
         ) : (
-          skills.map((skill) => (
-            <div key={skill._id} className="card skill-card">
-              <Link to="/skills/$slug" params={{ slug: skill.slug }}>
-                <h3 className="skill-card-title">{skill.displayName}</h3>
-              </Link>
-              <div className="skill-card-footer skill-card-footer-inline">
-                <span className="stat">⭐ {skill.stats.stars}</span>
-                <button
-                  className="star-toggle is-active"
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await toggleStar({ skillId: skill._id })
-                    } catch (error) {
-                      console.error('Failed to unstar skill:', error)
-                      window.alert('Unable to unstar this skill. Please try again.')
-                    }
-                  }}
-                  aria-label={`Unstar ${skill.displayName}`}
-                >
-                  <span aria-hidden="true">★</span>
-                </button>
+          skills.map((skill) => {
+            const owner = encodeURIComponent(String(skill.ownerUserId))
+            return (
+              <div key={skill._id} className="card skill-card">
+                <Link to="/$owner/$slug" params={{ owner, slug: skill.slug }}>
+                  <h3 className="skill-card-title">{skill.displayName}</h3>
+                </Link>
+                <div className="skill-card-footer skill-card-footer-inline">
+                  <span className="stat">⭐ {skill.stats.stars}</span>
+                  <button
+                    className="star-toggle is-active"
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await toggleStar({ skillId: skill._id })
+                      } catch (error) {
+                        console.error('Failed to unstar skill:', error)
+                        window.alert('Unable to unstar this skill. Please try again.')
+                      }
+                    }}
+                    aria-label={`Unstar ${skill.displayName}`}
+                  >
+                    <span aria-hidden="true">★</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </main>

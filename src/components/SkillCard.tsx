@@ -12,7 +12,8 @@ type SkillCardProps = {
 }
 
 export function SkillCard({ skill, badge, chip, summaryFallback, meta, href }: SkillCardProps) {
-  const link = href ?? `/skills/${skill.slug}`
+  const owner = encodeURIComponent(String(skill.ownerUserId))
+  const link = href ?? `/${owner}/${skill.slug}`
   const badges = Array.isArray(badge) ? badge : badge ? [badge] : []
 
   return (

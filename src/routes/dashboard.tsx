@@ -24,7 +24,7 @@ function Dashboard() {
   }
 
   const skills = mySkills ?? []
-  const ownerHandle = me.handle ?? null
+  const ownerHandle = me.handle ?? me.name ?? me.displayName ?? me._id
 
   return (
     <main className="section">
@@ -63,19 +63,13 @@ function SkillCard({ skill, ownerHandle }: { skill: Doc<'skills'>; ownerHandle: 
   return (
     <div className="dashboard-skill-card">
       <div className="dashboard-skill-info">
-        {ownerHandle ? (
-          <Link
-            to="/$owner/$slug"
-            params={{ owner: ownerHandle, slug: skill.slug }}
-            className="dashboard-skill-name"
-          >
-            {skill.displayName}
-          </Link>
-        ) : (
-          <Link to="/skills/$slug" params={{ slug: skill.slug }} className="dashboard-skill-name">
-            {skill.displayName}
-          </Link>
-        )}
+        <Link
+          to="/$owner/$slug"
+          params={{ owner: ownerHandle ?? 'unknown', slug: skill.slug }}
+          className="dashboard-skill-name"
+        >
+          {skill.displayName}
+        </Link>
         <span className="dashboard-skill-slug">/{skill.slug}</span>
         {skill.summary && <p className="dashboard-skill-description">{skill.summary}</p>}
         <div className="dashboard-skill-stats">
@@ -89,19 +83,13 @@ function SkillCard({ skill, ownerHandle }: { skill: Doc<'skills'>; ownerHandle: 
           <Upload className="h-3 w-3" aria-hidden="true" />
           New Version
         </Link>
-        {ownerHandle ? (
-          <Link
-            to="/$owner/$slug"
-            params={{ owner: ownerHandle, slug: skill.slug }}
-            className="btn btn-ghost btn-sm"
-          >
-            View
-          </Link>
-        ) : (
-          <Link to="/skills/$slug" params={{ slug: skill.slug }} className="btn btn-ghost btn-sm">
-            View
-          </Link>
-        )}
+        <Link
+          to="/$owner/$slug"
+          params={{ owner: ownerHandle ?? 'unknown', slug: skill.slug }}
+          className="btn btn-ghost btn-sm"
+        >
+          View
+        </Link>
       </div>
     </div>
   )

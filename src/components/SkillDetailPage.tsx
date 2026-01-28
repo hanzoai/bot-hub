@@ -25,11 +25,11 @@ type SkillBySlugResult = {
     kind: 'fork' | 'duplicate'
     version: string | null
     skill: { slug: string; displayName: string }
-    owner: { handle: string | null }
+    owner: { handle: string | null; userId: Id<'users'> | null }
   } | null
   canonical: {
     skill: { slug: string; displayName: string }
-    owner: { handle: string | null }
+    owner: { handle: string | null; userId: Id<'users'> | null }
   } | null
 } | null
 
@@ -81,33 +81,36 @@ export function SkillDetailPage({
   const isStaff = isModerator(me)
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
+  const ownerParam = ownerHandle ?? (owner?._id ? String(owner._id) : null)
   const wantsCanonicalRedirect = Boolean(
-    ownerHandle &&
+    ownerParam &&
       (redirectToCanonical ||
-        (typeof canonicalOwner === 'string' && canonicalOwner && canonicalOwner !== ownerHandle)),
+        (typeof canonicalOwner === 'string' && canonicalOwner && canonicalOwner !== ownerParam)),
   )
 
   const forkOf = result?.forkOf ?? null
   const canonical = result?.canonical ?? null
   const forkOfLabel = forkOf?.kind === 'duplicate' ? 'duplicate of' : 'fork of'
   const forkOfOwnerHandle = forkOf?.owner?.handle ?? null
+  const forkOfOwnerId = forkOf?.owner?.userId ?? null
   const canonicalOwnerHandle = canonical?.owner?.handle ?? null
+  const canonicalOwnerId = canonical?.owner?.userId ?? null
   const forkOfHref = forkOf?.skill?.slug
-    ? buildSkillHref(forkOfOwnerHandle, forkOf.skill.slug)
+    ? buildSkillHref(forkOfOwnerHandle, forkOfOwnerId, forkOf.skill.slug)
     : null
   const canonicalHref =
     canonical?.skill?.slug && canonical.skill.slug !== forkOf?.skill?.slug
-      ? buildSkillHref(canonicalOwnerHandle, canonical.skill.slug)
+      ? buildSkillHref(canonicalOwnerHandle, canonicalOwnerId, canonical.skill.slug)
       : null
 
   useEffect(() => {
-    if (!wantsCanonicalRedirect || !ownerHandle) return
+    if (!wantsCanonicalRedirect || !ownerParam) return
     void navigate({
       to: '/$owner/$slug',
-      params: { owner: ownerHandle, slug },
+      params: { owner: ownerParam, slug },
       replace: true,
     })
-  }, [navigate, ownerHandle, slug, wantsCanonicalRedirect])
+  }, [navigate, ownerParam, slug, wantsCanonicalRedirect])
 
   const versionById = new Map<Id<'skillVersions'>, Doc<'skillVersions'>>(
     (diffVersions ?? versions ?? []).map((version) => [version._id, version]),
@@ -640,9 +643,9 @@ export function SkillDetailPage({
   )
 }
 
-function buildSkillHref(ownerHandle: string | null, slug: string) {
-  if (ownerHandle) return `/${ownerHandle}/${slug}`
-  return `/skills/${slug}`
+function buildSkillHref(ownerHandle: string | null, ownerId: Id<'users'> | null, slug: string) {
+  const owner = ownerHandle?.trim() || (ownerId ? String(ownerId) : 'unknown')
+  return `/${owner}/${slug}`
 }
 
 function formatConfigSnippet(raw: string) {

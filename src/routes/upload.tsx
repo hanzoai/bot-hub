@@ -25,7 +25,7 @@ export const Route = createFileRoute('/upload')({
 })
 
 export function Upload() {
-  const { isAuthenticated } = useAuthStatus()
+  const { isAuthenticated, me } = useAuthStatus()
   const { updateSlug } = useSearch({ from: '/upload' })
   const siteMode = getSiteMode()
   const isSoulMode = siteMode === 'souls'
@@ -309,9 +309,10 @@ export function Upload() {
       setHasAttempted(false)
       setChangelogSource('user')
       if (result) {
+        const ownerParam = me?.handle ?? (me?._id ? String(me._id) : 'unknown')
         void navigate({
-          to: isSoulMode ? '/souls/$slug' : '/skills/$slug',
-          params: { slug: trimmedSlug },
+          to: isSoulMode ? '/souls/$slug' : '/$owner/$slug',
+          params: isSoulMode ? { slug: trimmedSlug } : { owner: ownerParam, slug: trimmedSlug },
         })
       }
     } catch (error) {

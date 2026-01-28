@@ -258,7 +258,10 @@ function InstalledSection(props: {
                 <div className="telemetry-skill-list">
                   {root.skills.map((entry) => (
                     <div key={`${root.rootId}:${entry.skill.slug}`} className="telemetry-skill-row">
-                      <a className="telemetry-skill-link" href={`/skills/${entry.skill.slug}`}>
+                      <a
+                        className="telemetry-skill-link"
+                        href={`/${encodeURIComponent(String(entry.skill.ownerUserId))}/${entry.skill.slug}`}
+                      >
                         <span>{entry.skill.displayName}</span>
                         <span className="telemetry-skill-slug">/{entry.skill.slug}</span>
                       </a>
@@ -286,7 +289,13 @@ type TelemetryResponse = {
     lastSeenAt: number
     expiredAt?: number
     skills: Array<{
-      skill: { slug: string; displayName: string; summary?: string; stats: unknown }
+      skill: {
+        slug: string
+        displayName: string
+        summary?: string
+        stats: unknown
+        ownerUserId: string
+      }
       firstSeenAt: number
       lastSeenAt: number
       lastVersion?: string

@@ -88,7 +88,13 @@ export const getMyInstalled = query({
       lastSeenAt: number
       expiredAt?: number
       skills: Array<{
-        skill: { slug: string; displayName: string; summary?: string; stats: unknown }
+        skill: {
+          slug: string
+          displayName: string
+          summary?: string
+          stats: unknown
+          ownerUserId: Id<'users'>
+        }
         firstSeenAt: number
         lastSeenAt: number
         lastVersion?: string
@@ -105,7 +111,13 @@ export const getMyInstalled = query({
 
       const filtered = includeRemoved ? installs : installs.filter((entry) => !entry.removedAt)
       const skills: Array<{
-        skill: { slug: string; displayName: string; summary?: string; stats: unknown }
+        skill: {
+          slug: string
+          displayName: string
+          summary?: string
+          stats: unknown
+          ownerUserId: Id<'users'>
+        }
         firstSeenAt: number
         lastSeenAt: number
         lastVersion?: string
@@ -121,6 +133,7 @@ export const getMyInstalled = query({
             displayName: skill.displayName,
             summary: skill.summary,
             stats: skill.stats,
+            ownerUserId: skill.ownerUserId,
           },
           firstSeenAt: entry.firstSeenAt,
           lastSeenAt: entry.lastSeenAt,

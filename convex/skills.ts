@@ -127,6 +127,7 @@ export const getBySlug = query({
             },
             owner: {
               handle: forkOfOwner?.handle ?? forkOfOwner?.name ?? null,
+              userId: forkOfOwner?._id ?? null,
             },
           }
         : null,
@@ -138,6 +139,7 @@ export const getBySlug = query({
             },
             owner: {
               handle: canonicalOwner?.handle ?? canonicalOwner?.name ?? null,
+              userId: canonicalOwner?._id ?? null,
             },
           }
         : null,

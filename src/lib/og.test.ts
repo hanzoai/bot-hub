@@ -50,7 +50,7 @@ describe('og helpers', () => {
     const meta = buildSkillMeta({ slug: 'parser' })
     expect(meta.title).toBe('parser — MoltHub')
     expect(meta.description).toMatch(/MoltHub — a fast skill registry/i)
-    expect(meta.url).toContain('/skills/parser')
+    expect(meta.url).toContain('/unknown/parser')
     expect(meta.owner).toBeNull()
     expect(meta.image).toContain('slug=parser')
   })
@@ -76,7 +76,7 @@ describe('og helpers', () => {
       ok: true,
       json: async () => ({
         skill: { displayName: 'Weather', summary: 'Forecasts' },
-        owner: { handle: 'steipete' },
+        owner: { handle: 'steipete', userId: 'users:1' },
         latestVersion: { version: '1.2.3' },
       }),
     }))
@@ -87,6 +87,7 @@ describe('og helpers', () => {
       displayName: 'Weather',
       summary: 'Forecasts',
       owner: 'steipete',
+      ownerId: 'users:1',
       version: '1.2.3',
     })
   })

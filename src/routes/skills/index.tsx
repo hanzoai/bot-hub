@@ -37,7 +37,7 @@ type SkillSearchEntry = {
 }
 
 function buildSkillHref(skill: Doc<'skills'>, ownerHandle?: string | null) {
-  const owner = ownerHandle ?? 'unknown'
+  const owner = ownerHandle?.trim() || String(skill.ownerUserId)
   return `/${encodeURIComponent(owner)}/${encodeURIComponent(skill.slug)}`
 }
 

@@ -3,6 +3,7 @@ import { getMoltHubSiteUrl, getOnlyCrabsSiteUrl } from './site'
 type SkillMetaSource = {
   slug: string
   owner?: string | null
+  ownerId?: string | null
   displayName?: string | null
   summary?: string | null
   version?: string | null
@@ -58,13 +59,14 @@ export async function fetchSkillMeta(slug: string) {
     if (!response.ok) return null
     const payload = (await response.json()) as {
       skill?: { displayName?: string; summary?: string | null } | null
-      owner?: { handle?: string | null } | null
+      owner?: { handle?: string | null; userId?: string | null } | null
       latestVersion?: { version?: string | null } | null
     }
     return {
       displayName: payload.skill?.displayName ?? null,
       summary: payload.skill?.summary ?? null,
       owner: payload.owner?.handle ?? null,
+      ownerId: payload.owner?.userId ?? null,
       version: payload.latestVersion?.version ?? null,
     }
   } catch {
@@ -97,13 +99,15 @@ export async function fetchSoulMeta(slug: string) {
 export function buildSkillMeta(source: SkillMetaSource): SkillMeta {
   const siteUrl = getSiteUrl()
   const owner = clean(source.owner)
+  const ownerId = clean(source.ownerId)
   const displayName = clean(source.displayName) || clean(source.slug)
   const summary = clean(source.summary)
   const version = clean(source.version)
   const title = `${displayName} — MoltHub`
   const description =
     summary || (owner ? `Agent skill by @${owner} on MoltHub.` : DEFAULT_DESCRIPTION)
-  const url = owner ? `${siteUrl}/${owner}/${source.slug}` : `${siteUrl}/skills/${source.slug}`
+  const ownerPath = owner || ownerId || 'unknown'
+  const url = `${siteUrl}/${ownerPath}/${source.slug}`
   const imageParams = new URLSearchParams()
   imageParams.set('v', OG_SKILL_IMAGE_LAYOUT_VERSION)
   imageParams.set('slug', source.slug)

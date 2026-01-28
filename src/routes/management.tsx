@@ -2,7 +2,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMutation, useQuery } from 'convex/react'
 import { useMemo, useState } from 'react'
 import { api } from '../../convex/_generated/api'
-import type { Doc } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 import {
   getSkillBadges,
   isSkillDeprecated,
@@ -30,6 +30,10 @@ type DuplicateCandidateEntry = {
   fingerprint: string | null
   matches: Array<{ skill: Doc<'skills'>; owner: Doc<'users'> | null }>
   owner: Doc<'users'> | null
+}
+
+function resolveOwnerParam(handle: string | null | undefined, ownerId?: Id<'users'>) {
+  return handle?.trim() || (ownerId ? String(ownerId) : 'unknown')
 }
 
 export const Route = createFileRoute('/management')({
@@ -132,6 +136,7 @@ function Management() {
           ) : (
             filteredSkills.map((entry) => {
               const { skill, latestVersion, owner } = entry
+              const ownerParam = resolveOwnerParam(owner?.handle ?? null, owner?._id ?? skill.ownerUserId)
               const canonicalSlug = skill.canonicalSkillId
                 ? skillById.get(skill.canonicalSkillId)?.slug
                 : ''
@@ -147,7 +152,7 @@ function Management() {
               return (
                 <div key={skill._id} className="stat" style={{ alignItems: 'stretch' }}>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <Link to="/skills/$slug" params={{ slug: skill.slug }}>
+                    <Link to="/$owner/$slug" params={{ owner: ownerParam, slug: skill.slug }}>
                       {skill.displayName}
                     </Link>
                     <div className="section-subtitle" style={{ margin: 0 }}>
@@ -330,7 +335,13 @@ function Management() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Link to="/skills/$slug" params={{ slug: entry.skill.slug }}>
+                  <Link
+                    to="/$owner/$slug"
+                    params={{
+                      owner: resolveOwnerParam(entry.owner?.handle ?? null, entry.owner?._id ?? entry.skill.ownerUserId),
+                      slug: entry.skill.slug,
+                    }}
+                  >
                     View
                   </Link>
                   <button
@@ -394,7 +405,13 @@ function Management() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <Link to="/skills/$slug" params={{ slug: match.skill.slug }}>
+                        <Link
+                          to="/$owner/$slug"
+                          params={{
+                            owner: resolveOwnerParam(match.owner?.handle ?? null, match.owner?._id ?? match.skill.ownerUserId),
+                            slug: match.skill.slug,
+                          }}
+                        >
                           View
                         </Link>
                         <button
@@ -436,7 +453,13 @@ function Management() {
                   </div>
                 </div>
                 {entry.skill ? (
-                  <Link to="/skills/$slug" params={{ slug: entry.skill.slug }}>
+                  <Link
+                    to="/$owner/$slug"
+                    params={{
+                      owner: resolveOwnerParam(entry.owner?.handle ?? null, entry.owner?._id ?? entry.skill.ownerUserId),
+                      slug: entry.skill.slug,
+                    }}
+                  >
                     View
                   </Link>
                 ) : null}
