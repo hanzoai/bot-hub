@@ -256,22 +256,22 @@ export const NixPluginSpecSchema = type({
 })
 export type NixPluginSpec = (typeof NixPluginSpecSchema)[inferred]
 
-export const MoltbotConfigSpecSchema = type({
+export const ClawdbotConfigSpecSchema = type({
   requiredEnv: 'string[]?',
   stateDirs: 'string[]?',
   example: 'string?',
 })
-export type MoltbotConfigSpec = (typeof MoltbotConfigSpecSchema)[inferred]
+export type ClawdbotConfigSpec = (typeof ClawdbotConfigSpecSchema)[inferred]
 
-export const MoltbotRequiresSchema = type({
+export const ClawdisRequiresSchema = type({
   bins: 'string[]?',
   anyBins: 'string[]?',
   env: 'string[]?',
   config: 'string[]?',
 })
-export type MoltbotRequires = (typeof MoltbotRequiresSchema)[inferred]
+export type ClawdisRequires = (typeof ClawdisRequiresSchema)[inferred]
 
-export const MoltbotSkillMetadataSchema = type({
+export const ClawdisSkillMetadataSchema = type({
   always: 'boolean?',
   skillKey: 'string?',
   primaryEnv: 'string?',
@@ -279,9 +279,9 @@ export const MoltbotSkillMetadataSchema = type({
   homepage: 'string?',
   os: 'string[]?',
   cliHelp: 'string?',
-  requires: MoltbotRequiresSchema.optional(),
+  requires: ClawdisRequiresSchema.optional(),
   install: SkillInstallSpecSchema.array().optional(),
   nix: NixPluginSpecSchema.optional(),
-  config: MoltbotConfigSpecSchema.optional(),
+  config: ClawdbotConfigSpecSchema.optional(),
 })
-export type MoltbotSkillMetadata = (typeof MoltbotSkillMetadataSchema)[inferred]
+export type ClawdisSkillMetadata = (typeof ClawdisSkillMetadataSchema)[inferred]

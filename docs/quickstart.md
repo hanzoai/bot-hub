@@ -51,29 +51,29 @@ Then paste the printed `JWT_PRIVATE_KEY` + `JWKS` into `.env.local` (and ensure 
 From this repo:
 
 ```bash
-bun molthub --help
-bun molthub login
-bun molthub whoami
-bun molthub search gif --limit 5
+bun clawdhub --help
+bun clawdhub login
+bun clawdhub whoami
+bun clawdhub search gif --limit 5
 ```
 
-Install a skill into `./skills/<slug>` (if Moltbot is configured, installs into that workspace instead):
+Install a skill into `./skills/<slug>` (if Clawdbot is configured, installs into that workspace instead):
 
 ```bash
-bun molthub install <slug>
-bun molthub list
+bun clawdhub install <slug>
+bun clawdhub list
 ```
 
 You can also install into any folder:
 
 ```bash
-bun molthub install <slug> --workdir /tmp/molthub-demo --dir skills
+bun clawdhub install <slug> --workdir /tmp/clawdhub-demo --dir skills
 ```
 
 Update:
 
 ```bash
-bun molthub update --all
+bun clawdhub update --all
 ```
 
 ## 4) Publish a skill
@@ -81,7 +81,7 @@ bun molthub update --all
 Create a folder containing `SKILL.md` (required) plus any supporting text files:
 
 ```bash
-mkdir -p /tmp/molthub-skill-demo && cd /tmp/molthub-skill-demo
+mkdir -p /tmp/clawdhub-skill-demo && cd /tmp/clawdhub-skill-demo
 cat > SKILL.md <<'EOF'
 ---
 name: Demo Skill
@@ -97,8 +97,8 @@ EOF
 Publish:
 
 ```bash
-bun molthub publish . \
-  --slug molthub-demo-$(date +%s) \
+bun clawdhub publish . \
+  --slug clawdhub-demo-$(date +%s) \
   --name "Demo $(date +%s)" \
   --version 1.0.0 \
   --tags latest \
@@ -110,11 +110,11 @@ bun molthub publish . \
 `sync` scans for local skill folders and publishes the ones that aren’t “synced” yet.
 
 ```bash
-bun molthub sync
+bun clawdhub sync
 ```
 
 Dry run + non-interactive:
 
 ```bash
-bun molthub sync --all --dry-run --no-input
+bun clawdhub sync --all --dry-run --no-input
 ```

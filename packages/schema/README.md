@@ -1,3 +1,3 @@
-# molthub-schema
+# clawdhub-schema
 
-Shared runtime schemas (ArkType) for MoltHub.
+Shared runtime schemas (ArkType) for ClawdHub.

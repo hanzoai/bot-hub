@@ -23,7 +23,7 @@ The CLI uses a long-lived API token (Bearer token) for publish/sync/delete.
 
 ### Browser flow (default)
 
-`molthub login` does:
+`clawdhub login` does:
 
 1. Starts a loopback HTTP server on `127.0.0.1` (random port).
 2. Opens `<site>/cli/auth?redirect_uri=http://127.0.0.1:<port>/callback&state=...`.
@@ -35,18 +35,18 @@ The CLI uses a long-lived API token (Bearer token) for publish/sync/delete.
 Create a token in the web UI (Settings → API tokens) and paste it:
 
 ```bash
-molthub login --token clh_...
+clawdhub login --token clh_...
 ```
 
 ### Token storage
 
 Default global config path:
 
-- macOS: `~/Library/Application Support/molthub/config.json`
+- macOS: `~/Library/Application Support/clawdhub/config.json`
 
 Override:
 
-- `MOLTHUB_CONFIG_PATH=/path/to/config.json`
+- `CLAWDHUB_CONFIG_PATH=/path/to/config.json`
 
 ### Revocation
 

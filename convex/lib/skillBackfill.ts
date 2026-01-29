@@ -2,14 +2,14 @@ import {
   getFrontmatterMetadata,
   getFrontmatterValue,
   type ParsedSkillFrontmatter,
+  parseClawdisMetadata,
   parseFrontmatter,
-  parseMoltbotMetadata,
 } from './skills'
 
 export type ParsedSkillData = {
   frontmatter: ParsedSkillFrontmatter
   metadata?: unknown
-  moltbot?: unknown
+  clawdis?: unknown
 }
 
 export type SkillSummaryBackfillPatch = {
@@ -25,8 +25,8 @@ export function buildSkillSummaryBackfillPatch(args: {
   const frontmatter = parseFrontmatter(args.readmeText)
   const summary = getFrontmatterValue(frontmatter, 'description') ?? undefined
   const metadata = getFrontmatterMetadata(frontmatter)
-  const moltbot = parseMoltbotMetadata(frontmatter)
-  const parsed: ParsedSkillData = { frontmatter, metadata, moltbot }
+  const clawdis = parseClawdisMetadata(frontmatter)
+  const parsed: ParsedSkillData = { frontmatter, metadata, clawdis }
 
   const patch: SkillSummaryBackfillPatch = {}
   if (summary && summary !== args.currentSummary) {

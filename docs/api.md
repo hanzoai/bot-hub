@@ -7,7 +7,7 @@ read_when:
 
 # API v1
 
-Base: `https://molthub.com`
+Base: `https://clawdhub.com`
 
 OpenAPI: `/api/v1/openapi.json`
 

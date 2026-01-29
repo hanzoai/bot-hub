@@ -8,53 +8,53 @@ read_when:
 # Manual testing (CLI)
 
 ## Setup
-- Ensure logged in: `bun molthub whoami` (or `bun molthub login`).
+- Ensure logged in: `bun clawdhub whoami` (or `bun clawdhub login`).
 - Optional: set env
-  - `MOLTHUB_SITE=https://molthub.com`
-  - `MOLTHUB_REGISTRY=https://molthub.com`
+  - `CLAWDHUB_SITE=https://clawdhub.com`
+  - `CLAWDHUB_REGISTRY=https://clawdhub.com`
 
 ## Smoke
-- `bun molthub --help`
-- `bun molthub --cli-version`
-- `bun molthub whoami`
+- `bun clawdhub --help`
+- `bun clawdhub --cli-version`
+- `bun clawdhub whoami`
 
 ## Search
-- `bun molthub search gif --limit 5`
+- `bun clawdhub search gif --limit 5`
 
 ## Install / list / update
-- `mkdir -p /tmp/molthub-manual && cd /tmp/molthub-manual`
-- `bunx molthub@beta install gifgrep --force`
-- `bunx molthub@beta list`
-- `bunx molthub@beta update gifgrep --force`
+- `mkdir -p /tmp/clawdhub-manual && cd /tmp/clawdhub-manual`
+- `bunx clawdhub@beta install gifgrep --force`
+- `bunx clawdhub@beta list`
+- `bunx clawdhub@beta update gifgrep --force`
 
 ## Publish (changelog optional)
-- `mkdir -p /tmp/molthub-skill-demo/SKILL && cd /tmp/molthub-skill-demo`
+- `mkdir -p /tmp/clawdhub-skill-demo/SKILL && cd /tmp/clawdhub-skill-demo`
 - Create files:
   - `SKILL.md`
   - `notes.md`
 - Publish:
-  - `bun molthub publish . --slug molthub-manual-<ts> --name "Manual <ts>" --version 1.0.0 --tags latest`
+  - `bun clawdhub publish . --slug clawdhub-manual-<ts> --name "Manual <ts>" --version 1.0.0 --tags latest`
 - Publish update with empty changelog:
-  - `bun molthub publish . --slug molthub-manual-<ts> --name "Manual <ts>" --version 1.0.1 --tags latest`
+  - `bun clawdhub publish . --slug clawdhub-manual-<ts> --name "Manual <ts>" --version 1.0.1 --tags latest`
 
 ## Delete / undelete (owner/admin)
-- `bun molthub delete molthub-manual-<ts> --yes`
+- `bun clawdhub delete clawdhub-manual-<ts> --yes`
 - Verify hidden:
-- `curl -i "https://molthub.com/api/v1/skills/molthub-manual-<ts>"`
+- `curl -i "https://clawdhub.com/api/v1/skills/clawdhub-manual-<ts>"`
 - Restore:
-  - `bun molthub undelete molthub-manual-<ts> --yes`
+  - `bun clawdhub undelete clawdhub-manual-<ts> --yes`
 - Cleanup:
-  - `bun molthub delete molthub-manual-<ts> --yes`
+  - `bun clawdhub delete clawdhub-manual-<ts> --yes`
 
 ## Sync
-- `bun molthub sync --dry-run --all`
+- `bun clawdhub sync --dry-run --all`
 
 ## Playwright (menu smoke)
 
 Run against prod:
 
 ```
-PLAYWRIGHT_BASE_URL=https://molthub.com bun run test:pw
+PLAYWRIGHT_BASE_URL=https://clawdhub.com bun run test:pw
 ```
 
 Run against a local preview server:

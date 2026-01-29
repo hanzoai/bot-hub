@@ -20,7 +20,7 @@ describe('webhook config', () => {
     delete process.env.SITE_URL
     process.env.DISCORD_WEBHOOK_URL = 'https://example.com'
     const config = getWebhookConfig()
-    expect(config.siteUrl).toBe('https://molthub.com')
+    expect(config.siteUrl).toBe('https://clawdhub.com')
   })
 })
 
@@ -36,7 +36,7 @@ describe('webhook filtering', () => {
     const config = {
       url: 'https://example.com',
       highlightedOnly: true,
-      siteUrl: 'https://molthub.com',
+      siteUrl: 'https://clawdhub.com',
     }
     const allowed = shouldSendWebhook(
       'skill.publish',
@@ -50,7 +50,7 @@ describe('webhook filtering', () => {
     const config = {
       url: 'https://example.com',
       highlightedOnly: true,
-      siteUrl: 'https://molthub.com',
+      siteUrl: 'https://clawdhub.com',
     }
     const allowed = shouldSendWebhook(
       'skill.highlighted',
@@ -65,9 +65,9 @@ describe('payload building', () => {
   it('builds canonical url with owner', () => {
     const url = buildSkillUrl(
       { slug: 'beeper', displayName: 'Beeper', ownerHandle: 'KrauseFx' },
-      'https://molthub.com',
+      'https://clawdhub.com',
     )
-    expect(url).toBe('https://molthub.com/KrauseFx/beeper')
+    expect(url).toBe('https://clawdhub.com/KrauseFx/beeper')
   })
 
   it('builds a publish embed', () => {
@@ -81,7 +81,7 @@ describe('payload building', () => {
         ownerHandle: 'steipete',
         tags: ['latest', 'discord'],
       },
-      { url: 'https://example.com', highlightedOnly: false, siteUrl: 'https://molthub.com' },
+      { url: 'https://example.com', highlightedOnly: false, siteUrl: 'https://clawdhub.com' },
     )
     const embed = payload.embeds[0]
     expect(embed.title).toBe('Demo Skill')

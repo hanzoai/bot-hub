@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "molthub",
+      "name": "clawdhub",
       "dependencies": {
         "@auth/core": "^0.37.4",
         "@convex-dev/auth": "^0.0.90",
@@ -21,13 +21,13 @@
         "@tanstack/react-start": "^1.152.0",
         "@tanstack/router-plugin": "^1.151.6",
         "@vercel/analytics": "^1.6.1",
+        "clawdhub-schema": "workspace:*",
         "clsx": "^2.1.1",
         "convex": "^1.31.6",
         "convex-helpers": "^0.1.111",
         "fflate": "^0.8.2",
         "h3": "2.0.1-rc.8",
         "lucide-react": "^0.562.0",
-        "molthub-schema": "workspace:*",
         "monaco-editor": "^0.55.1",
         "nitro": "^3.0.1-alpha.1",
         "react": "^19.2.3",
@@ -61,11 +61,11 @@
         "vitest": "^4.0.17",
       },
     },
-    "packages/molthub": {
-      "name": "molthub",
+    "packages/clawdhub": {
+      "name": "clawdhub",
       "version": "0.3.0",
       "bin": {
-        "molthub": "bin/molthub.js",
+        "clawdhub": "bin/clawdhub.js",
       },
       "dependencies": {
         "@clack/prompts": "^0.11.0",
@@ -86,7 +86,7 @@
       },
     },
     "packages/schema": {
-      "name": "molthub-schema",
+      "name": "clawdhub-schema",
       "version": "0.0.2",
       "dependencies": {
         "arktype": "^2.1.29",
@@ -723,6 +723,10 @@
 
     "chokidar": ["chokidar@3.6.0", "", { "dependencies": { "anymatch": "~3.1.2", "braces": "~3.0.2", "glob-parent": "~5.1.2", "is-binary-path": "~2.1.0", "is-glob": "~4.0.1", "normalize-path": "~3.0.0", "readdirp": "~3.6.0" }, "optionalDependencies": { "fsevents": "~2.3.2" } }, "sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw=="],
 
+    "clawdhub": ["clawdhub@workspace:packages/clawdhub"],
+
+    "clawdhub-schema": ["clawdhub-schema@workspace:packages/schema"],
+
     "cli-cursor": ["cli-cursor@5.0.0", "", { "dependencies": { "restore-cursor": "^5.0.0" } }, "sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw=="],
 
     "cli-spinners": ["cli-spinners@3.3.0", "", {}, "sha512-/+40ljC3ONVnYIttjMWrlL51nItDAbBrq2upN8BPyvGU/2n5Oxw3tbNwORCaNuNqLJnxGqOfjUuhsv7l5Q4IsQ=="],
@@ -1059,9 +1063,9 @@
 
     "mimic-function": ["mimic-function@5.0.1", "", {}, "sha512-VP79XUPxV2CigYP3jWwAUFSku2aKqBH7uTAapFWCBqutsbmDo96KY5o8uh6U+/YSIn5OxJnXp73beVkpqMIGhA=="],
 
-    "molthub": ["molthub@workspace:packages/molthub"],
+    "clawdhub": ["clawdhub@workspace:packages/clawdhub"],
 
-    "molthub-schema": ["molthub-schema@workspace:packages/schema"],
+    "clawdhub-schema": ["clawdhub-schema@workspace:packages/schema"],
 
     "monaco-editor": ["monaco-editor@0.55.1", "", { "dependencies": { "dompurify": "3.2.7", "marked": "14.0.0" } }, "sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A=="],
 

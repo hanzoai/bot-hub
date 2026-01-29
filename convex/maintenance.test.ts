@@ -62,7 +62,7 @@ describe('maintenance backfill', () => {
       parsed: {
         frontmatter: { description: 'Hello world.' },
         metadata: undefined,
-        moltbot: undefined,
+        clawdis: undefined,
       },
     })
   })

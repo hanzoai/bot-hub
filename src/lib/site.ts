@@ -1,11 +1,11 @@
 export type SiteMode = 'skills' | 'souls'
 
-const DEFAULT_MOLTHUB_SITE_URL = 'https://molthub.com'
+const DEFAULT_CLAWDHUB_SITE_URL = 'https://clawdhub.com'
 const DEFAULT_ONLYCRABS_SITE_URL = 'https://onlycrabs.ai'
 const DEFAULT_ONLYCRABS_HOST = 'onlycrabs.ai'
 
-export function getMoltHubSiteUrl() {
-  return import.meta.env.VITE_SITE_URL ?? DEFAULT_MOLTHUB_SITE_URL
+export function getClawdHubSiteUrl() {
+  return import.meta.env.VITE_SITE_URL ?? DEFAULT_CLAWDHUB_SITE_URL
 }
 
 export function getOnlyCrabsSiteUrl() {
@@ -70,15 +70,15 @@ export function getSiteMode(): SiteMode {
 }
 
 export function getSiteName(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? 'SoulHub' : 'MoltHub'
+  return mode === 'souls' ? 'SoulHub' : 'ClawdHub'
 }
 
 export function getSiteDescription(mode: SiteMode = getSiteMode()) {
   return mode === 'souls'
     ? 'SoulHub — the home for SOUL.md bundles and personal system lore.'
-    : 'MoltHub — a fast skill registry for agents, with vector search.'
+    : 'ClawdHub — a fast skill registry for agents, with vector search.'
 }
 
 export function getSiteUrlForMode(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? getOnlyCrabsSiteUrl() : getMoltHubSiteUrl()
+  return mode === 'souls' ? getOnlyCrabsSiteUrl() : getClawdHubSiteUrl()
 }

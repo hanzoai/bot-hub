@@ -7,7 +7,7 @@ read_when:
 
 # Deploy
 
-MoltHub is two deployables:
+ClawdHub is two deployables:
 
 - Web app (TanStack Start) → typically Vercel.
 - Convex backend → Convex deployment (serves `/api/...` routes).
@@ -55,12 +55,12 @@ For self-host:
 
 The CLI can discover the API base from:
 
-- `/.well-known/molthub.json`
+- `/.well-known/clawdhub.json`
 
 If you don’t serve that file, users must set:
 
 ```bash
-export MOLTHUB_REGISTRY=https://your-site.example
+export CLAWDHUB_REGISTRY=https://your-site.example
 ```
 
 ## 5) Post-deploy checks
@@ -73,6 +73,6 @@ curl -i "https://<site>/api/v1/skills/gifgrep"
 Then:
 
 ```bash
-molthub login --site https://<site>
-molthub whoami
+clawdhub login --site https://<site>
+clawdhub whoami
 ```

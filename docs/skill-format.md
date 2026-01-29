@@ -18,16 +18,16 @@ Required:
 Optional:
 
 - any supporting *text-based* files (see “Allowed files”)
-- `.molthubignore` (ignore patterns for publish/sync)
+- `.clawdhubignore` (ignore patterns for publish/sync)
 - `.gitignore` (also honored)
 
 Local install metadata (written by the CLI):
 
-- `<skill>/.molthub/origin.json`
+- `<skill>/.clawdhub/origin.json`
 
 Workdir install state (written by the CLI):
 
-- `<workdir>/.molthub/lock.json`
+- `<workdir>/.clawdhub/lock.json`
 
 ## `SKILL.md`
 

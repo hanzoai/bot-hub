@@ -12,8 +12,8 @@ import {
   getFrontmatterMetadata,
   hashSkillFiles,
   isTextFile,
+  parseClawdisMetadata,
   parseFrontmatter,
-  parseMoltbotMetadata,
   sanitizePath,
 } from './skills'
 import type { WebhookSkillPayload } from './webhooks'
@@ -97,7 +97,7 @@ export async function publishVersionForUser(
 
   const readmeText = await fetchText(ctx, readmeFile.storageId)
   const frontmatter = parseFrontmatter(readmeText)
-  const moltbot = parseMoltbotMetadata(frontmatter)
+  const clawdis = parseClawdisMetadata(frontmatter)
   const metadata = mergeSourceIntoMetadata(getFrontmatterMetadata(frontmatter), args.source)
 
   const otherFiles = [] as Array<{ path: string; content: string }>
@@ -161,7 +161,7 @@ export async function publishVersionForUser(
     parsed: {
       frontmatter,
       metadata,
-      moltbot,
+      clawdis,
     },
     embedding,
   })) as PublishResult

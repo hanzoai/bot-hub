@@ -1,5 +1,5 @@
+import { TEXT_FILE_EXTENSION_SET } from 'clawdhub-schema'
 import { zipSync } from 'fflate'
-import { TEXT_FILE_EXTENSION_SET } from 'molthub-schema'
 import semver from 'semver'
 import { parseFrontmatter } from './skills'
 
@@ -118,7 +118,7 @@ async function resolveRefCommit(parsed: GitHubImportUrl, ref: string, fetcher: t
   const response = await fetcher(apiUrl, {
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'molthub/github-import',
+      'User-Agent': 'clawdhub/github-import',
     },
   })
   if (!response.ok) throw new Error('GitHub ref not found')
@@ -156,7 +156,7 @@ export async function fetchGitHubZipBytes(
   const maxZipBytes = limits?.maxZipBytes ?? 25 * 1024 * 1024
   const url = `https://${CODELOAD_HOST}/${resolved.owner}/${resolved.repo}/zip/${resolved.commit}`
   const response = await fetcher(url, {
-    headers: { 'User-Agent': 'molthub/github-import' },
+    headers: { 'User-Agent': 'clawdhub/github-import' },
   })
   if (!response.ok) throw new Error('GitHub archive download failed')
 
