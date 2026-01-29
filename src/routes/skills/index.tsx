@@ -53,6 +53,7 @@ export const Route = createFileRoute('/skills/')({
           ? true
           : undefined,
       view: search.view === 'cards' || search.view === 'list' ? search.view : undefined,
+      focus: search.focus === 'search' ? 'search' : undefined,
     }
   },
   component: SkillsIndex,
@@ -73,6 +74,7 @@ export function SkillsIndex() {
   const searchRequest = useRef(0)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const trimmedQuery = useMemo(() => query.trim(), [query])
   const hasQuery = trimmedQuery.length > 0
   const searchKey = trimmedQuery ? `${trimmedQuery}::${highlightedOnly ? '1' : '0'}` : ''
@@ -95,6 +97,15 @@ export function SkillsIndex() {
   useEffect(() => {
     setQuery(search.q ?? '')
   }, [search.q])
+
+  // Auto-focus search input when focus=search param is present
+  useEffect(() => {
+    if (search.focus === 'search' && searchInputRef.current) {
+      searchInputRef.current.focus()
+      // Clear the focus param from URL to avoid re-focusing on navigation
+      void navigate({ search: (prev) => ({ ...prev, focus: undefined }), replace: true })
+    }
+  }, [search.focus, navigate])
 
   useEffect(() => {
     if (!searchKey) {
@@ -225,6 +236,7 @@ export function SkillsIndex() {
         <div className="skills-toolbar">
           <div className="skills-search">
             <input
+              ref={searchInputRef}
               className="skills-search-input"
               value={query}
               onChange={(event) => {

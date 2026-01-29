@@ -27,6 +27,7 @@ export const Route = createFileRoute('/souls/')({
       sort: typeof search.sort === 'string' ? parseSort(search.sort) : undefined,
       dir: search.dir === 'asc' || search.dir === 'desc' ? search.dir : undefined,
       view: search.view === 'cards' || search.view === 'list' ? search.view : undefined,
+      focus: search.focus === 'search' ? 'search' : undefined,
     }
   },
   component: SoulsIndex,
@@ -43,11 +44,21 @@ function SoulsIndex() {
   const souls = useQuery(api.souls.list, { limit: 500 }) as PublicSoul[] | undefined
   const ensureSoulSeeds = useAction(api.seed.ensureSoulSeeds)
   const seedEnsuredRef = useRef(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const isLoadingSouls = souls === undefined
 
   useEffect(() => {
     setQuery(search.q ?? '')
   }, [search.q])
+
+  // Auto-focus search input when focus=search param is present
+  useEffect(() => {
+    if (search.focus === 'search' && searchInputRef.current) {
+      searchInputRef.current.focus()
+      // Clear the focus param from URL to avoid re-focusing on navigation
+      void navigate({ search: (prev) => ({ ...prev, focus: undefined }), replace: true })
+    }
+  }, [search.focus, navigate])
 
   useEffect(() => {
     if (seedEnsuredRef.current) return
@@ -108,6 +119,7 @@ function SoulsIndex() {
         <div className="skills-toolbar">
           <div className="skills-search">
             <input
+              ref={searchInputRef}
               className="skills-search-input"
               value={query}
               onChange={(event) => {

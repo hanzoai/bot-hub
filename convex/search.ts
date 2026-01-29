@@ -105,6 +105,14 @@ export const searchSkills: ReturnType<typeof action> = action({
   },
 })
 
+export const getBadgeMapsForSkills = internalQuery({
+  args: { skillIds: v.array(v.id('skills')) },
+  handler: async (ctx, args): Promise<Array<[Id<'skills'>, SkillBadgeMap]>> => {
+    const badgeMap = await getSkillBadgeMaps(ctx, args.skillIds)
+    return Array.from(badgeMap.entries())
+  },
+})
+
 export const hydrateResults = internalQuery({
   args: { embeddingIds: v.array(v.id('skillEmbeddings')) },
   handler: async (ctx, args): Promise<HydratedEntry[]> => {

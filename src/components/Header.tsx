@@ -63,7 +63,13 @@ export default function Header() {
           {isSoulMode ? (
             <Link
               to="/souls"
-              search={{ q: undefined, sort: undefined, dir: undefined, view: undefined }}
+              search={{
+                q: undefined,
+                sort: undefined,
+                dir: undefined,
+                view: undefined,
+                focus: undefined,
+              }}
             >
               Souls
             </Link>
@@ -76,6 +82,7 @@ export default function Header() {
                 dir: undefined,
                 highlighted: undefined,
                 view: undefined,
+                focus: undefined,
               }}
             >
               Skills
@@ -89,13 +96,20 @@ export default function Header() {
             to={isSoulMode ? '/souls' : '/skills'}
             search={
               isSoulMode
-                ? { q: undefined, sort: undefined, dir: undefined, view: undefined }
+                ? {
+                    q: undefined,
+                    sort: undefined,
+                    dir: undefined,
+                    view: undefined,
+                    focus: 'search',
+                  }
                 : {
                     q: undefined,
                     sort: undefined,
                     dir: undefined,
                     highlighted: undefined,
                     view: undefined,
+                    focus: 'search',
                   }
             }
           >
@@ -126,7 +140,13 @@ export default function Header() {
                   {isSoulMode ? (
                     <Link
                       to="/souls"
-                      search={{ q: undefined, sort: undefined, dir: undefined, view: undefined }}
+                      search={{
+                        q: undefined,
+                        sort: undefined,
+                        dir: undefined,
+                        view: undefined,
+                        focus: undefined,
+                      }}
                     >
                       Souls
                     </Link>
@@ -139,6 +159,7 @@ export default function Header() {
                         dir: undefined,
                         highlighted: undefined,
                         view: undefined,
+                        focus: undefined,
                       }}
                     >
                       Skills
@@ -160,13 +181,20 @@ export default function Header() {
                     to={isSoulMode ? '/souls' : '/skills'}
                     search={
                       isSoulMode
-                        ? { q: undefined, sort: undefined, dir: undefined, view: undefined }
+                        ? {
+                            q: undefined,
+                            sort: undefined,
+                            dir: undefined,
+                            view: undefined,
+                            focus: 'search',
+                          }
                         : {
                             q: undefined,
                             sort: undefined,
                             dir: undefined,
                             highlighted: undefined,
                             view: undefined,
+                            focus: 'search',
                           }
                     }
                   >

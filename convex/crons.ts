@@ -26,9 +26,9 @@ crons.interval(
 
 crons.interval(
   'skill-stat-events',
-  { minutes: 5 },
-  internal.skillStatEvents.processSkillStatEventsInternal,
-  { batchSize: 100 },
+  { minutes: 15 },
+  internal.skillStatEvents.processSkillStatEventsAction,
+  {},
 )
 
 export default crons

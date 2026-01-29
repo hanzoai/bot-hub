@@ -20,7 +20,10 @@ function Home() {
 
 function SkillsHome() {
   const highlighted =
-    (useQuery(api.skills.list, { batch: 'highlighted', limit: 6 }) as PublicSkill[]) ?? []
+    (useQuery(api.skills.list, {
+      batch: 'highlighted',
+      limit: 6,
+    }) as PublicSkill[]) ?? []
   const latest = (useQuery(api.skills.list, { limit: 12 }) as PublicSkill[]) ?? []
 
   return (
@@ -46,6 +49,7 @@ function SkillsHome() {
                   dir: undefined,
                   highlighted: undefined,
                   view: undefined,
+                  focus: undefined,
                 }}
                 className="btn"
               >
@@ -118,6 +122,7 @@ function SkillsHome() {
               dir: undefined,
               highlighted: undefined,
               view: undefined,
+              focus: undefined,
             }}
             className="btn"
           >
@@ -160,7 +165,13 @@ function OnlyCrabsHome() {
               </Link>
               <Link
                 to="/souls"
-                search={{ q: undefined, sort: undefined, dir: undefined, view: undefined }}
+                search={{
+                  q: undefined,
+                  sort: undefined,
+                  dir: undefined,
+                  view: undefined,
+                  focus: undefined,
+                }}
                 className="btn"
               >
                 Browse souls
@@ -179,6 +190,7 @@ function OnlyCrabsHome() {
                     sort: undefined,
                     dir: undefined,
                     view: undefined,
+                    focus: undefined,
                   },
                 })
               }}
@@ -222,7 +234,13 @@ function OnlyCrabsHome() {
         <div className="section-cta">
           <Link
             to="/souls"
-            search={{ q: undefined, sort: undefined, dir: undefined, view: undefined }}
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              view: undefined,
+              focus: undefined,
+            }}
             className="btn"
           >
             See all souls
