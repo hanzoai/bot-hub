@@ -202,7 +202,7 @@ async function fetchJsonFormViaCurl(url: string, args: FormRequestArgs) {
     headers.push('-H', `Authorization: Bearer ${args.token}`)
   }
 
-  const tempDir = await mkdtemp(join(tmpdir(), 'clawdhub-upload-'))
+  const tempDir = await mkdtemp(join(tmpdir(), 'clawhub-upload-'))
   try {
     const formArgs: string[] = []
     for (const [key, value] of args.form.entries()) {
@@ -255,7 +255,7 @@ async function fetchJsonFormViaCurl(url: string, args: FormRequestArgs) {
 }
 
 async function fetchBinaryViaCurl(url: string) {
-  const tempDir = await mkdtemp(join(tmpdir(), 'clawdhub-download-'))
+  const tempDir = await mkdtemp(join(tmpdir(), 'clawhub-download-'))
   const filePath = join(tempDir, 'payload.bin')
   try {
     const curlArgs = [

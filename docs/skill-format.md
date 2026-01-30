@@ -18,16 +18,16 @@ Required:
 Optional:
 
 - any supporting *text-based* files (see “Allowed files”)
-- `.clawdhubignore` (ignore patterns for publish/sync)
+- `.clawhubignore` (ignore patterns for publish/sync, legacy `.clawdhubignore`)
 - `.gitignore` (also honored)
 
 Local install metadata (written by the CLI):
 
-- `<skill>/.clawdhub/origin.json`
+- `<skill>/.clawhub/origin.json` (legacy `.clawdhub`)
 
 Workdir install state (written by the CLI):
 
-- `<workdir>/.clawdhub/lock.json`
+- `<workdir>/.clawhub/lock.json` (legacy `.clawdhub`)
 
 ## `SKILL.md`
 

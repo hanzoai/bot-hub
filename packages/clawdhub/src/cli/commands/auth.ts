@@ -47,7 +47,7 @@ export async function cmdLogin(
 ) {
   if (!tokenFlag && !inputAllowed) fail('Token required (use --token or remove --no-input)')
 
-  const token = tokenFlag || (await promptHidden('ClawdHub token: '))
+  const token = tokenFlag || (await promptHidden('ClawHub token: '))
   if (!token) fail('Token required')
 
   const registry = await getRegistry(opts, { cache: true })
@@ -79,7 +79,7 @@ export async function cmdLogout(opts: GlobalOpts) {
 export async function cmdWhoami(opts: GlobalOpts) {
   const cfg = await readGlobalConfig()
   const token = cfg?.token
-  if (!token) fail('Not logged in. Run: clawdhub login')
+  if (!token) fail('Not logged in. Run: clawhub login')
   const registry = await getRegistry(opts, { cache: true })
 
   const spinner = createSpinner('Checking token')

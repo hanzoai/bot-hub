@@ -1,12 +1,12 @@
 ---
-summary: "ClawdHub spec: skills registry, versioning, vector search, moderation"
+summary: "ClawHub spec: skills registry, versioning, vector search, moderation"
 read_when:
-  - Bootstrapping ClawdHub
+  - Bootstrapping ClawHub
   - Implementing schema/auth/search/versioning
   - Reviewing API and upload/download flows
 ---
 
-# ClawdHub — product + implementation spec (v1)
+# ClawHub — product + implementation spec (v1)
 
 ## Goals
 - onlycrabs.ai mode for sharing `SOUL.md` bundles (host-based entry point).

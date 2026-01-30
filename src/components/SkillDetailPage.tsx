@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import type { ClawdisSkillMetadata, SkillInstallSpec } from 'clawdhub-schema'
+import type { ClawdisSkillMetadata, SkillInstallSpec } from 'clawhub-schema'
 import { useAction, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'

@@ -7,7 +7,7 @@ read_when:
 
 # HTTP API
 
-Base URL: `https://clawdhub.com` (default).
+Base URL: `https://clawhub.ai` (default).
 
 All v1 paths are under `/api/v1/...` and implemented by Convex HTTP routes (`convex/http.ts`).
 Legacy `/api/...` and `/api/cli/...` remain for compatibility (see `DEPRECATIONS.md`).
@@ -172,16 +172,17 @@ Still supported for older CLI versions:
 
 See `DEPRECATIONS.md` for removal plan.
 
-## Registry discovery (`/.well-known/clawdhub.json`)
+## Registry discovery (`/.well-known/clawhub.json`)
 
 The CLI can discover registry/auth settings from the site:
 
-- `/.well-known/clawdhub.json` (JSON)
+- `/.well-known/clawhub.json` (JSON, preferred)
+- `/.well-known/clawdhub.json` (legacy)
 
 Schema:
 
 ```json
-{ "apiBase": "https://clawdhub.com", "authBase": "https://clawdhub.com", "minCliVersion": "0.0.5" }
+{ "apiBase": "https://clawhub.ai", "authBase": "https://clawhub.ai", "minCliVersion": "0.0.5" }
 ```
 
-If you self-host, serve this file (or set `CLAWDHUB_REGISTRY` explicitly).
+If you self-host, serve this file (or set `CLAWHUB_REGISTRY` explicitly; legacy `CLAWDHUB_REGISTRY`).

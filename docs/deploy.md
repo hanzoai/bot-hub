@@ -7,7 +7,7 @@ read_when:
 
 # Deploy
 
-ClawdHub is two deployables:
+ClawHub is two deployables:
 
 - Web app (TanStack Start) → typically Vercel.
 - Convex backend → Convex deployment (serves `/api/...` routes).
@@ -55,12 +55,13 @@ For self-host:
 
 The CLI can discover the API base from:
 
-- `/.well-known/clawdhub.json`
+- `/.well-known/clawhub.json` (preferred)
+- `/.well-known/clawdhub.json` (legacy)
 
 If you don’t serve that file, users must set:
 
 ```bash
-export CLAWDHUB_REGISTRY=https://your-site.example
+export CLAWHUB_REGISTRY=https://your-site.example
 ```
 
 ## 5) Post-deploy checks
@@ -73,6 +74,6 @@ curl -i "https://<site>/api/v1/skills/gifgrep"
 Then:
 
 ```bash
-clawdhub login --site https://<site>
-clawdhub whoami
+clawhub login --site https://<site>
+clawhub whoami
 ```

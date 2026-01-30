@@ -1,4 +1,4 @@
-import { CliPublishRequestSchema, parseArk } from 'clawdhub-schema'
+import { CliPublishRequestSchema, parseArk } from 'clawhub-schema'
 import { api, internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import type { ActionCtx } from './_generated/server'
@@ -376,8 +376,7 @@ async function skillsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
     const textContent = await blob.text()
 
     const isSvg =
-      file.contentType?.toLowerCase().includes('svg') ||
-      file.path.toLowerCase().endsWith('.svg')
+      file.contentType?.toLowerCase().includes('svg') || file.path.toLowerCase().endsWith('.svg')
 
     const headers = mergeHeaders(rate.headers, {
       'Content-Type': file.contentType
@@ -392,7 +391,8 @@ async function skillsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
       // For any text response that a browser might try to render, lock it down.
       // In particular, this prevents SVG <foreignObject> script execution from
       // reading localStorage tokens on this origin.
-      'Content-Security-Policy': "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy':
+        "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       ...(isSvg ? { 'Content-Disposition': 'attachment' } : {}),
     })
     return new Response(textContent, { status: 200, headers })
@@ -996,8 +996,7 @@ async function soulsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
     void ctx.runMutation(api.soulDownloads.increment, { soulId: soulResult.soul._id })
 
     const isSvg =
-      file.contentType?.toLowerCase().includes('svg') ||
-      file.path.toLowerCase().endsWith('.svg')
+      file.contentType?.toLowerCase().includes('svg') || file.path.toLowerCase().endsWith('.svg')
 
     const headers = mergeHeaders(rate.headers, {
       'Content-Type': file.contentType
@@ -1012,7 +1011,8 @@ async function soulsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
       // For any text response that a browser might try to render, lock it down.
       // In particular, this prevents SVG <foreignObject> script execution from
       // reading localStorage tokens on this origin.
-      'Content-Security-Policy': "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy':
+        "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       ...(isSvg ? { 'Content-Disposition': 'attachment' } : {}),
     })
     return new Response(textContent, { status: 200, headers })

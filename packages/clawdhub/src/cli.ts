@@ -18,9 +18,9 @@ import { fail } from './cli/ui.js'
 import { readGlobalConfig } from './config.js'
 
 const program = new Command()
-  .name('clawdhub')
+  .name('clawhub')
   .description(
-    `${styleTitle(`ClawdHub CLI ${getCliBuildLabel()}`)}\n${styleEnvBlock(
+    `${styleTitle(`ClawHub CLI ${getCliBuildLabel()}`)}\n${styleEnvBlock(
       'install, update, search, and publish agent skills.',
     )}`,
   )
@@ -34,7 +34,9 @@ const program = new Command()
   .showSuggestionAfterError()
   .addHelpText(
     'after',
-    styleEnvBlock('\nEnv:\n  CLAWDHUB_SITE\n  CLAWDHUB_REGISTRY\n  CLAWDHUB_WORKDIR\n'),
+    styleEnvBlock(
+      '\nEnv:\n  CLAWHUB_SITE\n  CLAWHUB_REGISTRY\n  CLAWHUB_WORKDIR\n  (CLAWDHUB_* supported)\n',
+    ),
   )
 
 configureCommanderHelp(program)
@@ -43,9 +45,17 @@ async function resolveGlobalOpts(): Promise<GlobalOpts> {
   const raw = program.opts<{ workdir?: string; dir?: string; site?: string; registry?: string }>()
   const workdir = await resolveWorkdir(raw.workdir)
   const dir = resolve(workdir, raw.dir ?? 'skills')
-  const site = raw.site ?? process.env.CLAWDHUB_SITE ?? DEFAULT_SITE
-  const registrySource = raw.registry ? 'cli' : process.env.CLAWDHUB_REGISTRY ? 'env' : 'default'
-  const registry = raw.registry ?? process.env.CLAWDHUB_REGISTRY ?? DEFAULT_REGISTRY
+  const site = raw.site ?? process.env.CLAWHUB_SITE ?? process.env.CLAWDHUB_SITE ?? DEFAULT_SITE
+  const registrySource = raw.registry
+    ? 'cli'
+    : process.env.CLAWHUB_REGISTRY || process.env.CLAWDHUB_REGISTRY
+      ? 'env'
+      : 'default'
+  const registry =
+    raw.registry ??
+    process.env.CLAWHUB_REGISTRY ??
+    process.env.CLAWDHUB_REGISTRY ??
+    DEFAULT_REGISTRY
   return { workdir, dir, site, registry, registrySource }
 }
 
@@ -56,22 +66,26 @@ function isInputAllowed() {
 
 async function resolveWorkdir(explicit?: string) {
   if (explicit?.trim()) return resolve(explicit.trim())
-  const envWorkdir = process.env.CLAWDHUB_WORKDIR?.trim()
+  const envWorkdir = process.env.CLAWHUB_WORKDIR?.trim() ?? process.env.CLAWDHUB_WORKDIR?.trim()
   if (envWorkdir) return resolve(envWorkdir)
 
   const cwd = resolve(process.cwd())
-  const hasMarker = await hasClawdhubMarker(cwd)
+  const hasMarker = await hasClawhubMarker(cwd)
   if (hasMarker) return cwd
 
   const clawdbotWorkspace = await resolveClawdbotDefaultWorkspace()
   return clawdbotWorkspace ? resolve(clawdbotWorkspace) : cwd
 }
 
-async function hasClawdhubMarker(workdir: string) {
-  const lockfile = join(workdir, '.clawdhub', 'lock.json')
+async function hasClawhubMarker(workdir: string) {
+  const lockfile = join(workdir, '.clawhub', 'lock.json')
   if (await pathExists(lockfile)) return true
-  const markerDir = join(workdir, '.clawdhub')
-  return pathExists(markerDir)
+  const markerDir = join(workdir, '.clawhub')
+  if (await pathExists(markerDir)) return true
+  const legacyLockfile = join(workdir, '.clawdhub', 'lock.json')
+  if (await pathExists(legacyLockfile)) return true
+  const legacyMarkerDir = join(workdir, '.clawdhub')
+  return pathExists(legacyMarkerDir)
 }
 
 async function pathExists(path: string) {
