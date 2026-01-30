@@ -37,6 +37,7 @@ onlycrabs.ai: `https://onlycrabs.ai`
 - Search: OpenAI embeddings (`text-embedding-3-small`) + Convex vector search.
 - API schema + routes: `packages/schema` (`clawhub-schema`).
 
+
 ## Telemetry
 
 OpenClaw tracks minimal **install telemetry** (to compute install counts) when you run `clawhub sync` while logged in.
