@@ -7,7 +7,7 @@ read_when:
 
 # Deploy
 
-OpenClaw is two deployables:
+ClawHub is two deployables:
 
 - Web app (TanStack Start) → typically Vercel.
 - Convex backend → Convex deployment (serves `/api/...` routes).

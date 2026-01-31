@@ -1,3 +1,3 @@
 # clawhub-schema
 
-Shared runtime schemas (ArkType) for OpenClaw.
+Shared runtime schemas (ArkType) for ClawHub.

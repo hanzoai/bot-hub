@@ -1,6 +1,6 @@
 # `clawhub`
 
-OpenClaw CLI — install, update, search, and publish agent skills as folders.
+ClawHub CLI — install, update, search, and publish agent skills as folders.
 
 ## Install
 

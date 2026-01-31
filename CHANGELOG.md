@@ -12,11 +12,11 @@
 
 ### Added
 - Web: show published skills on user profiles (thanks @njoylab, #20).
-- CLI: include OpenClaw + Moltbot fallback skill roots for sync scans.
+- CLI: include ClawHub + Moltbot fallback skill roots for sync scans.
 - CLI: support OpenClaw configuration files (`OPENCLAW_CONFIG_PATH` / `OPENCLAW_STATE_DIR`).
 
 ### Changed
-- Brand: rebrand to OpenClaw and publish CLI as `clawhub` (legacy `clawdhub` supported).
+- Brand: rebrand to ClawHub and publish CLI as `clawhub` (legacy `clawdhub` supported).
 - Domain: default site/registry now `https://clawhub.ai`; `.well-known/clawhub.json` preferred.
 - Theme: persist theme under `clawhub-theme` (legacy key still read).
 
