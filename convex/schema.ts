@@ -29,6 +29,7 @@ const skills = defineTable({
   slug: v.string(),
   displayName: v.string(),
   summary: v.optional(v.string()),
+  resourceId: v.optional(v.string()),
   ownerUserId: v.id('users'),
   canonicalSkillId: v.optional(v.id('skills')),
   forkOf: v.optional(
@@ -42,32 +43,34 @@ const skills = defineTable({
   latestVersionId: v.optional(v.id('skillVersions')),
   tags: v.record(v.string(), v.id('skillVersions')),
   softDeletedAt: v.optional(v.number()),
-  badges: v.object({
-    redactionApproved: v.optional(
-      v.object({
-        byUserId: v.id('users'),
-        at: v.number(),
-      }),
-    ),
-    highlighted: v.optional(
-      v.object({
-        byUserId: v.id('users'),
-        at: v.number(),
-      }),
-    ),
-    official: v.optional(
-      v.object({
-        byUserId: v.id('users'),
-        at: v.number(),
-      }),
-    ),
-    deprecated: v.optional(
-      v.object({
-        byUserId: v.id('users'),
-        at: v.number(),
-      }),
-    ),
-  }),
+  badges: v.optional(
+    v.object({
+      redactionApproved: v.optional(
+        v.object({
+          byUserId: v.id('users'),
+          at: v.number(),
+        }),
+      ),
+      highlighted: v.optional(
+        v.object({
+          byUserId: v.id('users'),
+          at: v.number(),
+        }),
+      ),
+      official: v.optional(
+        v.object({
+          byUserId: v.id('users'),
+          at: v.number(),
+        }),
+      ),
+      deprecated: v.optional(
+        v.object({
+          byUserId: v.id('users'),
+          at: v.number(),
+        }),
+      ),
+    }),
+  ),
   moderationStatus: v.optional(
     v.union(v.literal('active'), v.literal('hidden'), v.literal('removed')),
   ),
