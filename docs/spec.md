@@ -123,7 +123,7 @@ From SKILL.md frontmatter + AgentSkills + Clawdis extensions:
 ## Auth + roles
 - Convex Auth with GitHub OAuth App.
 - Default role `user`; bootstrap `steipete` to `admin` on first login.
-- Management console: moderators can hide/restore skills + mark duplicates; admins can change owners, approve badges, and hard-delete.
+- Management console: moderators can hide/restore skills + mark duplicates; admins can change owners, approve badges, hard-delete skills, and ban users (deletes owned skills).
 - Role changes are admin-only and audited.
 
 ## Upload flow (50MB per version)

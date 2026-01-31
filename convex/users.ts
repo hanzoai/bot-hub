@@ -120,3 +120,60 @@ export const setRole = mutation({
     })
   },
 })
+
+export const banUser = mutation({
+  args: { userId: v.id('users') },
+  handler: async (ctx, args) => {
+    const { user } = await requireUser(ctx)
+    assertAdmin(user)
+
+    if (args.userId === user._id) throw new Error('Cannot ban yourself')
+
+    const target = await ctx.db.get(args.userId)
+    if (!target) throw new Error('User not found')
+
+    const now = Date.now()
+    if (target.deletedAt) {
+      return { ok: true as const, alreadyBanned: true, deletedSkills: 0 }
+    }
+
+    const skills = await ctx.db
+      .query('skills')
+      .withIndex('by_owner', (q) => q.eq('ownerUserId', args.userId))
+      .collect()
+
+    for (const skill of skills) {
+      await ctx.runMutation(internal.skills.hardDeleteInternal, {
+        skillId: skill._id,
+        actorUserId: user._id,
+      })
+    }
+
+    const tokens = await ctx.db
+      .query('apiTokens')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect()
+    for (const token of tokens) {
+      await ctx.db.patch(token._id, { revokedAt: now })
+    }
+
+    await ctx.db.patch(args.userId, {
+      deletedAt: now,
+      role: 'user',
+      updatedAt: now,
+    })
+
+    await ctx.runMutation(internal.telemetry.clearUserTelemetryInternal, { userId: args.userId })
+
+    await ctx.db.insert('auditLogs', {
+      actorUserId: user._id,
+      action: 'user.ban',
+      targetType: 'user',
+      targetId: args.userId,
+      metadata: { deletedSkills: skills.length },
+      createdAt: now,
+    })
+
+    return { ok: true as const, alreadyBanned: false, deletedSkills: skills.length }
+  },
+})

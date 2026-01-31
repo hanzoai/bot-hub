@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Admin: ban users and delete owned skills from management console.
 
 ### Changed
 

@@ -79,6 +79,7 @@ function Management() {
   ) as DuplicateCandidateEntry[] | undefined
 
   const setRole = useMutation(api.users.setRole)
+  const banUser = useMutation(api.users.banUser)
   const setBatch = useMutation(api.skills.setBatch)
   const setSoftDeleted = useMutation(api.skills.setSoftDeleted)
   const hardDelete = useMutation(api.skills.hardDelete)
@@ -514,6 +515,24 @@ function Management() {
                     <option value="moderator">Moderator</option>
                     <option value="admin">Admin</option>
                   </select>
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={user._id === me?._id}
+                    onClick={() => {
+                      if (user._id === me?._id) return
+                      if (
+                        !window.confirm(
+                          `Ban @${user.handle ?? user.name ?? 'user'} and delete their skills?`,
+                        )
+                      ) {
+                        return
+                      }
+                      void banUser({ userId: user._id })
+                    }}
+                  >
+                    Ban user
+                  </button>
                 </div>
               </div>
             ))}

@@ -31,9 +31,156 @@ const MAX_PUBLIC_LIST_LIMIT = 200
 const MAX_LIST_BULK_LIMIT = 200
 const MAX_LIST_TAKE = 1000
 
+function isSkillVersionId(
+  value: Id<'skillVersions'> | null | undefined,
+): value is Id<'skillVersions'> {
+  return typeof value === 'string' && value.startsWith('skillVersions:')
+}
+
+function isUserId(value: Id<'users'> | null | undefined): value is Id<'users'> {
+  return typeof value === 'string' && value.startsWith('users:')
+}
+
 async function resolveOwnerHandle(ctx: QueryCtx, ownerUserId: Id<'users'>) {
   const owner = await ctx.db.get(ownerUserId)
   return owner?.handle ?? owner?._id ?? null
+}
+
+async function hardDeleteSkill(
+  ctx: MutationCtx,
+  skill: Doc<'skills'>,
+  actorUserId: Id<'users'> | null,
+) {
+  const versions = await ctx.db
+    .query('skillVersions')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+
+  for (const version of versions) {
+    const versionFingerprints = await ctx.db
+      .query('skillVersionFingerprints')
+      .withIndex('by_version', (q) => q.eq('versionId', version._id))
+      .collect()
+    for (const fingerprint of versionFingerprints) {
+      await ctx.db.delete(fingerprint._id)
+    }
+
+    const embeddings = await ctx.db
+      .query('skillEmbeddings')
+      .withIndex('by_version', (q) => q.eq('versionId', version._id))
+      .collect()
+    for (const embedding of embeddings) {
+      await ctx.db.delete(embedding._id)
+    }
+
+    await ctx.db.delete(version._id)
+  }
+
+  const remainingFingerprints = await ctx.db
+    .query('skillVersionFingerprints')
+    .withIndex('by_skill_fingerprint', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const fingerprint of remainingFingerprints) {
+    await ctx.db.delete(fingerprint._id)
+  }
+
+  const remainingEmbeddings = await ctx.db
+    .query('skillEmbeddings')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const embedding of remainingEmbeddings) {
+    await ctx.db.delete(embedding._id)
+  }
+
+  const comments = await ctx.db
+    .query('comments')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const comment of comments) {
+    await ctx.db.delete(comment._id)
+  }
+
+  const stars = await ctx.db
+    .query('stars')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const star of stars) {
+    await ctx.db.delete(star._id)
+  }
+
+  const badges = await ctx.db
+    .query('skillBadges')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const badge of badges) {
+    await ctx.db.delete(badge._id)
+  }
+
+  const dailyStats = await ctx.db
+    .query('skillDailyStats')
+    .withIndex('by_skill_day', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const stat of dailyStats) {
+    await ctx.db.delete(stat._id)
+  }
+
+  const statEvents = await ctx.db
+    .query('skillStatEvents')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const statEvent of statEvents) {
+    await ctx.db.delete(statEvent._id)
+  }
+
+  const installs = await ctx.db
+    .query('userSkillInstalls')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const install of installs) {
+    await ctx.db.delete(install._id)
+  }
+
+  const rootInstalls = await ctx.db
+    .query('userSkillRootInstalls')
+    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+    .collect()
+  for (const rootInstall of rootInstalls) {
+    await ctx.db.delete(rootInstall._id)
+  }
+
+  const leaderboards = await ctx.db.query('skillLeaderboards').collect()
+  for (const leaderboard of leaderboards) {
+    const items = leaderboard.items.filter((item) => item.skillId !== skill._id)
+    if (items.length !== leaderboard.items.length) {
+      await ctx.db.patch(leaderboard._id, { items })
+    }
+  }
+
+  const relatedSkills = await ctx.db.query('skills').collect()
+  const now = Date.now()
+  for (const related of relatedSkills) {
+    if (related._id === skill._id) continue
+    if (related.canonicalSkillId === skill._id || related.forkOf?.skillId === skill._id) {
+      await ctx.db.patch(related._id, {
+        canonicalSkillId: related.canonicalSkillId === skill._id ? undefined : related.canonicalSkillId,
+        forkOf: related.forkOf?.skillId === skill._id ? undefined : related.forkOf,
+        updatedAt: now,
+      })
+    }
+  }
+
+  await ctx.db.delete(skill._id)
+
+  if (actorUserId) {
+    await ctx.db.insert('auditLogs', {
+      actorUserId,
+      action: 'skill.hard_delete',
+      targetType: 'skill',
+      targetId: skill._id,
+      metadata: { slug: skill.slug },
+      createdAt: now,
+    })
+  }
 }
 
 type PublicSkillEntry = {
@@ -427,14 +574,22 @@ export const listDuplicateCandidates = query({
     }> = []
 
     for (const skill of entries) {
-      const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
+      const latestVersion = isSkillVersionId(skill.latestVersionId)
+        ? await ctx.db.get(skill.latestVersionId)
+        : null
       const fingerprint = latestVersion?.fingerprint ?? null
       if (!fingerprint) continue
 
-      const matchedFingerprints = await ctx.db
-        .query('skillVersionFingerprints')
-        .withIndex('by_fingerprint', (q) => q.eq('fingerprint', fingerprint))
-        .take(10)
+      let matchedFingerprints: Doc<'skillVersionFingerprints'>[] = []
+      try {
+        matchedFingerprints = await ctx.db
+          .query('skillVersionFingerprints')
+          .withIndex('by_fingerprint', (q) => q.eq('fingerprint', fingerprint))
+          .take(10)
+      } catch (error) {
+        console.error('listDuplicateCandidates: fingerprint lookup failed', error)
+        continue
+      }
 
       const matchEntries: Array<{ skill: Doc<'skills'>; owner: Doc<'users'> | null }> = []
       for (const match of matchedFingerprints) {
@@ -447,7 +602,7 @@ export const listDuplicateCandidates = query({
 
       if (matchEntries.length === 0) continue
 
-      const owner = await ctx.db.get(skill.ownerUserId)
+      const owner = isUserId(skill.ownerUserId) ? await ctx.db.get(skill.ownerUserId) : null
       results.push({
         skill,
         latestVersion,
@@ -1164,135 +1319,19 @@ export const hardDelete = mutation({
     assertAdmin(user)
     const skill = await ctx.db.get(args.skillId)
     if (!skill) throw new Error('Skill not found')
+    await hardDeleteSkill(ctx, skill, user._id)
+  },
+})
 
-    const versions = await ctx.db
-      .query('skillVersions')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-
-    for (const version of versions) {
-      const versionFingerprints = await ctx.db
-        .query('skillVersionFingerprints')
-        .withIndex('by_version', (q) => q.eq('versionId', version._id))
-        .collect()
-      for (const fingerprint of versionFingerprints) {
-        await ctx.db.delete(fingerprint._id)
-      }
-
-      const embeddings = await ctx.db
-        .query('skillEmbeddings')
-        .withIndex('by_version', (q) => q.eq('versionId', version._id))
-        .collect()
-      for (const embedding of embeddings) {
-        await ctx.db.delete(embedding._id)
-      }
-
-      await ctx.db.delete(version._id)
-    }
-
-    const remainingFingerprints = await ctx.db
-      .query('skillVersionFingerprints')
-      .withIndex('by_skill_fingerprint', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const fingerprint of remainingFingerprints) {
-      await ctx.db.delete(fingerprint._id)
-    }
-
-    const remainingEmbeddings = await ctx.db
-      .query('skillEmbeddings')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const embedding of remainingEmbeddings) {
-      await ctx.db.delete(embedding._id)
-    }
-
-    const comments = await ctx.db
-      .query('comments')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const comment of comments) {
-      await ctx.db.delete(comment._id)
-    }
-
-    const stars = await ctx.db
-      .query('stars')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const star of stars) {
-      await ctx.db.delete(star._id)
-    }
-
-    const badges = await ctx.db
-      .query('skillBadges')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const badge of badges) {
-      await ctx.db.delete(badge._id)
-    }
-
-    const dailyStats = await ctx.db
-      .query('skillDailyStats')
-      .withIndex('by_skill_day', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const stat of dailyStats) {
-      await ctx.db.delete(stat._id)
-    }
-
-    const statEvents = await ctx.db
-      .query('skillStatEvents')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const statEvent of statEvents) {
-      await ctx.db.delete(statEvent._id)
-    }
-
-    const installs = await ctx.db
-      .query('userSkillInstalls')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const install of installs) {
-      await ctx.db.delete(install._id)
-    }
-
-    const rootInstalls = await ctx.db
-      .query('userSkillRootInstalls')
-      .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-      .collect()
-    for (const rootInstall of rootInstalls) {
-      await ctx.db.delete(rootInstall._id)
-    }
-
-    const leaderboards = await ctx.db.query('skillLeaderboards').collect()
-    for (const leaderboard of leaderboards) {
-      const items = leaderboard.items.filter((item) => item.skillId !== skill._id)
-      if (items.length !== leaderboard.items.length) {
-        await ctx.db.patch(leaderboard._id, { items })
-      }
-    }
-
-    const relatedSkills = await ctx.db.query('skills').collect()
-    for (const related of relatedSkills) {
-      if (related._id === skill._id) continue
-      if (related.canonicalSkillId === skill._id || related.forkOf?.skillId === skill._id) {
-        await ctx.db.patch(related._id, {
-          canonicalSkillId:
-            related.canonicalSkillId === skill._id ? undefined : related.canonicalSkillId,
-          forkOf: related.forkOf?.skillId === skill._id ? undefined : related.forkOf,
-          updatedAt: Date.now(),
-        })
-      }
-    }
-
-    await ctx.db.delete(skill._id)
-
-    await ctx.db.insert('auditLogs', {
-      actorUserId: user._id,
-      action: 'skill.hard_delete',
-      targetType: 'skill',
-      targetId: skill._id,
-      metadata: { slug: skill.slug },
-      createdAt: Date.now(),
-    })
+export const hardDeleteInternal = internalMutation({
+  args: { skillId: v.id('skills'), actorUserId: v.id('users') },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorUserId)
+    if (!actor || actor.deletedAt) throw new Error('User not found')
+    assertAdmin(actor)
+    const skill = await ctx.db.get(args.skillId)
+    if (!skill) throw new Error('Skill not found')
+    await hardDeleteSkill(ctx, skill, actor._id)
   },
 })
 
