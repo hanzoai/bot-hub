@@ -54,6 +54,9 @@ const config = defineConfig({
     devtools(),
     nitro({
       serverDir: 'server',
+      rollupConfig: {
+        onwarn: handleRollupWarning,
+      },
     }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
