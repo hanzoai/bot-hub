@@ -8,6 +8,7 @@
 - Uploads: require GitHub accounts to be at least 7 days old for skill + soul publish/import.
 
 ### Changed
+- Deps: update dependencies to latest available versions.
 
 ### Fixed
 
