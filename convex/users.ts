@@ -177,7 +177,7 @@ async function banUserWithActor(ctx: MutationCtx, actor: Doc<'users'>, targetUse
     .collect()
 
   for (const skill of skills) {
-    await ctx.runMutation(internal.skills.hardDeleteInternal, {
+    await ctx.scheduler.runAfter(0, internal.skills.hardDeleteInternal, {
       skillId: skill._id,
       actorUserId: actor._id,
     })

@@ -30,6 +30,9 @@ const MAX_LIST_LIMIT = 50
 const MAX_PUBLIC_LIST_LIMIT = 200
 const MAX_LIST_BULK_LIMIT = 200
 const MAX_LIST_TAKE = 1000
+const HARD_DELETE_BATCH_SIZE = 100
+const HARD_DELETE_VERSION_BATCH_SIZE = 10
+const HARD_DELETE_LEADERBOARD_BATCH_SIZE = 25
 const MAX_ACTIVE_REPORTS_PER_USER = 20
 const AUTO_HIDE_REPORT_THRESHOLD = 3
 const MAX_REPORT_REASON_SAMPLE = 5
@@ -49,149 +52,292 @@ async function resolveOwnerHandle(ctx: QueryCtx, ownerUserId: Id<'users'>) {
   return owner?.handle ?? owner?._id ?? null
 }
 
-async function hardDeleteSkill(
+const HARD_DELETE_PHASES = [
+  'versions',
+  'fingerprints',
+  'embeddings',
+  'comments',
+  'reports',
+  'stars',
+  'badges',
+  'dailyStats',
+  'statEvents',
+  'installs',
+  'rootInstalls',
+  'leaderboards',
+  'canonical',
+  'forks',
+  'finalize',
+] as const
+
+type HardDeletePhase = (typeof HARD_DELETE_PHASES)[number]
+
+function isHardDeletePhase(value: string | undefined): value is HardDeletePhase {
+  return Boolean(value) && (HARD_DELETE_PHASES as readonly string[]).includes(value)
+}
+
+async function scheduleHardDelete(
+  ctx: MutationCtx,
+  skillId: Id<'skills'>,
+  actorUserId: Id<'users'>,
+  phase: HardDeletePhase,
+) {
+  await ctx.scheduler.runAfter(0, internal.skills.hardDeleteInternal, {
+    skillId,
+    actorUserId,
+    phase,
+  })
+}
+
+async function hardDeleteSkillStep(
   ctx: MutationCtx,
   skill: Doc<'skills'>,
-  actorUserId: Id<'users'> | null,
+  actorUserId: Id<'users'>,
+  phase: HardDeletePhase,
 ) {
-  const versions = await ctx.db
-    .query('skillVersions')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-
-  for (const version of versions) {
-    const versionFingerprints = await ctx.db
-      .query('skillVersionFingerprints')
-      .withIndex('by_version', (q) => q.eq('versionId', version._id))
-      .collect()
-    for (const fingerprint of versionFingerprints) {
-      await ctx.db.delete(fingerprint._id)
-    }
-
-    const embeddings = await ctx.db
-      .query('skillEmbeddings')
-      .withIndex('by_version', (q) => q.eq('versionId', version._id))
-      .collect()
-    for (const embedding of embeddings) {
-      await ctx.db.delete(embedding._id)
-    }
-
-    await ctx.db.delete(version._id)
-  }
-
-  const remainingFingerprints = await ctx.db
-    .query('skillVersionFingerprints')
-    .withIndex('by_skill_fingerprint', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const fingerprint of remainingFingerprints) {
-    await ctx.db.delete(fingerprint._id)
-  }
-
-  const remainingEmbeddings = await ctx.db
-    .query('skillEmbeddings')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const embedding of remainingEmbeddings) {
-    await ctx.db.delete(embedding._id)
-  }
-
-  const comments = await ctx.db
-    .query('comments')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const comment of comments) {
-    await ctx.db.delete(comment._id)
-  }
-
-  const reports = await ctx.db
-    .query('skillReports')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const report of reports) {
-    await ctx.db.delete(report._id)
-  }
-
-  const stars = await ctx.db
-    .query('stars')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const star of stars) {
-    await ctx.db.delete(star._id)
-  }
-
-  const badges = await ctx.db
-    .query('skillBadges')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const badge of badges) {
-    await ctx.db.delete(badge._id)
-  }
-
-  const dailyStats = await ctx.db
-    .query('skillDailyStats')
-    .withIndex('by_skill_day', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const stat of dailyStats) {
-    await ctx.db.delete(stat._id)
-  }
-
-  const statEvents = await ctx.db
-    .query('skillStatEvents')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const statEvent of statEvents) {
-    await ctx.db.delete(statEvent._id)
-  }
-
-  const installs = await ctx.db
-    .query('userSkillInstalls')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const install of installs) {
-    await ctx.db.delete(install._id)
-  }
-
-  const rootInstalls = await ctx.db
-    .query('userSkillRootInstalls')
-    .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
-    .collect()
-  for (const rootInstall of rootInstalls) {
-    await ctx.db.delete(rootInstall._id)
-  }
-
-  const leaderboards = await ctx.db.query('skillLeaderboards').collect()
-  for (const leaderboard of leaderboards) {
-    const items = leaderboard.items.filter((item) => item.skillId !== skill._id)
-    if (items.length !== leaderboard.items.length) {
-      await ctx.db.patch(leaderboard._id, { items })
-    }
-  }
-
-  const relatedSkills = await ctx.db.query('skills').collect()
   const now = Date.now()
-  for (const related of relatedSkills) {
-    if (related._id === skill._id) continue
-    if (related.canonicalSkillId === skill._id || related.forkOf?.skillId === skill._id) {
-      await ctx.db.patch(related._id, {
-        canonicalSkillId:
-          related.canonicalSkillId === skill._id ? undefined : related.canonicalSkillId,
-        forkOf: related.forkOf?.skillId === skill._id ? undefined : related.forkOf,
-        updatedAt: now,
-      })
-    }
+  const patch: Partial<Doc<'skills'>> = {}
+  if (!skill.softDeletedAt) patch.softDeletedAt = now
+  if (skill.moderationStatus !== 'removed') patch.moderationStatus = 'removed'
+  if (!skill.hiddenAt) patch.hiddenAt = now
+  if (!skill.hiddenBy) patch.hiddenBy = actorUserId
+  if (Object.keys(patch).length) {
+    patch.lastReviewedAt = now
+    patch.updatedAt = now
+    await ctx.db.patch(skill._id, patch)
   }
 
-  await ctx.db.delete(skill._id)
-
-  if (actorUserId) {
-    await ctx.db.insert('auditLogs', {
-      actorUserId,
-      action: 'skill.hard_delete',
-      targetType: 'skill',
-      targetId: skill._id,
-      metadata: { slug: skill.slug },
-      createdAt: now,
-    })
+  switch (phase) {
+    case 'versions': {
+      const versions = await ctx.db
+        .query('skillVersions')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_VERSION_BATCH_SIZE)
+      for (const version of versions) {
+        await ctx.db.delete(version._id)
+      }
+      if (versions.length === HARD_DELETE_VERSION_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'versions')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'fingerprints')
+      return
+    }
+    case 'fingerprints': {
+      const fingerprints = await ctx.db
+        .query('skillVersionFingerprints')
+        .withIndex('by_skill_fingerprint', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const fingerprint of fingerprints) {
+        await ctx.db.delete(fingerprint._id)
+      }
+      if (fingerprints.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'fingerprints')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'embeddings')
+      return
+    }
+    case 'embeddings': {
+      const embeddings = await ctx.db
+        .query('skillEmbeddings')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const embedding of embeddings) {
+        await ctx.db.delete(embedding._id)
+      }
+      if (embeddings.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'embeddings')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'comments')
+      return
+    }
+    case 'comments': {
+      const comments = await ctx.db
+        .query('comments')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const comment of comments) {
+        await ctx.db.delete(comment._id)
+      }
+      if (comments.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'comments')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'reports')
+      return
+    }
+    case 'reports': {
+      const reports = await ctx.db
+        .query('skillReports')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const report of reports) {
+        await ctx.db.delete(report._id)
+      }
+      if (reports.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'reports')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'stars')
+      return
+    }
+    case 'stars': {
+      const stars = await ctx.db
+        .query('stars')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const star of stars) {
+        await ctx.db.delete(star._id)
+      }
+      if (stars.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'stars')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'badges')
+      return
+    }
+    case 'badges': {
+      const badges = await ctx.db
+        .query('skillBadges')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const badge of badges) {
+        await ctx.db.delete(badge._id)
+      }
+      if (badges.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'badges')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'dailyStats')
+      return
+    }
+    case 'dailyStats': {
+      const dailyStats = await ctx.db
+        .query('skillDailyStats')
+        .withIndex('by_skill_day', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const stat of dailyStats) {
+        await ctx.db.delete(stat._id)
+      }
+      if (dailyStats.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'dailyStats')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'statEvents')
+      return
+    }
+    case 'statEvents': {
+      const statEvents = await ctx.db
+        .query('skillStatEvents')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const statEvent of statEvents) {
+        await ctx.db.delete(statEvent._id)
+      }
+      if (statEvents.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'statEvents')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'installs')
+      return
+    }
+    case 'installs': {
+      const installs = await ctx.db
+        .query('userSkillInstalls')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const install of installs) {
+        await ctx.db.delete(install._id)
+      }
+      if (installs.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'installs')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'rootInstalls')
+      return
+    }
+    case 'rootInstalls': {
+      const rootInstalls = await ctx.db
+        .query('userSkillRootInstalls')
+        .withIndex('by_skill', (q) => q.eq('skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const rootInstall of rootInstalls) {
+        await ctx.db.delete(rootInstall._id)
+      }
+      if (rootInstalls.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'rootInstalls')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'leaderboards')
+      return
+    }
+    case 'leaderboards': {
+      const leaderboards = await ctx.db
+        .query('skillLeaderboards')
+        .take(HARD_DELETE_LEADERBOARD_BATCH_SIZE)
+      for (const leaderboard of leaderboards) {
+        const items = leaderboard.items.filter((item) => item.skillId !== skill._id)
+        if (items.length !== leaderboard.items.length) {
+          await ctx.db.patch(leaderboard._id, { items })
+        }
+      }
+      if (leaderboards.length === HARD_DELETE_LEADERBOARD_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'leaderboards')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'canonical')
+      return
+    }
+    case 'canonical': {
+      const canonicalRefs = await ctx.db
+        .query('skills')
+        .withIndex('by_canonical', (q) => q.eq('canonicalSkillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const related of canonicalRefs) {
+        await ctx.db.patch(related._id, {
+          canonicalSkillId: undefined,
+          updatedAt: now,
+        })
+      }
+      if (canonicalRefs.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'canonical')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'forks')
+      return
+    }
+    case 'forks': {
+      const forkRefs = await ctx.db
+        .query('skills')
+        .withIndex('by_fork_of', (q) => q.eq('forkOf.skillId', skill._id))
+        .take(HARD_DELETE_BATCH_SIZE)
+      for (const related of forkRefs) {
+        await ctx.db.patch(related._id, {
+          forkOf: undefined,
+          updatedAt: now,
+        })
+      }
+      if (forkRefs.length === HARD_DELETE_BATCH_SIZE) {
+        await scheduleHardDelete(ctx, skill._id, actorUserId, 'forks')
+        return
+      }
+      await scheduleHardDelete(ctx, skill._id, actorUserId, 'finalize')
+      return
+    }
+    case 'finalize': {
+      await ctx.db.delete(skill._id)
+      await ctx.db.insert('auditLogs', {
+        actorUserId,
+        action: 'skill.hard_delete',
+        targetType: 'skill',
+        targetId: skill._id,
+        metadata: { slug: skill.slug },
+        createdAt: now,
+      })
+      return
+    }
   }
 }
 
@@ -1486,19 +1632,20 @@ export const hardDelete = mutation({
     assertAdmin(user)
     const skill = await ctx.db.get(args.skillId)
     if (!skill) throw new Error('Skill not found')
-    await hardDeleteSkill(ctx, skill, user._id)
+    await hardDeleteSkillStep(ctx, skill, user._id, 'versions')
   },
 })
 
 export const hardDeleteInternal = internalMutation({
-  args: { skillId: v.id('skills'), actorUserId: v.id('users') },
+  args: { skillId: v.id('skills'), actorUserId: v.id('users'), phase: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const actor = await ctx.db.get(args.actorUserId)
     if (!actor || actor.deletedAt) throw new Error('User not found')
     assertAdmin(actor)
     const skill = await ctx.db.get(args.skillId)
-    if (!skill) throw new Error('Skill not found')
-    await hardDeleteSkill(ctx, skill, actor._id)
+    if (!skill) return
+    const phase = isHardDeletePhase(args.phase) ? args.phase : 'versions'
+    await hardDeleteSkillStep(ctx, skill, actor._id, phase)
   },
 })
 

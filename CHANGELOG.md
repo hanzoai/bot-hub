@@ -15,6 +15,7 @@
 - Reporting: require reasons, show them in management console, warn about abuse bans.
 
 ### Fixed
+- Bans: batch hard-delete cleanup to avoid Convex read limits on large skills.
 
 ## 0.4.0 - 2026-01-30
 

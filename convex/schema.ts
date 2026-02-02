@@ -109,6 +109,8 @@ const skills = defineTable({
   .index('by_stats_installs_all_time', ['statsInstallsAllTime', 'updatedAt'])
   .index('by_batch', ['batch'])
   .index('by_active_updated', ['softDeletedAt', 'updatedAt'])
+  .index('by_canonical', ['canonicalSkillId'])
+  .index('by_fork_of', ['forkOf.skillId'])
 
 const souls = defineTable({
   slug: v.string(),
