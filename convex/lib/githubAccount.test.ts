@@ -21,12 +21,14 @@ describe('requireGitHubAccountAge', () => {
   })
 
   it('uses cached githubCreatedAt when fresh', async () => {
-    const now = Date.now()
+    vi.useFakeTimers()
+    const now = new Date('2026-02-02T12:00:00Z')
+    vi.setSystemTime(now)
     const runQuery = vi.fn().mockResolvedValue({
       _id: 'users:1',
       handle: 'steipete',
-      githubCreatedAt: now - 10 * ONE_DAY_MS,
-      githubFetchedAt: now - ONE_DAY_MS,
+      githubCreatedAt: now.getTime() - 10 * ONE_DAY_MS,
+      githubFetchedAt: now.getTime() - ONE_DAY_MS + 1000,
     })
     const runMutation = vi.fn()
     const fetchMock = vi.fn()
@@ -37,6 +39,8 @@ describe('requireGitHubAccountAge', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(runMutation).not.toHaveBeenCalled()
     expect(runQuery).toHaveBeenCalledWith(internal.users.getByIdInternal, { userId: 'users:1' })
+
+    vi.useRealTimers()
   })
 
   it('rejects accounts younger than 7 days', async () => {

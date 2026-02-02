@@ -32,6 +32,7 @@ const MAX_LIST_BULK_LIMIT = 200
 const MAX_LIST_TAKE = 1000
 const MAX_ACTIVE_REPORTS_PER_USER = 20
 const AUTO_HIDE_REPORT_THRESHOLD = 3
+const MAX_REPORT_REASON_SAMPLE = 5
 
 function isSkillVersionId(
   value: Id<'skillVersions'> | null | undefined,
@@ -618,7 +619,39 @@ export const listReportedSkills = query({
       .filter((skill) => (skill.reportCount ?? 0) > 0)
       .sort((a, b) => (b.lastReportedAt ?? 0) - (a.lastReportedAt ?? 0))
       .slice(0, limit)
-    return buildManagementSkillEntries(ctx, reported)
+    const managementEntries = await buildManagementSkillEntries(ctx, reported)
+    const reporterCache = new Map<Id<'users'>, Promise<Doc<'users'> | null>>()
+
+    const getReporter = (reporterId: Id<'users'>) => {
+      const cached = reporterCache.get(reporterId)
+      if (cached) return cached
+      const reporterPromise = ctx.db.get(reporterId)
+      reporterCache.set(reporterId, reporterPromise)
+      return reporterPromise
+    }
+
+    return Promise.all(
+      managementEntries.map(async (entry) => {
+        const reports = await ctx.db
+          .query('skillReports')
+          .withIndex('by_skill_createdAt', (q) => q.eq('skillId', entry.skill._id))
+          .order('desc')
+          .take(MAX_REPORT_REASON_SAMPLE)
+        const reportEntries = await Promise.all(
+          reports.map(async (report) => {
+            const reporter = await getReporter(report.userId)
+            const reason = report.reason?.trim()
+            return {
+              reason: reason && reason.length > 0 ? reason : 'No reason provided.',
+              createdAt: report.createdAt,
+              reporterHandle: reporter?.handle ?? reporter?.name ?? null,
+              reporterId: report.userId,
+            }
+          }),
+        )
+        return { ...entry, reports: reportEntries }
+      }),
+    )
   },
 })
 
@@ -705,12 +738,16 @@ async function countActiveReportsForUser(ctx: MutationCtx, userId: Id<'users'>) 
 }
 
 export const report = mutation({
-  args: { skillId: v.id('skills'), reason: v.optional(v.string()) },
+  args: { skillId: v.id('skills'), reason: v.string() },
   handler: async (ctx, args) => {
     const { userId } = await requireUser(ctx)
     const skill = await ctx.db.get(args.skillId)
     if (!skill || skill.softDeletedAt || skill.moderationStatus === 'removed') {
       throw new Error('Skill not found')
+    }
+    const reason = args.reason.trim()
+    if (!reason) {
+      throw new Error('Report reason required.')
     }
 
     const existing = await ctx.db
@@ -725,11 +762,10 @@ export const report = mutation({
     }
 
     const now = Date.now()
-    const reason = args.reason?.trim()
     await ctx.db.insert('skillReports', {
       skillId: args.skillId,
       userId,
-      reason: reason ? reason.slice(0, 500) : undefined,
+      reason: reason.slice(0, 500),
       createdAt: now,
     })
 

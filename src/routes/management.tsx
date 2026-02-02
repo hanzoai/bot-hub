@@ -18,6 +18,17 @@ type ManagementSkillEntry = {
   owner: Doc<'users'> | null
 }
 
+type ReportReasonEntry = {
+  reason: string
+  createdAt: number
+  reporterHandle: string | null
+  reporterId: Id<'users'>
+}
+
+type ReportedSkillEntry = ManagementSkillEntry & {
+  reports: ReportReasonEntry[]
+}
+
 type RecentVersionEntry = {
   version: Doc<'skillVersions'>
   skill: Doc<'skills'> | null
@@ -71,7 +82,7 @@ function Management() {
     | RecentVersionEntry[]
     | undefined
   const reportedSkills = useQuery(api.skills.listReportedSkills, staff ? { limit: 25 } : 'skip') as
-    | ManagementSkillEntry[]
+    | ReportedSkillEntry[]
     | undefined
   const duplicateCandidates = useQuery(
     api.skills.listDuplicateCandidates,
@@ -131,11 +142,12 @@ function Management() {
             <div className="stat">No reports yet.</div>
           ) : (
             reportedSkills.map((entry) => {
-              const { skill, latestVersion, owner } = entry
+              const { skill, latestVersion, owner, reports } = entry
               const ownerParam = resolveOwnerParam(
                 owner?.handle ?? null,
                 owner?._id ?? skill.ownerUserId,
               )
+              const reportEntries = reports ?? []
               return (
                 <div key={skill._id} className="management-item">
                   <div className="management-item-main">
@@ -149,6 +161,26 @@ function Management() {
                         ? ` · last ${formatTimestamp(skill.lastReportedAt)}`
                         : ''}
                     </div>
+                    {reportEntries.length > 0 ? (
+                      <div className="management-sublist">
+                        {reportEntries.map((report) => (
+                          <div
+                            key={`${report.reporterId}-${report.createdAt}`}
+                            className="management-report-item"
+                          >
+                            <span className="management-report-meta">
+                              {formatTimestamp(report.createdAt)}
+                              {report.reporterHandle ? ` · @${report.reporterHandle}` : ''}
+                            </span>
+                            <span>{report.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="section-subtitle" style={{ margin: 0 }}>
+                        No report reasons yet.
+                      </div>
+                    )}
                   </div>
                   <div className="management-actions">
                     <button

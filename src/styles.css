@@ -2703,6 +2703,18 @@ html.theme-transition::view-transition-new(theme) {
   justify-content: space-between;
 }
 
+.management-report-item {
+  display: grid;
+  gap: 4px;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.management-report-meta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
 @media (max-width: 900px) {
   .management-item {
     grid-template-columns: 1fr;

@@ -17,6 +17,7 @@ read_when:
 ## Reporting + auto-hide
 
 - Reports are unique per user + skill.
+- Report reason required (trimmed, max 500 chars). Abuse of reporting may result in account bans.
 - Per-user cap: 20 **active** reports.
   - Active = skill exists, not soft-deleted, not `moderationStatus = removed`,
     and the owner is not banned.

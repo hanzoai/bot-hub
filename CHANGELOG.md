@@ -9,6 +9,7 @@
 
 ### Changed
 - Deps: update dependencies to latest available versions.
+- Reporting: require reasons, show them in management console, warn about abuse bans.
 
 ### Fixed
 

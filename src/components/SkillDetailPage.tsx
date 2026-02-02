@@ -322,12 +322,19 @@ export function SkillDetailPage({
                       className="btn btn-ghost"
                       type="button"
                       onClick={async () => {
-                        const reason = window.prompt('Report this skill? Add a reason if you want.')
+                        const reason = window.prompt(
+                          'Report this skill? A reason is required. Abuse may result in a ban.',
+                        )
                         if (reason === null) return
+                        const trimmedReason = reason.trim()
+                        if (!trimmedReason) {
+                          window.alert('Report reason required.')
+                          return
+                        }
                         try {
                           const result = await reportSkill({
                             skillId: skill._id,
-                            reason: reason.trim() || undefined,
+                            reason: trimmedReason,
                           })
                           if (result.reported) {
                             window.alert('Thanks — your report has been submitted.')
@@ -349,6 +356,11 @@ export function SkillDetailPage({
                     </Link>
                   ) : null}
                 </div>
+                {isAuthenticated ? (
+                  <div className="section-subtitle" style={{ margin: '6px 0 0' }}>
+                    Reports require a reason. Abuse may result in a ban.
+                  </div>
+                ) : null}
               </div>
               <div className="skill-hero-cta">
                 <div className="skill-version-pill">

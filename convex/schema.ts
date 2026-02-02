@@ -337,6 +337,7 @@ const skillReports = defineTable({
   createdAt: v.number(),
 })
   .index('by_skill', ['skillId'])
+  .index('by_skill_createdAt', ['skillId', 'createdAt'])
   .index('by_user', ['userId'])
   .index('by_skill_user', ['skillId', 'userId'])
 
