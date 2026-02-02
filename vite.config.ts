@@ -34,6 +34,9 @@ function handleRollupWarning(
   ) {
     return
   }
+  if (warning.code === 'EMPTY_BUNDLE' || /Generated an empty chunk/i.test(warning.message)) {
+    return
+  }
   warn(warning)
 }
 
