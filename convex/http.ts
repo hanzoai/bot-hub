@@ -29,6 +29,7 @@ import {
   starsDeleteRouterV1Http,
   starsPostRouterV1Http,
   usersPostRouterV1Http,
+  usersListV1Http,
   whoamiV1Http,
 } from './httpApiV1'
 
@@ -106,6 +107,12 @@ http.route({
   pathPrefix: `${ApiRoutes.users}/`,
   method: 'POST',
   handler: usersPostRouterV1Http,
+})
+
+http.route({
+  path: ApiRoutes.users,
+  method: 'GET',
+  handler: usersListV1Http,
 })
 
 http.route({

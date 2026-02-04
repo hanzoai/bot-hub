@@ -621,6 +621,44 @@ async function usersPostRouterV1Handler(ctx: ActionCtx, request: Request) {
 
 export const usersPostRouterV1Http = httpAction(usersPostRouterV1Handler)
 
+async function usersListV1Handler(ctx: ActionCtx, request: Request) {
+  const rate = await applyRateLimit(ctx, request, 'read')
+  if (!rate.ok) return rate.response
+
+  const url = new URL(request.url)
+  const limitRaw = toOptionalNumber(url.searchParams.get('limit'))
+  const query = url.searchParams.get('q') ?? url.searchParams.get('query') ?? ''
+
+  let actorUserId: Id<'users'>
+  try {
+    const auth = await requireApiTokenUser(ctx, request)
+    actorUserId = auth.userId
+  } catch {
+    return text('Unauthorized', 401, rate.headers)
+  }
+
+  const limit = Math.min(Math.max(limitRaw ?? 20, 1), 200)
+  try {
+    const result = await ctx.runQuery(internal.users.searchInternal, {
+      actorUserId,
+      query,
+      limit,
+    })
+    return json(result, 200, rate.headers)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'User search failed'
+    if (message.toLowerCase().includes('forbidden')) {
+      return text('Forbidden', 403, rate.headers)
+    }
+    if (message.toLowerCase().includes('unauthorized')) {
+      return text('Unauthorized', 401, rate.headers)
+    }
+    return text(message, 400, rate.headers)
+  }
+}
+
+export const usersListV1Http = httpAction(usersListV1Handler)
+
 async function parseMultipartPublish(
   ctx: ActionCtx,
   request: Request,
@@ -1265,4 +1303,5 @@ export const __handlers = {
   starsDeleteRouterV1Handler,
   whoamiV1Handler,
   usersPostRouterV1Handler,
+  usersListV1Handler,
 }
