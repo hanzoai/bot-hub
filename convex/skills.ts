@@ -684,6 +684,8 @@ export const list = query({
             const isPending =
               skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
             if (isPending) {
+              // Use computed badges from attachBadgesToSkills, not stored skill.badges
+              const { badges } = skill
               return {
                 _id: skill._id,
                 _creationTime: skill._creationTime,
@@ -695,7 +697,7 @@ export const list = query({
                 forkOf: skill.forkOf,
                 latestVersionId: skill.latestVersionId,
                 tags: skill.tags,
-                badges: skill.badges,
+                badges,
                 stats: skill.stats,
                 createdAt: skill.createdAt,
                 updatedAt: skill.updatedAt,
