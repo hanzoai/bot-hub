@@ -176,10 +176,20 @@ type SkillDetailPageProps = {
   redirectToCanonical?: boolean
 }
 
+type ModerationInfo = {
+  isPendingScan: boolean
+  isMalwareBlocked: boolean
+  isHiddenByMod: boolean
+  isRemoved: boolean
+  reason?: string
+}
+
 type SkillBySlugResult = {
   skill: Doc<'skills'> | PublicSkill
   latestVersion: Doc<'skillVersions'> | null
   owner: Doc<'users'> | PublicUser | null
+  pendingReview?: boolean
+  moderationInfo?: ModerationInfo | null
   forkOf: {
     kind: 'fork' | 'duplicate'
     version: string | null
@@ -283,6 +293,7 @@ export function SkillDetailPage({
 
   const forkOf = result?.forkOf ?? null
   const canonical = result?.canonical ?? null
+  const modInfo = result?.moderationInfo ?? null
   const forkOfLabel = forkOf?.kind === 'duplicate' ? 'duplicate of' : 'fork of'
   const forkOfOwnerHandle = forkOf?.owner?.handle ?? null
   const forkOfOwnerId = forkOf?.owner?.userId ?? null
@@ -406,6 +417,41 @@ export function SkillDetailPage({
   return (
     <main className="section">
       <div className="skill-detail-stack">
+        {modInfo?.isPendingScan ? (
+          <div className="pending-banner">
+            <div className="pending-banner-content">
+              <strong>Security scan in progress</strong>
+              <p>
+                Your skill is being scanned by VirusTotal. It will be visible to others once the
+                scan completes and passes review.
+              </p>
+            </div>
+          </div>
+        ) : modInfo?.isMalwareBlocked ? (
+          <div className="pending-banner pending-banner-blocked">
+            <div className="pending-banner-content">
+              <strong>Skill blocked — security issue detected</strong>
+              <p>
+                VirusTotal flagged this skill as potentially malicious. It is not visible to others
+                and downloads are disabled. Review the scan results below.
+              </p>
+            </div>
+          </div>
+        ) : modInfo?.isRemoved ? (
+          <div className="pending-banner pending-banner-blocked">
+            <div className="pending-banner-content">
+              <strong>Skill removed by moderator</strong>
+              <p>This skill has been removed and is not visible to others.</p>
+            </div>
+          </div>
+        ) : modInfo?.isHiddenByMod ? (
+          <div className="pending-banner pending-banner-blocked">
+            <div className="pending-banner-content">
+              <strong>Skill hidden</strong>
+              <p>This skill is currently hidden and not visible to others.</p>
+            </div>
+          </div>
+        ) : null}
         <div className="card skill-hero">
           <div className={`skill-hero-top${hasPluginBundle ? ' has-plugin' : ''}`}>
             <div className="skill-hero-header">
@@ -521,13 +567,18 @@ export function SkillDetailPage({
                   </div>
                 ) : null}
                 <SecurityScanResults sha256hash={latestVersion?.sha256hash} />
+                {latestVersion?.sha256hash ? (
+                  <p className="scan-disclaimer">
+                    Like a lobster shell, security has layers — review code before you run it.
+                  </p>
+                ) : null}
               </div>
               <div className="skill-hero-cta">
                 <div className="skill-version-pill">
                   <span className="skill-version-label">Current version</span>
                   <strong>v{latestVersion?.version ?? '—'}</strong>
                 </div>
-                {!nixPlugin ? (
+                {!nixPlugin && !modInfo?.isMalwareBlocked && !modInfo?.isRemoved ? (
                   <a
                     className="btn btn-primary"
                     href={`${import.meta.env.VITE_CONVEX_SITE_URL}/api/v1/download?slug=${skill.slug}`}
