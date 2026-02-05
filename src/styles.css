@@ -2917,3 +2917,15 @@ html.theme-transition::view-transition-new(theme) {
   line-height: 1.5;
   margin: 0;
 }
+
+/* Pending tag for dashboard */
+.tag-pending {
+  background: rgba(240, 196, 106, 0.2);
+  color: #8a6914;
+  gap: 4px;
+}
+
+[data-theme="dark"] .tag-pending {
+  background: rgba(243, 201, 122, 0.18);
+  color: #f3c97a;
+}
