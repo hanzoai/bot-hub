@@ -293,7 +293,6 @@ export function SkillDetailPage({
 
   const forkOf = result?.forkOf ?? null
   const canonical = result?.canonical ?? null
-  const pendingReview = result?.pendingReview ?? false
   const modInfo = result?.moderationInfo ?? null
   const forkOfLabel = forkOf?.kind === 'duplicate' ? 'duplicate of' : 'fork of'
   const forkOfOwnerHandle = forkOf?.owner?.handle ?? null

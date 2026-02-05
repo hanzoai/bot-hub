@@ -1,3 +1,4 @@
+import { getAuthUserId } from '@convex-dev/auth/server'
 import { paginationOptsValidator } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
 import { paginator } from 'convex-helpers/server/pagination'
@@ -485,15 +486,8 @@ export const getBySlug = query({
       .unique()
     if (!skill || skill.softDeletedAt) return null
 
-    // Check if current user is the owner
-    const identity = await ctx.auth.getUserIdentity()
-    const currentUser = identity
-      ? await ctx.db
-          .query('users')
-          .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
-          .unique()
-      : null
-    const isOwner = currentUser && currentUser._id === skill.ownerUserId
+    const userId = await getAuthUserId(ctx)
+    const isOwner = Boolean(userId && userId === skill.ownerUserId)
 
     const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
     const owner = await ctx.db.get(skill.ownerUserId)
@@ -505,18 +499,10 @@ export const getBySlug = query({
     const canonicalSkill = skill.canonicalSkillId ? await ctx.db.get(skill.canonicalSkillId) : null
     const canonicalOwner = canonicalSkill ? await ctx.db.get(canonicalSkill.ownerUserId) : null
 
-    // If owner, return skill with moderation status (so they can see why it's hidden)
-    // If not owner, apply normal public filtering
     const publicSkill = toPublicSkill({ ...skill, badges })
-
-    // Determine moderation state
-    const isPendingScan = skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
-    const isMalwareBlocked = skill.moderationFlags?.includes('blocked.malware') ?? false
-    const isHiddenByMod = skill.moderationStatus === 'hidden' && !isPendingScan && !isMalwareBlocked
-    const isRemoved = skill.moderationStatus === 'removed'
-
-    // Non-owners can see malware-blocked skills (transparency), but not other hidden states
-    if (!publicSkill && !isOwner && !isMalwareBlocked) return null
+    const isPendingScan =
+      skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
+    if (!publicSkill && !(isOwner && isPendingScan)) return null
 
     // For owners viewing their moderated skill, construct the response manually
     const skillData = publicSkill ?? {
@@ -536,16 +522,15 @@ export const getBySlug = query({
       updatedAt: skill.updatedAt,
     }
 
-    // Moderation info - visible to owners for all states, or anyone for malware-blocked
-    const showModerationInfo = !publicSkill && (isOwner || isMalwareBlocked)
-    const moderationInfo = showModerationInfo ? {
-      isPendingScan,
-      isMalwareBlocked,
-      isHiddenByMod,
-      isRemoved,
-      // Only show detailed reason to owners
-      reason: isOwner ? skill.moderationReason : undefined,
-    } : null
+    const moderationInfo =
+      isOwner && isPendingScan
+        ? {
+            isPendingScan: true,
+            isMalwareBlocked: false,
+            isHiddenByMod: false,
+            isRemoved: false,
+          }
+        : null
 
     return {
       skill: skillData,
@@ -679,16 +664,8 @@ export const list = query({
     }
     const ownerUserId = args.ownerUserId
     if (ownerUserId) {
-      // Check if requester is the owner - if so, include pending skills
-      const identity = await ctx.auth.getUserIdentity()
-      const currentUser = identity
-        ? await ctx.db
-            .query('users')
-            .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
-            .unique()
-        : null
-      const isOwnDashboard = currentUser && currentUser._id === ownerUserId
-
+      const userId = await getAuthUserId(ctx)
+      const isOwnDashboard = Boolean(userId && userId === ownerUserId)
       const entries = await ctx.db
         .query('skills')
         .withIndex('by_owner', (q) => q.eq('ownerUserId', ownerUserId))
