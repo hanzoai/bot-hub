@@ -661,6 +661,16 @@ export const list = query({
     }
     const ownerUserId = args.ownerUserId
     if (ownerUserId) {
+      // Check if requester is the owner - if so, include pending skills
+      const identity = await ctx.auth.getUserIdentity()
+      const currentUser = identity
+        ? await ctx.db
+            .query('users')
+            .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
+            .unique()
+        : null
+      const isOwnDashboard = currentUser && currentUser._id === ownerUserId
+
       const entries = await ctx.db
         .query('skills')
         .withIndex('by_owner', (q) => q.eq('ownerUserId', ownerUserId))
@@ -668,6 +678,40 @@ export const list = query({
         .take(takeLimit)
       const filtered = entries.filter((skill) => !skill.softDeletedAt).slice(0, limit)
       const withBadges = await attachBadgesToSkills(ctx, filtered)
+
+      if (isOwnDashboard) {
+        // For owner's own dashboard, include pending skills
+        return withBadges
+          .map((skill) => {
+            const publicSkill = toPublicSkill(skill)
+            if (publicSkill) return publicSkill
+            // Include pending skills for owner
+            const isPending =
+              skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
+            if (isPending) {
+              return {
+                _id: skill._id,
+                _creationTime: skill._creationTime,
+                slug: skill.slug,
+                displayName: skill.displayName,
+                summary: skill.summary,
+                ownerUserId: skill.ownerUserId,
+                canonicalSkillId: skill.canonicalSkillId,
+                forkOf: skill.forkOf,
+                latestVersionId: skill.latestVersionId,
+                tags: skill.tags,
+                badges: skill.badges,
+                stats: skill.stats,
+                createdAt: skill.createdAt,
+                updatedAt: skill.updatedAt,
+                pendingReview: true as const,
+              }
+            }
+            return null
+          })
+          .filter((skill): skill is NonNullable<typeof skill> => Boolean(skill))
+      }
+
       return withBadges
         .map((skill) => toPublicSkill(skill))
         .filter((skill): skill is NonNullable<typeof skill> => Boolean(skill))
