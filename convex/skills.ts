@@ -484,6 +484,17 @@ export const getBySlug = query({
       .withIndex('by_slug', (q) => q.eq('slug', args.slug))
       .unique()
     if (!skill || skill.softDeletedAt) return null
+
+    // Check if current user is the owner
+    const identity = await ctx.auth.getUserIdentity()
+    const currentUser = identity
+      ? await ctx.db
+          .query('users')
+          .withIndex('by_clerk_id', (q) => q.eq('clerkId', identity.subject))
+          .unique()
+      : null
+    const isOwner = currentUser && currentUser._id === skill.ownerUserId
+
     const latestVersion = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
     const owner = await ctx.db.get(skill.ownerUserId)
     const badges = await getSkillBadgeMap(ctx, skill._id)
@@ -494,13 +505,36 @@ export const getBySlug = query({
     const canonicalSkill = skill.canonicalSkillId ? await ctx.db.get(skill.canonicalSkillId) : null
     const canonicalOwner = canonicalSkill ? await ctx.db.get(canonicalSkill.ownerUserId) : null
 
+    // If owner, return skill even if pending (with status indicator)
+    // If not owner, apply normal public filtering
     const publicSkill = toPublicSkill({ ...skill, badges })
-    if (!publicSkill) return null
+    const isPendingReview = skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
+
+    if (!publicSkill && !isOwner) return null
+
+    // For owners viewing their pending skill, construct the response manually
+    const skillData = publicSkill ?? {
+      _id: skill._id,
+      _creationTime: skill._creationTime,
+      slug: skill.slug,
+      displayName: skill.displayName,
+      summary: skill.summary,
+      ownerUserId: skill.ownerUserId,
+      canonicalSkillId: skill.canonicalSkillId,
+      forkOf: skill.forkOf,
+      latestVersionId: skill.latestVersionId,
+      tags: skill.tags,
+      badges: skill.badges,
+      stats: skill.stats,
+      createdAt: skill.createdAt,
+      updatedAt: skill.updatedAt,
+    }
 
     return {
-      skill: publicSkill,
+      skill: skillData,
       latestVersion,
       owner,
+      pendingReview: isOwner && isPendingReview,
       forkOf: forkOfSkill
         ? {
             kind: skill.forkOf?.kind ?? 'fork',

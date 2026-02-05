@@ -180,6 +180,7 @@ type SkillBySlugResult = {
   skill: Doc<'skills'> | PublicSkill
   latestVersion: Doc<'skillVersions'> | null
   owner: Doc<'users'> | PublicUser | null
+  pendingReview?: boolean
   forkOf: {
     kind: 'fork' | 'duplicate'
     version: string | null
@@ -283,6 +284,7 @@ export function SkillDetailPage({
 
   const forkOf = result?.forkOf ?? null
   const canonical = result?.canonical ?? null
+  const pendingReview = result?.pendingReview ?? false
   const forkOfLabel = forkOf?.kind === 'duplicate' ? 'duplicate of' : 'fork of'
   const forkOfOwnerHandle = forkOf?.owner?.handle ?? null
   const forkOfOwnerId = forkOf?.owner?.userId ?? null
@@ -406,6 +408,18 @@ export function SkillDetailPage({
   return (
     <main className="section">
       <div className="skill-detail-stack">
+        {pendingReview ? (
+          <div className="pending-banner">
+            <span className="pending-banner-icon">🔍</span>
+            <div className="pending-banner-content">
+              <strong>Security scan in progress</strong>
+              <p>
+                Your skill is being scanned by VirusTotal. It will be visible to others once the
+                scan completes and passes review.
+              </p>
+            </div>
+          </div>
+        ) : null}
         <div className="card skill-hero">
           <div className={`skill-hero-top${hasPluginBundle ? ' has-plugin' : ''}`}>
             <div className="skill-hero-header">
