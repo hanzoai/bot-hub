@@ -1,7 +1,7 @@
 import { v } from 'convex/values'
-import { zipSync } from 'fflate'
 import { api } from './_generated/api'
 import { httpAction, mutation } from './_generated/server'
+import { buildDeterministicZip } from './lib/skillZip'
 import { insertStatEvent } from './skillStatEvents'
 
 export const downloadZip = httpAction(async (ctx, request) => {
@@ -41,50 +41,19 @@ export const downloadZip = httpAction(async (ctx, request) => {
     return new Response('Version not available', { status: 410 })
   }
 
-  const sortedFiles = [...version.files].sort((a, b) => a.path.localeCompare(b.path))
-  const fixedDate = new Date('1980-01-01T00:00:00Z')
-
-  type ZipInput = Record<string, Uint8Array | [Uint8Array, { mtime?: Date }]>
-  const zipData: ZipInput = {}
-
-  for (const file of sortedFiles) {
+  const entries: Array<{ path: string; bytes: Uint8Array }> = []
+  for (const file of version.files) {
     const blob = await ctx.storage.get(file.storageId)
     if (!blob) continue
     const buffer = new Uint8Array(await blob.arrayBuffer())
-    zipData[file.path] = [buffer, { mtime: fixedDate }]
+    entries.push({ path: file.path, bytes: buffer })
   }
-
-  // Add _meta.json to the ZIP to match the hash in VirusTotal
-  const owner = await ctx.runQuery(api.users.getById, { userId: skill.ownerUserId })
-  const versions = await ctx.runQuery(api.skills.listVersions, { skillId: skill._id })
-
-  const getCommit = () => 'https://github.com/clawdbot/skills'
-
-  const metaFile = {
-    owner: owner?.handle || owner?.displayName || 'unknown',
+  const zipArray = buildDeterministicZip(entries, {
+    ownerId: String(skill.ownerUserId),
     slug: skill.slug,
-    displayName: skill.displayName,
-    latest: {
-      version: version.version,
-      publishedAt: version.createdAt,
-      commit: getCommit(),
-    },
-    history: versions
-      .filter((v: { version: string }) => v.version !== version.version)
-      .map((v: any) => ({
-        version: v.version,
-        publishedAt: v.createdAt,
-        commit: getCommit(),
-      }))
-      .sort(
-        (a: { publishedAt: number }, b: { publishedAt: number }) => b.publishedAt - a.publishedAt,
-      ),
-  }
-  const metaContent = new TextEncoder().encode(JSON.stringify(metaFile, null, 2))
-  zipData['_meta.json'] = [metaContent, { mtime: fixedDate }]
-
-  const zipped = zipSync(zipData, { level: 6 })
-  const zipArray = Uint8Array.from(zipped)
+    version: version.version,
+    publishedAt: version.createdAt,
+  })
   const zipBlob = new Blob([zipArray], { type: 'application/zip' })
 
   await ctx.runMutation(api.downloads.increment, { skillId: skill._id })

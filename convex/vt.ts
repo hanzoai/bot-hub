@@ -1,7 +1,22 @@
 import { v } from 'convex/values'
-import { zipSync } from 'fflate'
 import { internal } from './_generated/api'
 import { action, internalAction } from './_generated/server'
+import { buildDeterministicZip } from './lib/skillZip'
+
+const BENIGN_VERDICTS = new Set(['benign', 'clean'])
+const MALICIOUS_VERDICTS = new Set(['malicious'])
+const SUSPICIOUS_VERDICTS = new Set(['suspicious'])
+
+function normalizeVerdict(value?: string) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
+function verdictToStatus(verdict: string) {
+  if (BENIGN_VERDICTS.has(verdict)) return 'clean'
+  if (MALICIOUS_VERDICTS.has(verdict)) return 'malicious'
+  if (SUSPICIOUS_VERDICTS.has(verdict)) return 'suspicious'
+  return 'pending'
+}
 
 type VTAIResult = {
   category: string
@@ -65,14 +80,14 @@ export const fetchResults = action({
 
       if (aiResult?.verdict) {
         // Prioritize AI Analysis (Code Insight)
-        status = aiResult.verdict.toLowerCase()
+        status = verdictToStatus(normalizeVerdict(aiResult.verdict))
       } else if (stats) {
         // Fallback to AV engines
         if (stats.malicious > 0) {
           status = 'malicious'
         } else if (stats.suspicious > 0) {
           status = 'suspicious'
-        } else if (stats.undetected > 0 || stats.harmless > 0) {
+        } else if (stats.harmless > 0) {
           status = 'clean'
         }
       }
@@ -115,79 +130,36 @@ export const scanWithVirusTotal = internalAction({
       return
     }
 
-    // Fetch skill and owner info for _meta.json
+    // Fetch skill info for _meta.json
     const skill = await ctx.runQuery(internal.skills.getSkillByIdInternal, {
       skillId: version.skillId,
     })
-    const owner = skill
-      ? await ctx.runQuery(internal.users.getByIdInternal, {
-        userId: skill.ownerUserId,
-      })
-      : null
-    const versions = skill
-      ? await ctx.runQuery(internal.skills.listVersionsInternal, {
-        skillId: skill._id,
-      })
-      : []
-
-    // Helper to get commit URL or placeholder
-    const getCommit = () => {
-      return 'https://github.com/clawdbot/skills'
+    if (!skill) {
+      console.error(`Skill ${version.skillId} not found for scanning`)
+      return
     }
 
-    // Build the ZIP in memory with deterministic settings
-    // Sort files alphabetically by path for consistent order
-    const sortedFiles = [...version.files].sort((a, b) => a.path.localeCompare(b.path))
-
-    // Use fixed timestamp (Jan 1, 1980 00:00:00 UTC - valid ZIP date range)
-    const fixedDate = new Date('1980-01-01T00:00:00Z')
-
-    type ZipInput = Record<string, Uint8Array | [Uint8Array, { mtime?: Date }]>
-    const zipData: ZipInput = {}
-
-    for (const file of sortedFiles) {
+    // Build deterministic ZIP with stable meta (no version history).
+    const entries: Array<{ path: string; bytes: Uint8Array }> = []
+    for (const file of version.files) {
       const content = await ctx.storage.get(file.storageId)
       if (content) {
         const buffer = new Uint8Array(await content.arrayBuffer())
-        zipData[file.path] = [buffer, { mtime: fixedDate }]
+        entries.push({ path: file.path, bytes: buffer })
       }
     }
 
-    // Add _meta.json to the ZIP
-    if (skill) {
-      const metaFile = {
-        owner: owner?.handle || owner?.displayName || 'unknown',
-        slug: skill.slug,
-        displayName: skill.displayName,
-        latest: {
-          version: version.version,
-          publishedAt: version.createdAt,
-          commit: getCommit(),
-        },
-        history: versions
-          .filter((v: { version: string }) => v.version !== version.version)
-          .map((v: any) => ({
-            version: v.version,
-            publishedAt: v.createdAt,
-            commit: getCommit(),
-          }))
-          .sort(
-            (a: { publishedAt: number }, b: { publishedAt: number }) =>
-              b.publishedAt - a.publishedAt,
-          ),
-      }
-      const metaContent = new TextEncoder().encode(JSON.stringify(metaFile, null, 2))
-      zipData['_meta.json'] = [metaContent, { mtime: fixedDate }]
-    }
-
-    if (Object.keys(zipData).length === 0) {
+    if (entries.length === 0) {
       console.warn(`No files found for version ${args.versionId}, skipping scan`)
       return
     }
 
-    // Use fixed compression level (same as downloads.ts)
-    const zipped = zipSync(zipData, { level: 6 })
-    const zipArray = Uint8Array.from(zipped)
+    const zipArray = buildDeterministicZip(entries, {
+      ownerId: String(skill.ownerUserId),
+      slug: skill.slug,
+      version: version.version,
+      publishedAt: version.createdAt,
+    })
 
     // Calculate SHA-256 of the ZIP (this hash includes _meta.json)
     const hashBuffer = await crypto.subtle.digest('SHA-256', zipArray)
@@ -212,21 +184,27 @@ export const scanWithVirusTotal = internalAction({
 
         if (aiResult) {
           // File exists and has AI analysis - use the verdict
-          const verdict = aiResult.verdict.toLowerCase()
-          const isSafe = verdict === 'benign'
-          const status = isSafe ? 'clean' : verdict === 'malicious' ? 'malicious' : 'suspicious'
+          const verdict = normalizeVerdict(aiResult.verdict)
+          const status = verdictToStatus(verdict)
+          const isSafe = status === 'clean'
 
           console.log(
             `Version ${args.versionId} found in VT with AI analysis. Hash: ${sha256hash}. Verdict: ${verdict}`,
           )
 
-          // ONLY auto-approve if the AI verdict is explicitly 'benign'
           if (isSafe) {
             await ctx.runMutation(internal.skills.approveSkillByHashInternal, {
               sha256hash,
               scanner: 'vt',
               status: 'clean',
               moderationStatus: 'active',
+            })
+          } else if (status === 'malicious' || status === 'suspicious') {
+            await ctx.runMutation(internal.skills.approveSkillByHashInternal, {
+              sha256hash,
+              scanner: 'vt',
+              status,
+              moderationStatus: 'hidden',
             })
           }
           return

@@ -2827,6 +2827,21 @@ html.theme-transition::view-transition-new(theme) {
   margin-top: 4px;
 }
 
+.version-scan-toggle {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.version-scan-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .version-scan-badge {
   display: flex;
   align-items: center;

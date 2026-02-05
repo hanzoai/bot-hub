@@ -61,14 +61,15 @@ function getScanStatusInfo(status: string) {
   }
 }
 
-function useSecurityScan(sha256hash?: string) {
+function useSecurityScan(sha256hash?: string, enabled = true) {
   const fetchVT = useAction(api.vt.fetchResults)
   const [result, setResult] = useState<ScanResult | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!sha256hash) {
+    if (!sha256hash || !enabled) {
       setResult(null)
+      setLoading(false)
       return
     }
 
@@ -92,7 +93,7 @@ function useSecurityScan(sha256hash?: string) {
     return () => {
       cancelled = true
     }
-  }, [sha256hash, fetchVT])
+  }, [sha256hash, enabled, fetchVT])
 
   return { result, loading }
 }
@@ -100,11 +101,13 @@ function useSecurityScan(sha256hash?: string) {
 function SecurityScanResults({
   sha256hash,
   variant = 'panel',
+  enabled = true,
 }: {
   sha256hash?: string
   variant?: 'panel' | 'badge'
+  enabled?: boolean
 }) {
-  const { result, loading } = useSecurityScan(sha256hash)
+  const { result, loading } = useSecurityScan(sha256hash, enabled)
 
   if (!sha256hash) return null
 
@@ -244,6 +247,7 @@ export function SkillDetailPage({
   const [tagName, setTagName] = useState('latest')
   const [tagVersionId, setTagVersionId] = useState<Id<'skillVersions'> | ''>('')
   const [activeTab, setActiveTab] = useState<'files' | 'compare' | 'versions'>('files')
+  const [versionScanOpen, setVersionScanOpen] = useState<Record<string, boolean>>({})
 
   const isLoadingSkill = result === undefined
   const skill = result?.skill
@@ -822,7 +826,28 @@ export function SkillDetailPage({
                           {version.changelog}
                         </div>
                         <div className="version-scan-results">
-                          <SecurityScanResults sha256hash={version.sha256hash} variant="badge" />
+                          {version.sha256hash ? (
+                            versionScanOpen[version._id] ? (
+                              <SecurityScanResults
+                                sha256hash={version.sha256hash}
+                                variant="badge"
+                                enabled
+                              />
+                            ) : (
+                              <button
+                                className="version-scan-toggle"
+                                type="button"
+                                onClick={() =>
+                                  setVersionScanOpen((prev) => ({
+                                    ...prev,
+                                    [version._id]: true,
+                                  }))
+                                }
+                              >
+                                Load scan
+                              </button>
+                            )
+                          ) : null}
                         </div>
                       </div>
                       {!nixPlugin ? (

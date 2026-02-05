@@ -4,6 +4,7 @@
 
 ### Added
 - CLI/API: add `set-role` to change user roles (admin only).
+- Security: quarantine skill publishes with VirusTotal scans + UI (thanks @aleph8, #130).
 
 ### Changed
 
