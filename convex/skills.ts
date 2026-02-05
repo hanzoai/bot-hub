@@ -505,10 +505,8 @@ export const getBySlug = query({
     const isPendingScan =
       skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
     const isMalwareBlocked = skill.moderationFlags?.includes('blocked.malware') ?? false
-    const isHiddenByMod =
-      skill.moderationStatus === 'hidden' && !isPendingScan && !isMalwareBlocked
+    const isHiddenByMod = skill.moderationStatus === 'hidden' && !isPendingScan && !isMalwareBlocked
     const isRemoved = skill.moderationStatus === 'removed'
-    const isModerated = isPendingScan || isMalwareBlocked || isHiddenByMod || isRemoved
 
     // Non-owners can see malware-blocked skills (transparency), but not other hidden states
     // Owners can see all their moderated skills
