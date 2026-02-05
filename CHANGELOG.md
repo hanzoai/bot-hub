@@ -11,6 +11,7 @@
 - Coverage: track `convex/lib/skillZip.ts` in coverage reports.
 
 ### Fixed
+- Web: show pending-scan skills to owners without 404 (thanks @orlyjamie, #136).
 
 ## 0.5.1 - TBD
 
