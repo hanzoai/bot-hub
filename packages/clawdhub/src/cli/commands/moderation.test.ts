@@ -116,8 +116,20 @@ describe('cmdBanUser', () => {
   it('fails fuzzy search with multiple matches when not interactive', async () => {
     mockApiRequest.mockResolvedValueOnce({
       items: [
-        { userId: 'users_1', handle: 'moonshine-100rze', displayName: null, name: null, role: null },
-        { userId: 'users_2', handle: 'moonshine-100rze2', displayName: null, name: null, role: null },
+        {
+          userId: 'users_1',
+          handle: 'moonshine-100rze',
+          displayName: null,
+          name: null,
+          role: null,
+        },
+        {
+          userId: 'users_2',
+          handle: 'moonshine-100rze2',
+          displayName: null,
+          name: null,
+          role: null,
+        },
       ],
       total: 2,
     })

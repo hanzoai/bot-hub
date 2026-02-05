@@ -62,6 +62,7 @@ import type * as telemetry from "../telemetry.js";
 import type * as tokens from "../tokens.js";
 import type * as uploads from "../uploads.js";
 import type * as users from "../users.js";
+import type * as vt from "../vt.js";
 import type * as webhooks from "../webhooks.js";
 
 import type {
@@ -125,6 +126,7 @@ declare const fullApi: ApiFromModules<{
   tokens: typeof tokens;
   uploads: typeof uploads;
   users: typeof users;
+  vt: typeof vt;
   webhooks: typeof webhooks;
 }>;
 

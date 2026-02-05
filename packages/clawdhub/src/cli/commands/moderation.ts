@@ -108,7 +108,9 @@ export async function cmdSetRole(
         method: 'POST',
         path: `${ApiRoutes.users}/role`,
         token,
-        body: resolved.userId ? { userId: resolved.userId, role } : { handle: resolved.handle, role },
+        body: resolved.userId
+          ? { userId: resolved.userId, role }
+          : { handle: resolved.handle, role },
       },
       ApiV1SetRoleResponseSchema,
     )

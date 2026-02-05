@@ -2737,3 +2737,121 @@ html.theme-transition::view-transition-new(theme) {
     justify-content: flex-start;
   }
 }
+
+/* Security Scan Results */
+.scan-results-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.02);
+  width: fit-content;
+}
+
+.scan-results-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.scan-result-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scan-result-scanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.scan-result-icon {
+  font-size: 1.1rem;
+}
+
+.scan-result-icon-vt {
+  color: #0030ff;
+}
+
+.scan-result-status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.scan-status-clean {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.scan-status-malicious {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.scan-status-suspicious {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.scan-status-pending {
+  background: rgba(107, 114, 128, 0.1);
+  color: #4b5563;
+}
+
+.scan-status-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+.scan-result-link {
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.scan-result-link:hover {
+  text-decoration: underline;
+}
+
+.version-scan-results {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.version-scan-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.version-scan-badge .scan-result-status {
+  padding: 1px 6px;
+  font-size: 0.7rem;
+}
+
+.version-scan-icon {
+  font-size: 0.9rem;
+}
+
+.version-scan-icon-vt {
+  color: #0030ff;
+}
+
+.version-scan-link {
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.version-scan-link:hover {
+  color: var(--accent);
+}

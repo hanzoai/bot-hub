@@ -28,8 +28,8 @@ import {
   soulsPostRouterV1Http,
   starsDeleteRouterV1Http,
   starsPostRouterV1Http,
-  usersPostRouterV1Http,
   usersListV1Http,
+  usersPostRouterV1Http,
   whoamiV1Http,
 } from './httpApiV1'
 
