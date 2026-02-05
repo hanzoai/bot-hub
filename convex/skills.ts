@@ -500,9 +500,19 @@ export const getBySlug = query({
     const canonicalOwner = canonicalSkill ? await ctx.db.get(canonicalSkill.ownerUserId) : null
 
     const publicSkill = toPublicSkill({ ...skill, badges })
+
+    // Determine moderation state
     const isPendingScan =
       skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
-    if (!publicSkill && !(isOwner && isPendingScan)) return null
+    const isMalwareBlocked = skill.moderationFlags?.includes('blocked.malware') ?? false
+    const isHiddenByMod =
+      skill.moderationStatus === 'hidden' && !isPendingScan && !isMalwareBlocked
+    const isRemoved = skill.moderationStatus === 'removed'
+    const isModerated = isPendingScan || isMalwareBlocked || isHiddenByMod || isRemoved
+
+    // Non-owners can see malware-blocked skills (transparency), but not other hidden states
+    // Owners can see all their moderated skills
+    if (!publicSkill && !isOwner && !isMalwareBlocked) return null
 
     // For owners viewing their moderated skill, construct the response manually
     const skillData = publicSkill ?? {
@@ -522,15 +532,17 @@ export const getBySlug = query({
       updatedAt: skill.updatedAt,
     }
 
-    const moderationInfo =
-      isOwner && isPendingScan
-        ? {
-            isPendingScan: true,
-            isMalwareBlocked: false,
-            isHiddenByMod: false,
-            isRemoved: false,
-          }
-        : null
+    // Moderation info - visible to owners for all states, or anyone for malware-blocked
+    const showModerationInfo = !publicSkill && (isOwner || isMalwareBlocked)
+    const moderationInfo = showModerationInfo
+      ? {
+          isPendingScan,
+          isMalwareBlocked,
+          isHiddenByMod,
+          isRemoved,
+          reason: isOwner ? skill.moderationReason : undefined,
+        }
+      : null
 
     return {
       skill: skillData,
