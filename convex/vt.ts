@@ -94,6 +94,7 @@ export const fetchResults = action({
 
       return {
         status,
+        source: aiResult?.verdict ? 'code_insight' : 'engines',
         url: `https://www.virustotal.com/gui/file/${args.sha256hash}`,
         metadata: {
           aiVerdict: aiResult?.verdict,

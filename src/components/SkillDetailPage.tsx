@@ -14,8 +14,14 @@ import { SkillDiffCard } from './SkillDiffCard'
 
 type ScanResult = {
   status: string
+  source?: 'code_insight' | 'engines'
   url?: string
-  metadata?: unknown
+  metadata?: {
+    aiVerdict?: string
+    aiAnalysis?: string
+    aiSource?: string
+    stats?: { malicious?: number; suspicious?: number; undetected?: number; harmless?: number }
+  }
 }
 
 function VirusTotalIcon({ className }: { className?: string }) {
@@ -114,15 +120,18 @@ function SecurityScanResults({
   const status = loading ? 'loading' : (result?.status ?? 'pending')
   const url = result?.url
   const statusInfo = getScanStatusInfo(status)
+  const metadata = result?.metadata
+  const isCodeInsight = result?.source === 'code_insight'
+  const aiAnalysis = metadata?.aiAnalysis
 
-  // Use dynamic label if no AI verdict but stats are available
+  // Determine display label based on source
   let displayLabel = statusInfo.label
-  if (!loading && result?.metadata) {
-    const metadata = result.metadata as {
-      aiVerdict?: string
-      stats?: Record<string, number>
-    }
-    if (!metadata.aiVerdict && metadata.stats) {
+  if (!loading && metadata) {
+    if (isCodeInsight) {
+      // Code Insight detected - use the verdict label (Malicious, Suspicious, etc.)
+      displayLabel = statusInfo.label
+    } else if (metadata.stats) {
+      // Engine detection - show X/Y engines
       const stats = metadata.stats
       const total = Object.values(stats).reduce((acc, val) => acc + (val || 0), 0)
       displayLabel = `${stats.malicious || 0}/${total} engines`
@@ -151,7 +160,7 @@ function SecurityScanResults({
 
   return (
     <div className="scan-results-panel">
-      <div className="scan-results-title">Security Scans</div>
+      <div className="scan-results-title">Security Scan</div>
       <div className="scan-results-list">
         <div className="scan-result-row">
           <div className="scan-result-scanner">
@@ -165,6 +174,12 @@ function SecurityScanResults({
             </a>
           ) : null}
         </div>
+        {isCodeInsight && aiAnalysis && (status === 'malicious' || status === 'suspicious') ? (
+          <div className="code-insight-analysis">
+            <div className="code-insight-label">Code Insight</div>
+            <p className="code-insight-text">{aiAnalysis}</p>
+          </div>
+        ) : null}
       </div>
     </div>
   )
