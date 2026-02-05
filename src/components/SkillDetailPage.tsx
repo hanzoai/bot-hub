@@ -12,6 +12,161 @@ import { canManageSkill, isModerator } from '../lib/roles'
 import { useAuthStatus } from '../lib/useAuthStatus'
 import { SkillDiffCard } from './SkillDiffCard'
 
+type ScanResult = {
+  status: string
+  url?: string
+  metadata?: unknown
+}
+
+function VirusTotalIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="1em"
+      height="1em"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 100 89"
+      aria-label="VirusTotal"
+    >
+      <title>VirusTotal</title>
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M45.292 44.5 0 89h100V0H0l45.292 44.5zM90 80H22l35.987-35.2L22 9h68v71z"
+      />
+    </svg>
+  )
+}
+
+function getScanStatusInfo(status: string) {
+  switch (status.toLowerCase()) {
+    case 'benign':
+      return { label: 'Undetected', className: 'scan-status-clean' }
+    case 'clean':
+      return { label: 'Clean', className: 'scan-status-clean' }
+    case 'malicious':
+      return { label: 'Malicious', className: 'scan-status-malicious' }
+    case 'suspicious':
+      return { label: 'Suspicious', className: 'scan-status-suspicious' }
+    case 'loading':
+      return { label: 'Loading...', className: 'scan-status-pending' }
+    case 'pending':
+    case 'not_found':
+      return { label: 'Pending', className: 'scan-status-pending' }
+    case 'error':
+    case 'failed':
+      return { label: 'Error', className: 'scan-status-error' }
+    default:
+      return { label: status, className: 'scan-status-unknown' }
+  }
+}
+
+function useSecurityScan(sha256hash?: string) {
+  const fetchVT = useAction(api.vt.fetchResults)
+  const [result, setResult] = useState<ScanResult | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!sha256hash) {
+      setResult(null)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+
+    void fetchVT({ sha256hash })
+      .then((res) => {
+        if (!cancelled) {
+          setResult(res)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResult({ status: 'error' })
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [sha256hash, fetchVT])
+
+  return { result, loading }
+}
+
+function SecurityScanResults({
+  sha256hash,
+  variant = 'panel',
+}: {
+  sha256hash?: string
+  variant?: 'panel' | 'badge'
+}) {
+  const { result, loading } = useSecurityScan(sha256hash)
+
+  if (!sha256hash) return null
+
+  const status = loading ? 'loading' : (result?.status ?? 'pending')
+  const url = result?.url
+  const statusInfo = getScanStatusInfo(status)
+
+  // Use dynamic label if no AI verdict but stats are available
+  let displayLabel = statusInfo.label
+  if (!loading && result?.metadata) {
+    const metadata = result.metadata as {
+      aiVerdict?: string
+      stats?: Record<string, number>
+    }
+    if (!metadata.aiVerdict && metadata.stats) {
+      const stats = metadata.stats
+      const total = Object.values(stats).reduce((acc, val) => acc + (val || 0), 0)
+      displayLabel = `${stats.malicious || 0}/${total} engines`
+    }
+  }
+
+  if (variant === 'badge') {
+    return (
+      <div className="version-scan-badge">
+        <VirusTotalIcon className="version-scan-icon version-scan-icon-vt" />
+        <span className={statusInfo.className}>{displayLabel}</span>
+        {url ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="version-scan-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            ↗
+          </a>
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <div className="scan-results-panel">
+      <div className="scan-results-title">Security Scans</div>
+      <div className="scan-results-list">
+        <div className="scan-result-row">
+          <div className="scan-result-scanner">
+            <VirusTotalIcon className="scan-result-icon scan-result-icon-vt" />
+            <span className="scan-result-scanner-name">VirusTotal</span>
+          </div>
+          <div className={`scan-result-status ${statusInfo.className}`}>{displayLabel}</div>
+          {url ? (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="scan-result-link">
+              View report →
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 type SkillDetailPageProps = {
   slug: string
   canonicalOwner?: string
@@ -361,6 +516,7 @@ export function SkillDetailPage({
                     Reports require a reason. Abuse may result in a ban.
                   </div>
                 ) : null}
+                <SecurityScanResults sha256hash={latestVersion?.sha256hash} />
               </div>
               <div className="skill-hero-cta">
                 <div className="skill-version-pill">
@@ -664,6 +820,9 @@ export function SkillDetailPage({
                         </div>
                         <div style={{ color: '#5c554e', whiteSpace: 'pre-wrap' }}>
                           {version.changelog}
+                        </div>
+                        <div className="version-scan-results">
+                          <SecurityScanResults sha256hash={version.sha256hash} variant="badge" />
                         </div>
                       </div>
                       {!nixPlugin ? (

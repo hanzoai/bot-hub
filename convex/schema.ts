@@ -157,9 +157,11 @@ const skillVersions = defineTable({
   createdBy: v.id('users'),
   createdAt: v.number(),
   softDeletedAt: v.optional(v.number()),
+  sha256hash: v.optional(v.string()),
 })
   .index('by_skill', ['skillId'])
   .index('by_skill_version', ['skillId', 'version'])
+  .index('by_sha256hash', ['sha256hash'])
 
 const soulVersions = defineTable({
   soulId: v.id('souls'),

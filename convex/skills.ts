@@ -1131,6 +1131,71 @@ export const getVersionByIdInternal = internalQuery({
   handler: async (ctx, args) => ctx.db.get(args.versionId),
 })
 
+export const getSkillByIdInternal = internalQuery({
+  args: { skillId: v.id('skills') },
+  handler: async (ctx, args) => ctx.db.get(args.skillId),
+})
+
+export const listVersionsInternal = internalQuery({
+  args: { skillId: v.id('skills') },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('skillVersions')
+      .withIndex('by_skill', (q) => q.eq('skillId', args.skillId))
+      .collect()
+  },
+})
+
+export const updateVersionScanResultsInternal = internalMutation({
+  args: {
+    versionId: v.id('skillVersions'),
+    sha256hash: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const version = await ctx.db.get(args.versionId)
+    if (!version) return
+
+    const patch: Partial<Doc<'skillVersions'>> = {}
+    if (args.sha256hash !== undefined) {
+      patch.sha256hash = args.sha256hash
+    }
+
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(args.versionId, patch)
+    }
+  },
+})
+
+export const approveSkillByHashInternal = internalMutation({
+  args: {
+    sha256hash: v.string(),
+    scanner: v.string(),
+    status: v.string(),
+    moderationStatus: v.optional(v.union(v.literal('active'), v.literal('hidden'))),
+  },
+  handler: async (ctx, args) => {
+    const version = await ctx.db
+      .query('skillVersions')
+      .withIndex('by_sha256hash', (q) => q.eq('sha256hash', args.sha256hash))
+      .unique()
+
+    if (!version) throw new Error('Version not found for hash')
+
+    // If requested, update the skill's moderation status
+    if (args.moderationStatus) {
+      const skill = await ctx.db.get(version.skillId)
+      if (skill) {
+        await ctx.db.patch(skill._id, {
+          moderationStatus: args.moderationStatus,
+          moderationReason: `scanner.${args.scanner}.${args.status}`,
+          updatedAt: Date.now(),
+        })
+      }
+    }
+
+    return { ok: true, skillId: version.skillId, versionId: version._id }
+  },
+})
 export const getVersionBySkillAndVersion = query({
   args: { skillId: v.id('skills'), version: v.string() },
   handler: async (ctx, args) => {
@@ -1759,7 +1824,8 @@ export const insertVersion = internalMutation({
           official: undefined,
           deprecated: undefined,
         },
-        moderationStatus: 'active',
+        moderationStatus: 'hidden',
+        moderationReason: 'pending.scan',
         moderationFlags: moderationFlags.length ? moderationFlags : undefined,
         reportCount: 0,
         lastReportedAt: undefined,
@@ -1826,7 +1892,8 @@ export const insertVersion = internalMutation({
       tags: nextTags,
       stats: { ...skill.stats, versions: skill.stats.versions + 1 },
       softDeletedAt: undefined,
-      moderationStatus: skill.moderationStatus ?? 'active',
+      moderationStatus: 'hidden',
+      moderationReason: 'pending.scan',
       moderationFlags: moderationFlags.length ? moderationFlags : undefined,
       updatedAt: now,
     })

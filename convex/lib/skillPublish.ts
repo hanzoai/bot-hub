@@ -170,6 +170,10 @@ export async function publishVersionForUser(
     embedding,
   })) as PublishResult
 
+  await ctx.scheduler.runAfter(0, internal.vt.scanWithVirusTotal, {
+    versionId: publishResult.versionId,
+  })
+
   const owner = (await ctx.runQuery(internal.users.getByIdInternal, {
     userId,
   })) as Doc<'users'> | null
