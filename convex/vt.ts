@@ -271,6 +271,7 @@ export const pollPendingScans = internalAction({
     const batchSize = args.batchSize ?? 10
 
     // Check queue health
+    // TODO: Setup webhook/notification (Slack, Discord, email) when queue is unhealthy
     const health = await ctx.runQuery(internal.skills.getScanQueueHealthInternal, {})
     if (!health.healthy) {
       console.warn(
@@ -291,8 +292,11 @@ export const pollPendingScans = internalAction({
       `[vt:pollPendingScans] Checking ${pendingSkills.length} pending skills (queue: ${health.queueSize})`,
     )
 
+    const MAX_CHECK_COUNT = 10 // After this many checks, mark as stale
+
     let updated = 0
-    for (const { skillId, versionId, sha256hash } of pendingSkills) {
+    let staled = 0
+    for (const { skillId, versionId, sha256hash, checkCount } of pendingSkills) {
       if (!sha256hash) {
         console.log(
           `[vt:pollPendingScans] Skill ${skillId} version ${versionId} has no hash, skipping`,
@@ -300,10 +304,21 @@ export const pollPendingScans = internalAction({
         continue
       }
 
+      // Track this check attempt
+      await ctx.runMutation(internal.skills.updateScanCheckInternal, { skillId })
+
       try {
         const vtResult = await checkExistingFile(apiKey, sha256hash)
         if (!vtResult) {
           console.log(`[vt:pollPendingScans] Hash ${sha256hash} not found in VT yet`)
+          // Check if we've exceeded max attempts
+          if (checkCount + 1 >= MAX_CHECK_COUNT) {
+            console.warn(
+              `[vt:pollPendingScans] Skill ${skillId} exceeded max checks, marking stale`,
+            )
+            await ctx.runMutation(internal.skills.markScanStaleInternal, { skillId })
+            staled++
+          }
           continue
         }
 
@@ -317,6 +332,14 @@ export const pollPendingScans = internalAction({
             `[vt:pollPendingScans] Hash ${sha256hash} has no Code Insight, requesting rescan`,
           )
           await requestRescan(apiKey, sha256hash)
+          // Check if we've exceeded max attempts
+          if (checkCount + 1 >= MAX_CHECK_COUNT) {
+            console.warn(
+              `[vt:pollPendingScans] Skill ${skillId} exceeded max checks, marking stale`,
+            )
+            await ctx.runMutation(internal.skills.markScanStaleInternal, { skillId })
+            staled++
+          }
           continue
         }
 
@@ -339,10 +362,13 @@ export const pollPendingScans = internalAction({
       }
     }
 
-    console.log(`[vt:pollPendingScans] Processed ${pendingSkills.length}, updated ${updated}`)
+    console.log(
+      `[vt:pollPendingScans] Processed ${pendingSkills.length}, updated ${updated}, staled ${staled}`,
+    )
     return {
       processed: pendingSkills.length,
       updated,
+      staled,
       healthy: health.healthy,
       queueSize: health.queueSize,
     }

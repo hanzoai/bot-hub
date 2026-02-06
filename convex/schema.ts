@@ -80,6 +80,9 @@ const skills = defineTable({
   moderationReason: v.optional(v.string()),
   moderationFlags: v.optional(v.array(v.string())),
   lastReviewedAt: v.optional(v.number()),
+  // VT scan tracking
+  scanLastCheckedAt: v.optional(v.number()),
+  scanCheckCount: v.optional(v.number()),
   hiddenAt: v.optional(v.number()),
   hiddenBy: v.optional(v.id('users')),
   reportCount: v.optional(v.number()),

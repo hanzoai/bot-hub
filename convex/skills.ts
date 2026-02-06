@@ -1224,12 +1224,15 @@ export const getSkillByIdInternal = internalQuery({
 })
 
 export const getPendingScanSkillsInternal = internalQuery({
-  args: { limit: v.optional(v.number()) },
+  args: { limit: v.optional(v.number()), skipRecentMinutes: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 10
+    const skipRecentMinutes = args.skipRecentMinutes ?? 60
+    const skipThreshold = Date.now() - skipRecentMinutes * 60 * 1000
+
     // Fetch more than needed so we can randomize selection
-    const poolSize = Math.min(limit * 5, 200)
-    const skills = await ctx.db
+    const poolSize = Math.min(limit * 3, 500)
+    const allSkills = await ctx.db
       .query('skills')
       .filter((q) =>
         q.and(
@@ -1238,6 +1241,11 @@ export const getPendingScanSkillsInternal = internalQuery({
         ),
       )
       .take(poolSize)
+
+    // Filter out recently checked skills
+    const skills = allSkills.filter(
+      (s) => !s.scanLastCheckedAt || s.scanLastCheckedAt < skipThreshold,
+    )
 
     // Shuffle and take the requested limit (Fisher-Yates)
     for (let i = skills.length - 1; i > 0; i--) {
@@ -1250,6 +1258,7 @@ export const getPendingScanSkillsInternal = internalQuery({
       skillId: Id<'skills'>
       versionId: Id<'skillVersions'> | null
       sha256hash: string | null
+      checkCount: number
     }> = []
 
     for (const skill of selected) {
@@ -1258,6 +1267,7 @@ export const getPendingScanSkillsInternal = internalQuery({
         skillId: skill._id,
         versionId: version?._id ?? null,
         sha256hash: version?.sha256hash ?? null,
+        checkCount: skill.scanCheckCount ?? 0,
       })
     }
 
@@ -1303,6 +1313,39 @@ export const getScanQueueHealthInternal = internalQuery({
       oldestAgeMinutes: Math.round((now - oldestTimestamp) / 60000),
       healthy: pending.length < 50 && veryStaleCount === 0,
     }
+  },
+})
+
+/**
+ * Update scan tracking for a skill (called after each VT check)
+ */
+export const updateScanCheckInternal = internalMutation({
+  args: { skillId: v.id('skills') },
+  handler: async (ctx, args) => {
+    const skill = await ctx.db.get(args.skillId)
+    if (!skill) return
+
+    await ctx.db.patch(args.skillId, {
+      scanLastCheckedAt: Date.now(),
+      scanCheckCount: (skill.scanCheckCount ?? 0) + 1,
+    })
+  },
+})
+
+/**
+ * Mark a skill as stale after too many failed scan checks
+ * TODO: Setup webhook/notification when skills are marked stale for manual review
+ */
+export const markScanStaleInternal = internalMutation({
+  args: { skillId: v.id('skills') },
+  handler: async (ctx, args) => {
+    const skill = await ctx.db.get(args.skillId)
+    if (!skill) return
+
+    await ctx.db.patch(args.skillId, {
+      moderationReason: 'pending.scan.stale',
+      updatedAt: Date.now(),
+    })
   },
 })
 
