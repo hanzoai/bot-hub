@@ -1223,6 +1223,39 @@ export const getSkillByIdInternal = internalQuery({
   handler: async (ctx, args) => ctx.db.get(args.skillId),
 })
 
+export const getPendingScanSkillsInternal = internalQuery({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 10
+    const skills = await ctx.db
+      .query('skills')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('moderationStatus'), 'hidden'),
+          q.eq(q.field('moderationReason'), 'pending.scan'),
+        ),
+      )
+      .take(limit)
+
+    const results: Array<{
+      skillId: Id<'skills'>
+      versionId: Id<'skillVersions'> | null
+      sha256hash: string | null
+    }> = []
+
+    for (const skill of skills) {
+      const version = skill.latestVersionId ? await ctx.db.get(skill.latestVersionId) : null
+      results.push({
+        skillId: skill._id,
+        versionId: version?._id ?? null,
+        sha256hash: version?.sha256hash ?? null,
+      })
+    }
+
+    return results
+  },
+})
+
 export const listVersionsInternal = internalQuery({
   args: { skillId: v.id('skills') },
   handler: async (ctx, args) => {

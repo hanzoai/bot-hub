@@ -254,6 +254,79 @@ export const scanWithVirusTotal = internalAction({
 })
 
 /**
+ * Poll for pending scans and update skill moderation status
+ * Called by cron job to check VT results for skills awaiting scan
+ */
+export const pollPendingScans = internalAction({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const apiKey = process.env.VT_API_KEY
+    if (!apiKey) {
+      console.log('[vt:pollPendingScans] VT_API_KEY not configured, skipping')
+      return { processed: 0, updated: 0 }
+    }
+
+    const batchSize = args.batchSize ?? 10
+
+    // Get skills pending scan
+    const pendingSkills = await ctx.runQuery(internal.skills.getPendingScanSkillsInternal, {
+      limit: batchSize,
+    })
+
+    if (pendingSkills.length === 0) {
+      return { processed: 0, updated: 0 }
+    }
+
+    console.log(`[vt:pollPendingScans] Checking ${pendingSkills.length} pending skills`)
+
+    let updated = 0
+    for (const { skillId, versionId, sha256hash } of pendingSkills) {
+      if (!sha256hash) {
+        console.log(`[vt:pollPendingScans] Skill ${skillId} version ${versionId} has no hash, skipping`)
+        continue
+      }
+
+      try {
+        const vtResult = await checkExistingFile(apiKey, sha256hash)
+        if (!vtResult) {
+          console.log(`[vt:pollPendingScans] Hash ${sha256hash} not found in VT yet`)
+          continue
+        }
+
+        const aiResult = vtResult.data.attributes.crowdsourced_ai_results?.find(
+          (r) => r.category === 'code_insight',
+        )
+
+        if (!aiResult) {
+          console.log(`[vt:pollPendingScans] Hash ${sha256hash} has no Code Insight yet`)
+          continue
+        }
+
+        // We have a verdict - update the skill
+        const verdict = normalizeVerdict(aiResult.verdict)
+        const status = verdictToStatus(verdict)
+
+        console.log(`[vt:pollPendingScans] Hash ${sha256hash} verdict: ${verdict} -> status: ${status}`)
+
+        await ctx.runMutation(internal.skills.approveSkillByHashInternal, {
+          sha256hash,
+          scanner: 'vt',
+          status,
+        })
+        updated++
+      } catch (error) {
+        console.error(`[vt:pollPendingScans] Error checking hash ${sha256hash}:`, error)
+      }
+    }
+
+    console.log(`[vt:pollPendingScans] Processed ${pendingSkills.length}, updated ${updated}`)
+    return { processed: pendingSkills.length, updated }
+  },
+})
+
+/**
  * Check if a file already exists in VirusTotal by hash
  */
 async function checkExistingFile(

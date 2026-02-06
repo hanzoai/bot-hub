@@ -31,4 +31,11 @@ crons.interval(
   {},
 )
 
+crons.interval(
+  'vt-pending-scans',
+  { minutes: 5 },
+  internal.vt.pollPendingScans,
+  { batchSize: 10 },
+)
+
 export default crons
