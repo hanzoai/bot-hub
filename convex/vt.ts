@@ -303,7 +303,9 @@ export const pollPendingScans = internalAction({
 
         if (!aiResult) {
           // No Code Insight - trigger a rescan to get it
-          console.log(`[vt:pollPendingScans] Hash ${sha256hash} has no Code Insight, requesting rescan`)
+          console.log(
+            `[vt:pollPendingScans] Hash ${sha256hash} has no Code Insight, requesting rescan`,
+          )
           await requestRescan(apiKey, sha256hash)
           continue
         }
@@ -364,15 +366,12 @@ async function checkExistingFile(
  */
 async function requestRescan(apiKey: string, sha256hash: string): Promise<boolean> {
   try {
-    const response = await fetch(
-      `https://www.virustotal.com/api/v3/files/${sha256hash}/analyse`,
-      {
-        method: 'POST',
-        headers: {
-          'x-apikey': apiKey,
-        },
+    const response = await fetch(`https://www.virustotal.com/api/v3/files/${sha256hash}/analyse`, {
+      method: 'POST',
+      headers: {
+        'x-apikey': apiKey,
       },
-    )
+    })
 
     if (!response.ok) {
       console.error(`[vt:requestRescan] Failed for ${sha256hash}: ${response.status}`)
@@ -416,7 +415,7 @@ export const backfillPendingScans = internalAction({
     let notInVT = 0
     let errors = 0
 
-    for (const { skillId, versionId, sha256hash } of pendingSkills) {
+    for (const { sha256hash } of pendingSkills) {
       if (!sha256hash) {
         noHash++
         continue
