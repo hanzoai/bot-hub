@@ -302,7 +302,9 @@ export const pollPendingScans = internalAction({
         )
 
         if (!aiResult) {
-          console.log(`[vt:pollPendingScans] Hash ${sha256hash} has no Code Insight yet`)
+          // No Code Insight - trigger a rescan to get it
+          console.log(`[vt:pollPendingScans] Hash ${sha256hash} has no Code Insight, requesting rescan`)
+          await requestRescan(apiKey, sha256hash)
           continue
         }
 
@@ -356,3 +358,117 @@ async function checkExistingFile(
 
   return (await response.json()) as VTFileResponse
 }
+
+/**
+ * Request a rescan of a file to trigger Code Insight analysis
+ */
+async function requestRescan(apiKey: string, sha256hash: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://www.virustotal.com/api/v3/files/${sha256hash}/analyse`,
+      {
+        method: 'POST',
+        headers: {
+          'x-apikey': apiKey,
+        },
+      },
+    )
+
+    if (!response.ok) {
+      console.error(`[vt:requestRescan] Failed for ${sha256hash}: ${response.status}`)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error(`[vt:requestRescan] Error for ${sha256hash}:`, error)
+    return false
+  }
+}
+
+/**
+ * Backfill function to process ALL pending skills at once
+ * Run manually to clear backlog
+ */
+export const backfillPendingScans = internalAction({
+  args: {
+    triggerRescans: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const apiKey = process.env.VT_API_KEY
+    if (!apiKey) {
+      console.log('[vt:backfill] VT_API_KEY not configured')
+      return { error: 'VT_API_KEY not configured' }
+    }
+
+    const triggerRescans = args.triggerRescans ?? true
+
+    // Get ALL pending skills (no limit)
+    const pendingSkills = await ctx.runQuery(internal.skills.getPendingScanSkillsInternal, {
+      limit: 10000,
+    })
+
+    console.log(`[vt:backfill] Found ${pendingSkills.length} pending skills`)
+
+    let updated = 0
+    let rescansRequested = 0
+    let noHash = 0
+    let notInVT = 0
+    let errors = 0
+
+    for (const { skillId, versionId, sha256hash } of pendingSkills) {
+      if (!sha256hash) {
+        noHash++
+        continue
+      }
+
+      try {
+        const vtResult = await checkExistingFile(apiKey, sha256hash)
+
+        if (!vtResult) {
+          notInVT++
+          continue
+        }
+
+        const aiResult = vtResult.data.attributes.crowdsourced_ai_results?.find(
+          (r) => r.category === 'code_insight',
+        )
+
+        if (!aiResult) {
+          if (triggerRescans) {
+            await requestRescan(apiKey, sha256hash)
+            rescansRequested++
+          }
+          continue
+        }
+
+        // We have a verdict - update the skill
+        const verdict = normalizeVerdict(aiResult.verdict)
+        const status = verdictToStatus(verdict)
+
+        await ctx.runMutation(internal.skills.approveSkillByHashInternal, {
+          sha256hash,
+          scanner: 'vt',
+          status,
+        })
+        updated++
+      } catch (error) {
+        console.error(`[vt:backfill] Error for ${sha256hash}:`, error)
+        errors++
+      }
+    }
+
+    const result = {
+      total: pendingSkills.length,
+      updated,
+      rescansRequested,
+      noHash,
+      notInVT,
+      errors,
+      remaining: pendingSkills.length - updated,
+    }
+
+    console.log('[vt:backfill] Complete:', result)
+    return result
+  },
+})
