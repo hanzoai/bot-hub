@@ -284,7 +284,9 @@ export const pollPendingScans = internalAction({
     let updated = 0
     for (const { skillId, versionId, sha256hash } of pendingSkills) {
       if (!sha256hash) {
-        console.log(`[vt:pollPendingScans] Skill ${skillId} version ${versionId} has no hash, skipping`)
+        console.log(
+          `[vt:pollPendingScans] Skill ${skillId} version ${versionId} has no hash, skipping`,
+        )
         continue
       }
 
@@ -308,7 +310,9 @@ export const pollPendingScans = internalAction({
         const verdict = normalizeVerdict(aiResult.verdict)
         const status = verdictToStatus(verdict)
 
-        console.log(`[vt:pollPendingScans] Hash ${sha256hash} verdict: ${verdict} -> status: ${status}`)
+        console.log(
+          `[vt:pollPendingScans] Hash ${sha256hash} verdict: ${verdict} -> status: ${status}`,
+        )
 
         await ctx.runMutation(internal.skills.approveSkillByHashInternal, {
           sha256hash,
