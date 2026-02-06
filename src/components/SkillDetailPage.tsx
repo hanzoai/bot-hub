@@ -183,6 +183,7 @@ type SkillDetailPageProps = {
 type ModerationInfo = {
   isPendingScan: boolean
   isMalwareBlocked: boolean
+  isSuspicious: boolean
   isHiddenByMod: boolean
   isRemoved: boolean
   reason?: string
@@ -434,10 +435,19 @@ export function SkillDetailPage({
         ) : modInfo?.isMalwareBlocked ? (
           <div className="pending-banner pending-banner-blocked">
             <div className="pending-banner-content">
-              <strong>Skill blocked — security issue detected</strong>
+              <strong>Skill blocked — malicious content detected</strong>
               <p>
-                VirusTotal flagged this skill as potentially malicious. It is not visible to others
-                and downloads are disabled. Review the scan results below.
+                VirusTotal flagged this skill as malicious. Downloads are disabled. Review the scan
+                results below.
+              </p>
+            </div>
+          </div>
+        ) : modInfo?.isSuspicious ? (
+          <div className="pending-banner pending-banner-warning">
+            <div className="pending-banner-content">
+              <strong>Skill flagged — suspicious patterns detected</strong>
+              <p>
+                VirusTotal flagged this skill as suspicious. Review the scan results before using.
               </p>
             </div>
           </div>

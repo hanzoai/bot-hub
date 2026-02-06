@@ -2963,6 +2963,17 @@ html.theme-transition::view-transition-new(theme) {
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* Suspicious/warning banner variant */
+.pending-banner-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+[data-theme="dark"] .pending-banner-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
 /* Pending tag for dashboard */
 .tag-pending {
   background: rgba(240, 196, 106, 0.2);

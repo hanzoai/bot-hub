@@ -505,6 +505,7 @@ export const getBySlug = query({
     const isPendingScan =
       skill.moderationStatus === 'hidden' && skill.moderationReason === 'pending.scan'
     const isMalwareBlocked = skill.moderationFlags?.includes('blocked.malware') ?? false
+    const isSuspicious = skill.moderationFlags?.includes('flagged.suspicious') ?? false
     const isHiddenByMod = skill.moderationStatus === 'hidden' && !isPendingScan && !isMalwareBlocked
     const isRemoved = skill.moderationStatus === 'removed'
 
@@ -541,12 +542,13 @@ export const getBySlug = query({
       updatedAt: skill.updatedAt,
     }
 
-    // Moderation info - visible to owners for all states, or anyone for malware-blocked
-    const showModerationInfo = !publicSkill && (isOwner || isMalwareBlocked)
+    // Moderation info - visible to owners for all states, or anyone for flagged skills (transparency)
+    const showModerationInfo = isOwner || isMalwareBlocked || isSuspicious
     const moderationInfo = showModerationInfo
       ? {
           isPendingScan,
           isMalwareBlocked,
+          isSuspicious,
           isHiddenByMod,
           isRemoved,
           reason: isOwner ? skill.moderationReason : undefined,
@@ -1277,16 +1279,20 @@ export const approveSkillByHashInternal = internalMutation({
 
     if (!version) throw new Error('Version not found for hash')
 
-    // If requested, update the skill's moderation status
-    if (args.moderationStatus) {
-      const skill = await ctx.db.get(version.skillId)
-      if (skill) {
-        await ctx.db.patch(skill._id, {
-          moderationStatus: args.moderationStatus,
-          moderationReason: `scanner.${args.scanner}.${args.status}`,
-          updatedAt: Date.now(),
-        })
-      }
+    // Update the skill's moderation status based on scan result
+    const skill = await ctx.db.get(version.skillId)
+    if (skill) {
+      const isMalicious = args.status === 'malicious'
+      const isSuspicious = args.status === 'suspicious'
+
+      // Malicious/suspicious skills are visible (transparency) but not indexed
+      // Malicious skills have downloads blocked via moderationFlags
+      await ctx.db.patch(skill._id, {
+        moderationStatus: 'active', // Always visible for transparency
+        moderationReason: `scanner.${args.scanner}.${args.status}`,
+        moderationFlags: isMalicious ? ['blocked.malware'] : isSuspicious ? ['flagged.suspicious'] : undefined,
+        updatedAt: Date.now(),
+      })
     }
 
     return { ok: true, skillId: version.skillId, versionId: version._id }
