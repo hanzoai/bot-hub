@@ -1279,7 +1279,11 @@ export const approveSkillByHashInternal = internalMutation({
       await ctx.db.patch(skill._id, {
         moderationStatus: 'active', // Always visible for transparency
         moderationReason: `scanner.${args.scanner}.${args.status}`,
-        moderationFlags: isMalicious ? ['blocked.malware'] : isSuspicious ? ['flagged.suspicious'] : undefined,
+        moderationFlags: isMalicious
+          ? ['blocked.malware']
+          : isSuspicious
+            ? ['flagged.suspicious']
+            : undefined,
         updatedAt: Date.now(),
       })
     }
