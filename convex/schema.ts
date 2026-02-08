@@ -161,6 +161,15 @@ const skillVersions = defineTable({
   createdAt: v.number(),
   softDeletedAt: v.optional(v.number()),
   sha256hash: v.optional(v.string()),
+  vtAnalysis: v.optional(
+    v.object({
+      status: v.string(),
+      verdict: v.optional(v.string()),
+      analysis: v.optional(v.string()),
+      source: v.optional(v.string()),
+      checkedAt: v.number(),
+    }),
+  ),
 })
   .index('by_skill', ['skillId'])
   .index('by_skill_version', ['skillId', 'version'])
@@ -388,6 +397,20 @@ const auditLogs = defineTable({
   .index('by_actor', ['actorUserId'])
   .index('by_target', ['targetType', 'targetId'])
 
+const vtScanLogs = defineTable({
+  type: v.union(v.literal('daily_rescan'), v.literal('backfill'), v.literal('pending_poll')),
+  total: v.number(),
+  updated: v.number(),
+  unchanged: v.number(),
+  errors: v.number(),
+  flaggedSkills: v.optional(v.array(v.object({
+    slug: v.string(),
+    status: v.string(),
+  }))),
+  durationMs: v.number(),
+  createdAt: v.number(),
+}).index('by_type_date', ['type', 'createdAt'])
+
 const apiTokens = defineTable({
   userId: v.id('users'),
   label: v.string(),
@@ -477,6 +500,7 @@ export default defineSchema({
   stars,
   soulStars,
   auditLogs,
+  vtScanLogs,
   apiTokens,
   rateLimits,
   githubBackupSyncState,
