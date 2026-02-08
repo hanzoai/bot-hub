@@ -60,6 +60,14 @@ type GetBySlugResult = {
   } | null
   latestVersion: Doc<'skillVersions'> | null
   owner: { _id: Id<'users'>; handle?: string; displayName?: string; image?: string } | null
+  moderationInfo?: {
+    isPendingScan: boolean
+    isMalwareBlocked: boolean
+    isSuspicious: boolean
+    isHiddenByMod: boolean
+    isRemoved: boolean
+    reason?: string
+  } | null
 } | null
 
 type ListVersionsResult = {
@@ -270,6 +278,12 @@ async function skillsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
               userId: result.owner._id,
               displayName: result.owner.displayName ?? null,
               image: result.owner.image ?? null,
+            }
+          : null,
+        moderation: result.moderationInfo
+          ? {
+              isSuspicious: result.moderationInfo.isSuspicious ?? false,
+              isMalwareBlocked: result.moderationInfo.isMalwareBlocked ?? false,
             }
           : null,
       },
