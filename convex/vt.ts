@@ -58,10 +58,14 @@ export const logScanResultInternal = internalMutation({
     updated: v.number(),
     unchanged: v.number(),
     errors: v.number(),
-    flaggedSkills: v.optional(v.array(v.object({
-      slug: v.string(),
-      status: v.string(),
-    }))),
+    flaggedSkills: v.optional(
+      v.array(
+        v.object({
+          slug: v.string(),
+          status: v.string(),
+        }),
+      ),
+    ),
     durationMs: v.number(),
   },
   handler: async (ctx, args) => {
@@ -933,7 +937,13 @@ export const backfillActiveSkillsVTCache = internalAction({
       }
     }
 
-    const result = { total: skills.length, updated, noResults, errors, done: skills.length < batchSize }
+    const result = {
+      total: skills.length,
+      updated,
+      noResults,
+      errors,
+      done: skills.length < batchSize,
+    }
     console.log('[vt:backfillActive] Complete:', result)
     return result
   },
@@ -1009,7 +1019,7 @@ export const fixNullModerationStatus = internalAction({
 
     console.log(`[vt:fixNullStatus] Found ${skills.length} skills with null moderationStatus`)
 
-    for (const { skillId, slug } of skills) {
+    for (const { skillId, slug: _slug } of skills) {
       await ctx.runMutation(internal.skills.setSkillModerationStatusActiveInternal, { skillId })
     }
 
@@ -1041,7 +1051,7 @@ export const syncModerationReasons = internalAction({
     let synced = 0
     let noVtAnalysis = 0
 
-    for (const { skillId, versionId, slug, currentReason, vtStatus } of skills) {
+    for (const { skillId, versionId: _versionId, slug, currentReason, vtStatus } of skills) {
       if (!vtStatus) {
         noVtAnalysis++
         continue

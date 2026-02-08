@@ -403,10 +403,14 @@ const vtScanLogs = defineTable({
   updated: v.number(),
   unchanged: v.number(),
   errors: v.number(),
-  flaggedSkills: v.optional(v.array(v.object({
-    slug: v.string(),
-    status: v.string(),
-  }))),
+  flaggedSkills: v.optional(
+    v.array(
+      v.object({
+        slug: v.string(),
+        status: v.string(),
+      }),
+    ),
+  ),
   durationMs: v.number(),
   createdAt: v.number(),
 }).index('by_type_date', ['type', 'createdAt'])

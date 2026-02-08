@@ -188,7 +188,9 @@ export const ApiV1SkillResponseSchema = type({
   moderation: type({
     isSuspicious: 'boolean',
     isMalwareBlocked: 'boolean',
-  }).or('null').optional(),
+  })
+    .or('null')
+    .optional(),
 })
 
 export const ApiV1SkillVersionListResponseSchema = type({
