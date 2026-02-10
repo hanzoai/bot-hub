@@ -76,7 +76,6 @@ export const ensure = mutation({
   args: {},
   handler: async (ctx) => {
     const { userId, user } = await requireUser(ctx)
-    const now = Date.now()
     const updates: Record<string, unknown> = {}
 
     const handle = user.handle || user.name || user.email?.split('@')[0]
@@ -86,9 +85,9 @@ export const ensure = mutation({
       updates.role = handle === ADMIN_HANDLE ? 'admin' : DEFAULT_ROLE
     }
     if (!user.createdAt) updates.createdAt = user._creationTime
-    updates.updatedAt = now
 
     if (Object.keys(updates).length > 0) {
+      updates.updatedAt = Date.now()
       await ctx.db.patch(userId, updates)
     }
 

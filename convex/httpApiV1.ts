@@ -827,11 +827,30 @@ async function checkRateLimit(
   key: string,
   limit: number,
 ): Promise<RateLimitResult> {
-  return (await ctx.runMutation(internal.rateLimits.checkRateLimitInternal, {
+  // Step 1: Read-only check — no write conflicts for denied requests
+  const status = (await ctx.runQuery(internal.rateLimits.getRateLimitStatusInternal, {
     key,
     limit,
     windowMs: RATE_LIMIT_WINDOW_MS,
   })) as RateLimitResult
+
+  if (!status.allowed) {
+    return status
+  }
+
+  // Step 2: Consume a token (only when allowed, with double-check for races)
+  const result = (await ctx.runMutation(internal.rateLimits.consumeRateLimitInternal, {
+    key,
+    limit,
+    windowMs: RATE_LIMIT_WINDOW_MS,
+  })) as { allowed: boolean; remaining: number }
+
+  return {
+    allowed: result.allowed,
+    remaining: result.remaining,
+    limit: status.limit,
+    resetAt: status.resetAt,
+  }
 }
 
 function pickMostRestrictive(primary: RateLimitResult, secondary: RateLimitResult | null) {
