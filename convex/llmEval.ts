@@ -145,31 +145,47 @@ export const evaluateWithLlm = internalAction({
     // 6. Assemble user message
     const userMessage = assembleEvalUserMessage(evalCtx)
 
-    // 7. Call OpenAI Responses API
+    // 7. Call OpenAI Responses API (with retry for rate limits)
+    const MAX_RETRIES = 3
     let raw: string | null = null
     try {
-      const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          instructions: SECURITY_EVALUATOR_SYSTEM_PROMPT,
-          input: userMessage,
-          max_output_tokens: LLM_EVAL_MAX_OUTPUT_TOKENS,
-          text: {
-            format: {
-              type: 'json_object',
-            },
+      const body = JSON.stringify({
+        model,
+        instructions: SECURITY_EVALUATOR_SYSTEM_PROMPT,
+        input: userMessage,
+        max_output_tokens: LLM_EVAL_MAX_OUTPUT_TOKENS,
+        text: {
+          format: {
+            type: 'json_object',
           },
-        }),
+        },
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        await storeError(`OpenAI API error (${response.status}): ${errorText.slice(0, 200)}`)
+      let response: Response | null = null
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        response = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body,
+        })
+
+        if (response.status === 429 || response.status >= 500) {
+          if (attempt < MAX_RETRIES) {
+            const delay = Math.pow(2, attempt) * 2000 + Math.random() * 1000
+            console.log(`[llmEval] Rate limited (${response.status}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`)
+            await new Promise((r) => setTimeout(r, delay))
+            continue
+          }
+        }
+        break
+      }
+
+      if (!response || !response.ok) {
+        const errorText = response ? await response.text() : 'No response'
+        await storeError(`OpenAI API error (${response?.status}): ${errorText.slice(0, 200)}`)
         return
       }
 
@@ -289,7 +305,7 @@ export const backfillLlmEval = internalAction({
       return { error: 'OPENAI_API_KEY not configured' }
     }
 
-    const batchSize = args.batchSize ?? 10
+    const batchSize = args.batchSize ?? 25
     const cursor = args.cursor ?? 0
     let accTotal = args.accTotal ?? 0
     let accScheduled = args.accScheduled ?? 0
@@ -334,7 +350,7 @@ export const backfillLlmEval = internalAction({
       console.log(
         `[llmEval:backfill] Scheduling next batch (cursor=${batch.nextCursor}, total so far=${accTotal})`,
       )
-      await ctx.scheduler.runAfter(30_000, internal.llmEval.backfillLlmEval, {
+      await ctx.scheduler.runAfter(5_000, internal.llmEval.backfillLlmEval, {
         cursor: batch.nextCursor,
         batchSize,
         accTotal,

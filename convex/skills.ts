@@ -1678,8 +1678,8 @@ export const getActiveSkillBatchForLlmBackfillInternal = internalQuery({
 
       const version = await ctx.db.get(skill.latestVersionId)
       if (!version) continue
-      // Skip versions that already have llmAnalysis
-      if (version.llmAnalysis) continue
+      // Skip versions that already have a successful llmAnalysis (retry errors)
+      if (version.llmAnalysis && version.llmAnalysis.status !== 'error') continue
 
       results.push({
         skillId: skill._id,

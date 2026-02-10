@@ -335,6 +335,9 @@ export function assembleEvalUserMessage(ctx: SkillEvalContext): string {
   // SKILL.md content
   sections.push(`### SKILL.md content (runtime instructions)\n${skillMd}`)
 
+  // Reminder to respond in JSON (required by OpenAI json_object mode)
+  sections.push('Respond with your evaluation as a single JSON object.')
+
   return sections.join('\n\n')
 }
 
