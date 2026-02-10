@@ -2761,6 +2761,11 @@ html.theme-transition::view-transition-new(theme) {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: 8px;
+}
+
+.scan-result-row:first-child {
+  margin-top: 0;
 }
 
 .scan-result-scanner {
@@ -2960,7 +2965,7 @@ html.theme-transition::view-transition-new(theme) {
 
 /* LLM Analysis Detail */
 .analysis-detail {
-  margin-top: 6px;
+  margin-top: 10px;
   border-radius: 12px;
   overflow: hidden;
 }

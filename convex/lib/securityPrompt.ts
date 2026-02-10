@@ -1,5 +1,5 @@
 export function getLlmEvalModel(): string {
-  return process.env.OPENAI_EVAL_MODEL ?? 'gpt-4.1-mini'
+  return process.env.OPENAI_EVAL_MODEL ?? 'gpt-5-mini'
 }
 export const LLM_EVAL_MAX_OUTPUT_TOKENS = 2000
 
