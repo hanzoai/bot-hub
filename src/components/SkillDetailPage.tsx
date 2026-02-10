@@ -125,8 +125,7 @@ function getDimensionIcon(rating: string) {
 
 function LlmAnalysisDetail({ analysis }: { analysis: LlmAnalysis }) {
   const verdict = analysis.verdict ?? analysis.status
-  const autoOpen = verdict === 'suspicious' || verdict === 'malicious'
-  const [isOpen, setIsOpen] = useState(autoOpen)
+  const [isOpen, setIsOpen] = useState(false)
 
   const guidanceClass =
     verdict === 'malicious' ? 'malicious' : verdict === 'suspicious' ? 'suspicious' : 'benign'
