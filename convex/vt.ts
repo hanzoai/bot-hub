@@ -626,39 +626,55 @@ export const backfillPendingScans = internalAction({
 
 /**
  * Daily re-scan of ALL active skills to detect verdict changes.
- * Runs once per day, separate from pending scan queue.
+ * Cursor-based: processes one batch per invocation and self-schedules the next.
+ * Cron calls with {} to start from the beginning; subsequent batches pass accumulated totals.
  * API budget: 25k hourly / 100k daily calls.
  */
 export const rescanActiveSkills = internalAction({
-  args: {},
-  handler: async (ctx) => {
-    const startTime = Date.now()
+  args: {
+    cursor: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
+    accTotal: v.optional(v.number()),
+    accUpdated: v.optional(v.number()),
+    accUnchanged: v.optional(v.number()),
+    accErrors: v.optional(v.number()),
+    accFlaggedSkills: v.optional(v.array(v.object({ slug: v.string(), status: v.string() }))),
+    startTime: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const startTime = args.startTime ?? Date.now()
     const apiKey = process.env.VT_API_KEY
     if (!apiKey) {
       console.log('[vt:rescan] VT_API_KEY not configured')
       return { error: 'VT_API_KEY not configured' }
     }
 
-    const skills = await ctx.runQuery(internal.skills.getAllActiveSkillsForRescanInternal, {})
+    const batchSize = args.batchSize ?? 100
+    const cursor = args.cursor ?? 0
+    let accTotal = args.accTotal ?? 0
+    let accUpdated = args.accUpdated ?? 0
+    let accUnchanged = args.accUnchanged ?? 0
+    let accErrors = args.accErrors ?? 0
+    const accFlaggedSkills = [...(args.accFlaggedSkills ?? [])]
 
-    if (skills.length === 0) {
+    const batch = await ctx.runQuery(internal.skills.getActiveSkillBatchForRescanInternal, {
+      cursor,
+      batchSize,
+    })
+
+    if (batch.skills.length === 0 && accTotal === 0) {
       console.log('[vt:rescan] No active skills to re-scan')
       return { total: 0, updated: 0, unchanged: 0, errors: 0 }
     }
 
-    console.log(`[vt:rescan] Daily re-scan of ${skills.length} active skills`)
+    console.log(`[vt:rescan] Processing batch of ${batch.skills.length} skills (cursor=${cursor}, accumulated=${accTotal})`)
 
-    let updated = 0
-    let unchanged = 0
-    let errors = 0
-    const flaggedSkills: Array<{ slug: string; status: string }> = []
-
-    for (const { versionId, sha256hash, slug } of skills) {
+    for (const { versionId, sha256hash, slug } of batch.skills) {
       try {
         const vtResult = await checkExistingFile(apiKey, sha256hash)
 
         if (!vtResult) {
-          errors++
+          accErrors++
           continue
         }
 
@@ -667,7 +683,6 @@ export const rescanActiveSkills = internalAction({
         )
 
         if (!aiResult) {
-          // No Code Insight - just update checkedAt timestamp
           await ctx.runMutation(internal.skills.updateVersionScanResultsInternal, {
             versionId,
             vtAnalysis: {
@@ -675,14 +690,13 @@ export const rescanActiveSkills = internalAction({
               checkedAt: Date.now(),
             },
           })
-          unchanged++
+          accUnchanged++
           continue
         }
 
         const verdict = normalizeVerdict(aiResult.verdict)
         const status = verdictToStatus(verdict)
 
-        // Update with fresh VT analysis
         await ctx.runMutation(internal.skills.updateVersionScanResultsInternal, {
           versionId,
           vtAnalysis: {
@@ -694,39 +708,56 @@ export const rescanActiveSkills = internalAction({
           },
         })
 
-        // If verdict changed to malicious/suspicious, update skill moderation
         if (status === 'malicious' || status === 'suspicious') {
           console.warn(`[vt:rescan] ${slug}: verdict changed to ${status}!`)
-          flaggedSkills.push({ slug, status })
+          accFlaggedSkills.push({ slug, status })
           await ctx.runMutation(internal.skills.approveSkillByHashInternal, {
             sha256hash,
             scanner: 'vt-rescan',
             status,
           })
-          updated++
+          accUpdated++
         } else {
-          unchanged++
+          accUnchanged++
         }
       } catch (error) {
         console.error(`[vt:rescan] Error for ${slug}:`, error)
-        errors++
+        accErrors++
       }
     }
 
+    accTotal += batch.skills.length
+
+    if (!batch.done) {
+      // Schedule next batch
+      console.log(`[vt:rescan] Scheduling next batch (cursor=${batch.nextCursor}, total so far=${accTotal})`)
+      await ctx.scheduler.runAfter(0, internal.vt.rescanActiveSkills, {
+        cursor: batch.nextCursor,
+        batchSize,
+        accTotal,
+        accUpdated,
+        accUnchanged,
+        accErrors,
+        accFlaggedSkills: accFlaggedSkills.length > 0 ? accFlaggedSkills : undefined,
+        startTime,
+      })
+      return { status: 'continuing', totalSoFar: accTotal }
+    }
+
+    // Final batch — log results
     const durationMs = Date.now() - startTime
 
-    // Log results to vtScanLogs table
     await ctx.runMutation(internal.vt.logScanResultInternal, {
       type: 'daily_rescan',
-      total: skills.length,
-      updated,
-      unchanged,
-      errors,
-      flaggedSkills: flaggedSkills.length > 0 ? flaggedSkills : undefined,
+      total: accTotal,
+      updated: accUpdated,
+      unchanged: accUnchanged,
+      errors: accErrors,
+      flaggedSkills: accFlaggedSkills.length > 0 ? accFlaggedSkills : undefined,
       durationMs,
     })
 
-    const result = { total: skills.length, updated, unchanged, errors, durationMs }
+    const result = { total: accTotal, updated: accUpdated, unchanged: accUnchanged, errors: accErrors, durationMs }
     console.log('[vt:rescan] Complete:', result)
     return result
   },
@@ -866,7 +897,7 @@ export const scanLegacySkills = internalAction({
 /**
  * Backfill vtAnalysis for active skills that have VT results but no cached data.
  * This covers highlighted skills and others approved before VT integration.
- * Processes in batches of 50 to respect VT API rate limits.
+ * Processes in batches with self-scheduling to drain the backlog.
  */
 export const backfillActiveSkillsVTCache = internalAction({
   args: { batchSize: v.optional(v.number()) },
@@ -877,7 +908,7 @@ export const backfillActiveSkillsVTCache = internalAction({
       return { error: 'VT_API_KEY not configured' }
     }
 
-    const batchSize = args.batchSize ?? 50
+    const batchSize = args.batchSize ?? 100
 
     const skills = await ctx.runQuery(internal.skills.getActiveSkillsMissingVTCacheInternal, {
       limit: batchSize,
@@ -937,14 +968,22 @@ export const backfillActiveSkillsVTCache = internalAction({
       }
     }
 
+    const done = skills.length < batchSize
     const result = {
       total: skills.length,
       updated,
       noResults,
       errors,
-      done: skills.length < batchSize,
+      done,
     }
     console.log('[vt:backfillActive] Complete:', result)
+
+    // Self-schedule next batch if there are more skills to process
+    if (!done) {
+      console.log('[vt:backfillActive] Scheduling next batch...')
+      await ctx.scheduler.runAfter(0, internal.vt.backfillActiveSkillsVTCache, { batchSize })
+    }
+
     return result
   },
 })
@@ -962,7 +1001,7 @@ export const requestReanalysisForPending = internalAction({
       return { error: 'VT_API_KEY not configured' }
     }
 
-    const batchSize = args.batchSize ?? 50
+    const batchSize = args.batchSize ?? 100
 
     // Get skills with scanner.vt.pending moderationReason
     const skills = await ctx.runQuery(internal.skills.getPendingVTSkillsInternal, {

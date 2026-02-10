@@ -5,7 +5,14 @@ import { paginator } from 'convex-helpers/server/pagination'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
-import { action, internalMutation, internalQuery, mutation, query } from './_generated/server'
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from './_generated/server'
 import { assertAdmin, assertModerator, requireUser, requireUserFromAction } from './lib/access'
 import { getSkillBadgeMap, getSkillBadgeMaps, isSkillHighlighted } from './lib/badges'
 import { generateChangelogPreview as buildChangelogPreview } from './lib/changelog'
@@ -674,17 +681,32 @@ export const getQuickStatsInternal = internalQuery({
 /**
  * Get aggregate stats for all skills (for social posts, dashboards, etc.)
  */
-export const getStatsInternal = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const allSkills = await ctx.db.query('skills').collect()
-    const active = allSkills.filter((s) => !s.softDeletedAt)
+/**
+ * Paginated helper: counts stats for a batch of skills.
+ * Returns partial counts + cursor for the next page.
+ */
+export const getStatsPageInternal = internalQuery({
+  args: { cursor: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const PAGE_SIZE = 500
+    const cursor = args.cursor ?? 0
 
+    const page = await ctx.db
+      .query('skills')
+      .filter((q) => q.gt(q.field('_creationTime'), cursor))
+      .order('asc')
+      .take(PAGE_SIZE)
+
+    let total = 0
     const byStatus: Record<string, number> = {}
     const byReason: Record<string, number> = {}
     const byFlags: Record<string, number> = {}
+    const vtStats = { clean: 0, suspicious: 0, malicious: 0, pending: 0, noAnalysis: 0 }
 
-    for (const skill of active) {
+    for (const skill of page) {
+      if (skill.softDeletedAt) continue
+      total++
+
       const status = skill.moderationStatus ?? 'active'
       byStatus[status] = (byStatus[status] ?? 0) + 1
 
@@ -695,54 +717,110 @@ export const getStatsInternal = internalQuery({
       for (const flag of skill.moderationFlags ?? []) {
         byFlags[flag] = (byFlags[flag] ?? 0) + 1
       }
+
+      if (status === 'active') {
+        const reason = skill.moderationReason
+        if (!reason) {
+          vtStats.noAnalysis++
+        } else if (reason === 'scanner.vt.clean') {
+          vtStats.clean++
+        } else if (reason === 'scanner.vt.malicious') {
+          vtStats.malicious++
+        } else if (reason === 'scanner.vt.suspicious') {
+          vtStats.suspicious++
+        } else if (reason === 'scanner.vt.pending' || reason === 'pending.scan') {
+          vtStats.pending++
+        } else if (reason.startsWith('scanner.vt-rescan.')) {
+          const suffix = reason.slice('scanner.vt-rescan.'.length)
+          if (suffix === 'clean') vtStats.clean++
+          else if (suffix === 'malicious') vtStats.malicious++
+          else if (suffix === 'suspicious') vtStats.suspicious++
+          else vtStats.pending++
+        } else {
+          vtStats.noAnalysis++
+        }
+      }
     }
 
-    const highlightedBadges = await ctx.db
+    const nextCursor = page.length > 0 ? page[page.length - 1]._creationTime : null
+    const done = page.length < PAGE_SIZE
+
+    return { total, byStatus, byReason, byFlags, vtStats, nextCursor, done }
+  },
+})
+
+export const getHighlightedCountInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const badges = await ctx.db
       .query('skillBadges')
       .withIndex('by_kind_at', (q) => q.eq('kind', 'highlighted'))
       .collect()
+    return badges.length
+  },
+})
 
-    const vtStats = {
-      clean: 0,
-      suspicious: 0,
-      malicious: 0,
-      pending: 0,
-      noAnalysis: 0,
-      noLatestVersion: 0,
-      noSha256hash: 0,
-      hasHashNoAnalysis: 0,
-    }
-    for (const skill of active.filter((s) => (s.moderationStatus ?? 'active') === 'active')) {
-      if (!skill.latestVersionId) {
-        vtStats.noAnalysis++
-        vtStats.noLatestVersion++
-        continue
+/**
+ * Get aggregate stats for all skills (for social posts, dashboards, etc.)
+ * Uses an action to call paginated queries, avoiding the 16MB byte limit.
+ */
+type StatsResult = {
+  total: number
+  highlighted: number
+  byStatus: Record<string, number>
+  byReason: Record<string, number>
+  byFlags: Record<string, number>
+  vtStats: { clean: number; suspicious: number; malicious: number; pending: number; noAnalysis: number }
+}
+
+export const getStatsInternal = internalAction({
+  args: {},
+  handler: async (ctx): Promise<StatsResult> => {
+    let total = 0
+    const byStatus: Record<string, number> = {}
+    const byReason: Record<string, number> = {}
+    const byFlags: Record<string, number> = {}
+    const vtStats = { clean: 0, suspicious: 0, malicious: 0, pending: 0, noAnalysis: 0 }
+
+    let cursor: number | undefined
+    let done = false
+
+    while (!done) {
+      const page: {
+        total: number
+        byStatus: Record<string, number>
+        byReason: Record<string, number>
+        byFlags: Record<string, number>
+        vtStats: { clean: number; suspicious: number; malicious: number; pending: number; noAnalysis: number }
+        nextCursor: number | null
+        done: boolean
+      } = await ctx.runQuery(internal.skills.getStatsPageInternal, { cursor })
+
+      total += page.total
+      for (const [k, cnt] of Object.entries(page.byStatus)) {
+        byStatus[k] = (byStatus[k] ?? 0) + cnt
       }
-      const version = await ctx.db.get(skill.latestVersionId)
-      if (!version?.vtAnalysis) {
-        vtStats.noAnalysis++
-        if (!version?.sha256hash) {
-          vtStats.noSha256hash++
-        } else {
-          vtStats.hasHashNoAnalysis++
-        }
-        continue
+      for (const [k, cnt] of Object.entries(page.byReason)) {
+        byReason[k] = (byReason[k] ?? 0) + cnt
       }
-      const status = version.vtAnalysis.status
-      if (status === 'clean') vtStats.clean++
-      else if (status === 'suspicious') vtStats.suspicious++
-      else if (status === 'malicious') vtStats.malicious++
-      else vtStats.pending++
+      for (const [k, cnt] of Object.entries(page.byFlags)) {
+        byFlags[k] = (byFlags[k] ?? 0) + cnt
+      }
+      vtStats.clean += page.vtStats.clean
+      vtStats.suspicious += page.vtStats.suspicious
+      vtStats.malicious += page.vtStats.malicious
+      vtStats.pending += page.vtStats.pending
+      vtStats.noAnalysis += page.vtStats.noAnalysis
+
+      done = page.done
+      if (page.nextCursor !== null) {
+        cursor = page.nextCursor
+      }
     }
 
-    return {
-      total: active.length,
-      highlighted: highlightedBadges.length,
-      byStatus,
-      byReason,
-      byFlags,
-      vtStats,
-    }
+    const highlighted: number = await ctx.runQuery(internal.skills.getHighlightedCountInternal, {})
+
+    return { total, highlighted, byStatus, byReason, byFlags, vtStats }
   },
 })
 
@@ -1498,6 +1576,61 @@ export const getAllActiveSkillsForRescanInternal = internalQuery({
 })
 
 /**
+ * Cursor-based batch query for daily rescan. Uses _creationTime for stable pagination.
+ * Returns a batch of active skills with sha256hash, plus a cursor and done flag.
+ */
+export const getActiveSkillBatchForRescanInternal = internalQuery({
+  args: {
+    cursor: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 100
+    const cursor = args.cursor ?? 0
+
+    // Query skills created after the cursor, ordered by _creationTime (ascending for stable pagination)
+    const candidates = await ctx.db
+      .query('skills')
+      .filter((q) => q.gt(q.field('_creationTime'), cursor))
+      .order('asc')
+      .take(batchSize * 3) // Over-fetch to account for filtering
+
+    const results: Array<{
+      skillId: Id<'skills'>
+      versionId: Id<'skillVersions'>
+      sha256hash: string
+      slug: string
+    }> = []
+    let nextCursor = cursor
+
+    for (const skill of candidates) {
+      nextCursor = skill._creationTime
+      if (results.length >= batchSize) break
+
+      // Filter out soft-deleted and non-active
+      if (skill.softDeletedAt) continue
+      if ((skill.moderationStatus ?? 'active') !== 'active') continue
+      if (!skill.latestVersionId) continue
+
+      const version = await ctx.db.get(skill.latestVersionId)
+      if (!version?.sha256hash) continue
+
+      results.push({
+        skillId: skill._id,
+        versionId: version._id,
+        sha256hash: version.sha256hash,
+        slug: skill.slug,
+      })
+    }
+
+    // Done when we got fewer candidates than our over-fetch limit
+    const done = candidates.length < batchSize * 3
+
+    return { skills: results, nextCursor, done }
+  },
+})
+
+/**
  * Get skills with stale moderationReason that have vtAnalysis cached.
  * Used to sync moderationReason with cached VT results.
  */
@@ -1824,6 +1957,15 @@ export const approveSkillByHashInternal = internalMutation({
             : undefined,
         updatedAt: Date.now(),
       })
+
+      // Auto-ban authors of malicious skills (skips moderators/admins)
+      if (isMalicious && skill.ownerUserId) {
+        await ctx.scheduler.runAfter(0, internal.users.autobanMalwareAuthorInternal, {
+          ownerUserId: skill.ownerUserId,
+          sha256hash: args.sha256hash,
+          slug: skill.slug,
+        })
+      }
     }
 
     return { ok: true, skillId: version.skillId, versionId: version._id }

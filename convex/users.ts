@@ -264,3 +264,83 @@ async function banUserWithActor(ctx: MutationCtx, actor: Doc<'users'>, targetUse
 
   return { ok: true as const, alreadyBanned: false, deletedSkills: skills.length }
 }
+
+/**
+ * Auto-ban a user whose skill was flagged malicious by VT.
+ * Skips moderators/admins. No actor required — this is a system-level action.
+ */
+export const autobanMalwareAuthorInternal = internalMutation({
+  args: {
+    ownerUserId: v.id('users'),
+    sha256hash: v.string(),
+    slug: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const target = await ctx.db.get(args.ownerUserId)
+    if (!target) return { ok: false, reason: 'user_not_found' }
+    if (target.deletedAt) return { ok: true, alreadyBanned: true }
+
+    // Never auto-ban moderators or admins
+    if (target.role === 'admin' || target.role === 'moderator') {
+      console.log(`[autoban] Skipping ${target.handle ?? args.ownerUserId}: role=${target.role}`)
+      return { ok: false, reason: 'protected_role' }
+    }
+
+    const now = Date.now()
+
+    // Soft-delete all their skills
+    const skills = await ctx.db
+      .query('skills')
+      .withIndex('by_owner', (q) => q.eq('ownerUserId', args.ownerUserId))
+      .collect()
+
+    for (const skill of skills) {
+      if (!skill.softDeletedAt) {
+        await ctx.db.patch(skill._id, { softDeletedAt: now, updatedAt: now })
+      }
+    }
+
+    // Revoke all API tokens
+    const tokens = await ctx.db
+      .query('apiTokens')
+      .withIndex('by_user', (q) => q.eq('userId', args.ownerUserId))
+      .collect()
+    for (const token of tokens) {
+      if (!token.revokedAt) {
+        await ctx.db.patch(token._id, { revokedAt: now })
+      }
+    }
+
+    // Ban the user
+    await ctx.db.patch(args.ownerUserId, {
+      deletedAt: now,
+      role: 'user',
+      updatedAt: now,
+    })
+
+    await ctx.runMutation(internal.telemetry.clearUserTelemetryInternal, {
+      userId: args.ownerUserId,
+    })
+
+    // Audit log — use the target as actor since there's no human actor
+    await ctx.db.insert('auditLogs', {
+      actorUserId: args.ownerUserId,
+      action: 'user.autoban.malware',
+      targetType: 'user',
+      targetId: args.ownerUserId,
+      metadata: {
+        trigger: 'vt.malicious',
+        sha256hash: args.sha256hash,
+        slug: args.slug,
+        deletedSkills: skills.length,
+      },
+      createdAt: now,
+    })
+
+    console.warn(
+      `[autoban] Banned ${target.handle ?? args.ownerUserId} — malicious skill: ${args.slug}`,
+    )
+
+    return { ok: true, alreadyBanned: false, deletedSkills: skills.length }
+  },
+})

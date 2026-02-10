@@ -12,16 +12,12 @@ import { canManageSkill, isModerator } from '../lib/roles'
 import { useAuthStatus } from '../lib/useAuthStatus'
 import { SkillDiffCard } from './SkillDiffCard'
 
-type ScanResult = {
+type VtAnalysis = {
   status: string
-  source?: 'code_insight' | 'engines'
-  url?: string
-  metadata?: {
-    aiVerdict?: string
-    aiAnalysis?: string
-    aiSource?: string
-    stats?: { malicious?: number; suspicious?: number; undetected?: number; harmless?: number }
-  }
+  verdict?: string
+  analysis?: string
+  source?: string
+  checkedAt: number
 }
 
 function VirusTotalIcon({ className }: { className?: string }) {
@@ -66,65 +62,23 @@ function getScanStatusInfo(status: string) {
   }
 }
 
-function useSecurityScan(sha256hash?: string, enabled = true) {
-  const fetchVT = useAction(api.vt.fetchResults)
-  const [result, setResult] = useState<ScanResult | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!sha256hash || !enabled) {
-      setResult(null)
-      setLoading(false)
-      return
-    }
-
-    let cancelled = false
-    setLoading(true)
-
-    void fetchVT({ sha256hash })
-      .then((res) => {
-        if (!cancelled) {
-          setResult(res)
-          setLoading(false)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResult({ status: 'error' })
-          setLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [sha256hash, enabled, fetchVT])
-
-  return { result, loading }
-}
-
 function SecurityScanResults({
   sha256hash,
+  vtAnalysis,
   variant = 'panel',
-  enabled = true,
 }: {
   sha256hash?: string
+  vtAnalysis?: VtAnalysis | null
   variant?: 'panel' | 'badge'
-  enabled?: boolean
 }) {
-  const { result, loading } = useSecurityScan(sha256hash, enabled)
-
   if (!sha256hash) return null
 
-  const status = loading ? 'loading' : (result?.status ?? 'pending')
-  const url = result?.url
+  const status = vtAnalysis?.status ?? 'pending'
+  const vtUrl = `https://www.virustotal.com/gui/file/${sha256hash}`
   const statusInfo = getScanStatusInfo(status)
-  const metadata = result?.metadata
-  const isCodeInsight = result?.source === 'code_insight'
-  const aiAnalysis = metadata?.aiAnalysis
+  const isCodeInsight = vtAnalysis?.source === 'code_insight'
+  const aiAnalysis = vtAnalysis?.analysis
 
-  // Determine display label based on source
-  // Always prefer verdict labels (Benign, Suspicious, Malicious) over engine stats
   const displayLabel = statusInfo.label
 
   if (variant === 'badge') {
@@ -132,17 +86,15 @@ function SecurityScanResults({
       <div className="version-scan-badge">
         <VirusTotalIcon className="version-scan-icon version-scan-icon-vt" />
         <span className={statusInfo.className}>{displayLabel}</span>
-        {url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="version-scan-link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            ↗
-          </a>
-        ) : null}
+        <a
+          href={vtUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="version-scan-link"
+          onClick={(e) => e.stopPropagation()}
+        >
+          ↗
+        </a>
       </div>
     )
   }
@@ -157,11 +109,9 @@ function SecurityScanResults({
             <span className="scan-result-scanner-name">VirusTotal</span>
           </div>
           <div className={`scan-result-status ${statusInfo.className}`}>{displayLabel}</div>
-          {url ? (
-            <a href={url} target="_blank" rel="noopener noreferrer" className="scan-result-link">
-              View report →
-            </a>
-          ) : null}
+          <a href={vtUrl} target="_blank" rel="noopener noreferrer" className="scan-result-link">
+            View report →
+          </a>
         </div>
         {isCodeInsight && aiAnalysis && (status === 'malicious' || status === 'suspicious') ? (
           <div className={`code-insight-analysis ${status}`}>
@@ -262,7 +212,6 @@ export function SkillDetailPage({
   const [tagName, setTagName] = useState('latest')
   const [tagVersionId, setTagVersionId] = useState<Id<'skillVersions'> | ''>('')
   const [activeTab, setActiveTab] = useState<'files' | 'compare' | 'versions'>('files')
-  const [versionScanOpen, setVersionScanOpen] = useState<Record<string, boolean>>({})
 
   const isLoadingSkill = result === undefined
   const skill = result?.skill
@@ -581,7 +530,7 @@ export function SkillDetailPage({
                     Reports require a reason. Abuse may result in a ban.
                   </div>
                 ) : null}
-                <SecurityScanResults sha256hash={latestVersion?.sha256hash} />
+                <SecurityScanResults sha256hash={latestVersion?.sha256hash} vtAnalysis={latestVersion?.vtAnalysis} />
                 {latestVersion?.sha256hash ? (
                   <p className="scan-disclaimer">
                     Like a lobster shell, security has layers — review code before you run it.
@@ -893,26 +842,11 @@ export function SkillDetailPage({
                         </div>
                         <div className="version-scan-results">
                           {version.sha256hash ? (
-                            versionScanOpen[version._id] ? (
-                              <SecurityScanResults
-                                sha256hash={version.sha256hash}
-                                variant="badge"
-                                enabled
-                              />
-                            ) : (
-                              <button
-                                className="version-scan-toggle"
-                                type="button"
-                                onClick={() =>
-                                  setVersionScanOpen((prev) => ({
-                                    ...prev,
-                                    [version._id]: true,
-                                  }))
-                                }
-                              >
-                                Load scan
-                              </button>
-                            )
+                            <SecurityScanResults
+                              sha256hash={version.sha256hash}
+                              vtAnalysis={version.vtAnalysis}
+                              variant="badge"
+                            />
                           ) : null}
                         </div>
                       </div>
