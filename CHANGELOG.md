@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 - 2026-02-10
 
 ### Added
 - CLI/API: add `set-role` to change user roles (admin only).
@@ -16,14 +16,6 @@
 - Users: backfill empty handles from name/email in ensure (thanks @adlai88, #158).
 - Web: update footer branding to OpenClaw (thanks @jontsai, #122).
 - Auth: restore soft-deleted users on reauth, block banned users (thanks @mkrokosz, #106).
-
-## 0.5.1 - TBD
-
-### Added
-
-### Changed
-
-### Fixed
 
 ## 0.5.0 - 2026-02-02
 
