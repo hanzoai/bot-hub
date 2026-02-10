@@ -294,6 +294,8 @@ const skillStatEvents = defineTable({
     v.literal('download'),
     v.literal('star'),
     v.literal('unstar'),
+    v.literal('comment'),
+    v.literal('uncomment'),
     v.literal('install_new'),
     v.literal('install_reactivate'),
     v.literal('install_deactivate'),
