@@ -171,6 +171,28 @@ const skillVersions = defineTable({
       checkedAt: v.number(),
     }),
   ),
+  llmAnalysis: v.optional(
+    v.object({
+      status: v.string(),
+      verdict: v.optional(v.string()),
+      confidence: v.optional(v.string()),
+      summary: v.optional(v.string()),
+      dimensions: v.optional(
+        v.array(
+          v.object({
+            name: v.string(),
+            label: v.string(),
+            rating: v.string(),
+            detail: v.string(),
+          }),
+        ),
+      ),
+      guidance: v.optional(v.string()),
+      findings: v.optional(v.string()),
+      model: v.optional(v.string()),
+      checkedAt: v.number(),
+    }),
+  ),
 })
   .index('by_skill', ['skillId'])
   .index('by_skill_version', ['skillId', 'version'])

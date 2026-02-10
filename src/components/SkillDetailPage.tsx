@@ -20,6 +20,25 @@ type VtAnalysis = {
   checkedAt: number
 }
 
+type LlmAnalysisDimension = {
+  name: string
+  label: string
+  rating: string
+  detail: string
+}
+
+type LlmAnalysis = {
+  status: string
+  verdict?: string
+  confidence?: string
+  summary?: string
+  dimensions?: LlmAnalysisDimension[]
+  guidance?: string
+  findings?: string
+  model?: string
+  checkedAt: number
+}
+
 function VirusTotalIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -35,6 +54,35 @@ function VirusTotalIcon({ className }: { className?: string }) {
         fill="currentColor"
         fillRule="evenodd"
         d="M45.292 44.5 0 89h100V0H0l45.292 44.5zM90 80H22l35.987-35.2L22 9h68v71z"
+      />
+    </svg>
+  )
+}
+
+function OpenClawIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-label="OpenClaw"
+    >
+      <title>OpenClaw</title>
+      <path
+        d="M12 2C8.5 2 5.5 4 4 7c-2 4-1 8 2 11 1.5 1.5 3.5 2.5 6 2.5s4.5-1 6-2.5c3-3 4-7 2-11-1.5-3-4.5-5-8-5z"
+        fill="currentColor"
+        opacity="0.2"
+      />
+      <path
+        d="M9 8c1-2 3-3 5-2s3 3 2 5l-3 4-2-1 3-4c.5-1 0-2-1-2.5S11 7 10.5 8L8 12l-2-1 3-4z"
+        fill="currentColor"
+      />
+      <path
+        d="M15 8c-1-2-3-3-5-2s-3 3-2 5l3 4 2-1-3-4c-.5-1 0-2 1-2.5S14 7 14.5 8L17 12l2-1-4-3z"
+        fill="currentColor"
+        opacity="0.6"
       />
     </svg>
   )
@@ -62,40 +110,139 @@ function getScanStatusInfo(status: string) {
   }
 }
 
+function getDimensionIcon(rating: string) {
+  switch (rating) {
+    case 'ok':
+      return { className: 'dimension-icon-ok', symbol: '\u2713' }
+    case 'note':
+      return { className: 'dimension-icon-note', symbol: '\u2139' }
+    case 'concern':
+      return { className: 'dimension-icon-concern', symbol: '!' }
+    default:
+      return { className: 'dimension-icon-danger', symbol: '\u2717' }
+  }
+}
+
+function LlmAnalysisDetail({ analysis }: { analysis: LlmAnalysis }) {
+  const verdict = analysis.verdict ?? analysis.status
+  const autoOpen = verdict === 'suspicious' || verdict === 'malicious'
+  const [isOpen, setIsOpen] = useState(autoOpen)
+
+  const guidanceClass =
+    verdict === 'malicious' ? 'malicious' : verdict === 'suspicious' ? 'suspicious' : 'benign'
+
+  return (
+    <div className={`analysis-detail${isOpen ? ' is-open' : ''}`}>
+      <div
+        className="analysis-detail-header"
+        onClick={() => setIsOpen((prev) => !prev)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setIsOpen((prev) => !prev)
+          }
+        }}
+      >
+        <span className="analysis-summary-text">{analysis.summary}</span>
+        <span className="analysis-detail-toggle">
+          Details <span className="chevron">{'\u25BE'}</span>
+        </span>
+      </div>
+      <div className="analysis-body">
+        {analysis.dimensions && analysis.dimensions.length > 0 ? (
+          <div className="analysis-dimensions">
+            {analysis.dimensions.map((dim) => {
+              const icon = getDimensionIcon(dim.rating)
+              return (
+                <div key={dim.name} className="dimension-row">
+                  <div className={`dimension-icon ${icon.className}`}>{icon.symbol}</div>
+                  <div className="dimension-content">
+                    <div className="dimension-label">{dim.label}</div>
+                    <div className="dimension-detail">{dim.detail}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
+        {analysis.findings ? (
+          <div className="scan-findings-section">
+            <div className="scan-findings-title">Scan Findings in Context</div>
+            {analysis.findings.split('\n').map((line, i) => (
+              <div key={i} className="scan-finding-row">
+                {line}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {analysis.guidance ? (
+          <div className={`analysis-guidance ${guidanceClass}`}>
+            <div className="analysis-guidance-label">
+              {verdict === 'malicious'
+                ? 'Do not install this skill'
+                : verdict === 'suspicious'
+                  ? 'What to consider before installing'
+                  : 'Assessment'}
+            </div>
+            {analysis.guidance}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function SecurityScanResults({
   sha256hash,
   vtAnalysis,
+  llmAnalysis,
   variant = 'panel',
 }: {
   sha256hash?: string
   vtAnalysis?: VtAnalysis | null
+  llmAnalysis?: LlmAnalysis | null
   variant?: 'panel' | 'badge'
 }) {
-  if (!sha256hash) return null
+  if (!sha256hash && !llmAnalysis) return null
 
-  const status = vtAnalysis?.status ?? 'pending'
-  const vtUrl = `https://www.virustotal.com/gui/file/${sha256hash}`
-  const statusInfo = getScanStatusInfo(status)
+  const vtStatus = vtAnalysis?.status ?? 'pending'
+  const vtUrl = sha256hash ? `https://www.virustotal.com/gui/file/${sha256hash}` : null
+  const vtStatusInfo = getScanStatusInfo(vtStatus)
   const isCodeInsight = vtAnalysis?.source === 'code_insight'
   const aiAnalysis = vtAnalysis?.analysis
 
-  const displayLabel = statusInfo.label
+  const llmVerdict = llmAnalysis?.verdict ?? llmAnalysis?.status
+  const llmStatusInfo = llmVerdict ? getScanStatusInfo(llmVerdict) : null
 
   if (variant === 'badge') {
     return (
-      <div className="version-scan-badge">
-        <VirusTotalIcon className="version-scan-icon version-scan-icon-vt" />
-        <span className={statusInfo.className}>{displayLabel}</span>
-        <a
-          href={vtUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="version-scan-link"
-          onClick={(e) => e.stopPropagation()}
-        >
-          ↗
-        </a>
-      </div>
+      <>
+        {sha256hash ? (
+          <div className="version-scan-badge">
+            <VirusTotalIcon className="version-scan-icon version-scan-icon-vt" />
+            <span className={vtStatusInfo.className}>{vtStatusInfo.label}</span>
+            {vtUrl ? (
+              <a
+                href={vtUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="version-scan-link"
+                onClick={(e) => e.stopPropagation()}
+              >
+                ↗
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+        {llmStatusInfo ? (
+          <div className="version-scan-badge">
+            <OpenClawIcon className="version-scan-icon version-scan-icon-oc" />
+            <span className={llmStatusInfo.className}>{llmStatusInfo.label}</span>
+          </div>
+        ) : null}
+      </>
     )
   }
 
@@ -103,21 +250,52 @@ function SecurityScanResults({
     <div className="scan-results-panel">
       <div className="scan-results-title">Security Scan</div>
       <div className="scan-results-list">
-        <div className="scan-result-row">
-          <div className="scan-result-scanner">
-            <VirusTotalIcon className="scan-result-icon scan-result-icon-vt" />
-            <span className="scan-result-scanner-name">VirusTotal</span>
+        {sha256hash ? (
+          <div className="scan-result-row">
+            <div className="scan-result-scanner">
+              <VirusTotalIcon className="scan-result-icon scan-result-icon-vt" />
+              <span className="scan-result-scanner-name">VirusTotal</span>
+            </div>
+            <div className={`scan-result-status ${vtStatusInfo.className}`}>
+              {vtStatusInfo.label}
+            </div>
+            {vtUrl ? (
+              <a
+                href={vtUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="scan-result-link"
+              >
+                View report →
+              </a>
+            ) : null}
           </div>
-          <div className={`scan-result-status ${statusInfo.className}`}>{displayLabel}</div>
-          <a href={vtUrl} target="_blank" rel="noopener noreferrer" className="scan-result-link">
-            View report →
-          </a>
-        </div>
-        {isCodeInsight && aiAnalysis && (status === 'malicious' || status === 'suspicious') ? (
-          <div className={`code-insight-analysis ${status}`}>
+        ) : null}
+        {isCodeInsight && aiAnalysis && (vtStatus === 'malicious' || vtStatus === 'suspicious') ? (
+          <div className={`code-insight-analysis ${vtStatus}`}>
             <div className="code-insight-label">Code Insight</div>
             <p className="code-insight-text">{aiAnalysis}</p>
           </div>
+        ) : null}
+        {llmStatusInfo && llmAnalysis ? (
+          <div className="scan-result-row">
+            <div className="scan-result-scanner">
+              <OpenClawIcon className="scan-result-icon scan-result-icon-oc" />
+              <span className="scan-result-scanner-name">OpenClaw</span>
+            </div>
+            <div className={`scan-result-status ${llmStatusInfo.className}`}>
+              {llmStatusInfo.label}
+            </div>
+            {llmAnalysis.confidence ? (
+              <span className="scan-result-confidence">{llmAnalysis.confidence} confidence</span>
+            ) : null}
+          </div>
+        ) : null}
+        {llmAnalysis &&
+        llmAnalysis.status !== 'error' &&
+        llmAnalysis.status !== 'pending' &&
+        llmAnalysis.summary ? (
+          <LlmAnalysisDetail analysis={llmAnalysis} />
         ) : null}
       </div>
     </div>
@@ -387,8 +565,8 @@ export function SkillDetailPage({
             <div className="pending-banner-content">
               <strong>Skill blocked — malicious content detected</strong>
               <p>
-                VirusTotal flagged this skill as malicious. Downloads are disabled. Review the scan
-                results below.
+                ClawHub Security flagged this skill as malicious. Downloads are disabled. Review the
+                scan results below.
               </p>
             </div>
           </div>
@@ -397,7 +575,8 @@ export function SkillDetailPage({
             <div className="pending-banner-content">
               <strong>Skill flagged — suspicious patterns detected</strong>
               <p>
-                VirusTotal flagged this skill as suspicious. Review the scan results before using.
+                ClawHub Security flagged this skill as suspicious. Review the scan results before
+                using.
               </p>
             </div>
           </div>
@@ -533,8 +712,9 @@ export function SkillDetailPage({
                 <SecurityScanResults
                   sha256hash={latestVersion?.sha256hash}
                   vtAnalysis={latestVersion?.vtAnalysis}
+                  llmAnalysis={latestVersion?.llmAnalysis as LlmAnalysis | undefined}
                 />
-                {latestVersion?.sha256hash ? (
+                {latestVersion?.sha256hash || latestVersion?.llmAnalysis ? (
                   <p className="scan-disclaimer">
                     Like a lobster shell, security has layers — review code before you run it.
                   </p>
@@ -844,10 +1024,11 @@ export function SkillDetailPage({
                           {version.changelog}
                         </div>
                         <div className="version-scan-results">
-                          {version.sha256hash ? (
+                          {version.sha256hash || version.llmAnalysis ? (
                             <SecurityScanResults
                               sha256hash={version.sha256hash}
                               vtAnalysis={version.vtAnalysis}
+                              llmAnalysis={version.llmAnalysis as LlmAnalysis | undefined}
                               variant="badge"
                             />
                           ) : null}

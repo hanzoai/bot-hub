@@ -1643,6 +1643,58 @@ export const getActiveSkillBatchForRescanInternal = internalQuery({
 })
 
 /**
+ * Get active skills whose latest version has no llmAnalysis.
+ * Used for LLM evaluation backfill. Same cursor pattern as getActiveSkillBatchForRescanInternal.
+ */
+export const getActiveSkillBatchForLlmBackfillInternal = internalQuery({
+  args: {
+    cursor: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 10
+    const cursor = args.cursor ?? 0
+
+    const candidates = await ctx.db
+      .query('skills')
+      .filter((q) => q.gt(q.field('_creationTime'), cursor))
+      .order('asc')
+      .take(batchSize * 3)
+
+    const results: Array<{
+      skillId: Id<'skills'>
+      versionId: Id<'skillVersions'>
+      slug: string
+    }> = []
+    let nextCursor = cursor
+
+    for (const skill of candidates) {
+      nextCursor = skill._creationTime
+      if (results.length >= batchSize) break
+
+      if (skill.softDeletedAt) continue
+      if ((skill.moderationStatus ?? 'active') !== 'active') continue
+      if (!skill.latestVersionId) continue
+
+      const version = await ctx.db.get(skill.latestVersionId)
+      if (!version) continue
+      // Skip versions that already have llmAnalysis
+      if (version.llmAnalysis) continue
+
+      results.push({
+        skillId: skill._id,
+        versionId: version._id,
+        slug: skill.slug,
+      })
+    }
+
+    const done = candidates.length < batchSize * 3
+
+    return { skills: results, nextCursor, done }
+  },
+})
+
+/**
  * Get skills with stale moderationReason that have vtAnalysis cached.
  * Used to sync moderationReason with cached VT results.
  */
@@ -1936,6 +1988,37 @@ export const updateVersionScanResultsInternal = internalMutation({
   },
 })
 
+export const updateVersionLlmAnalysisInternal = internalMutation({
+  args: {
+    versionId: v.id('skillVersions'),
+    llmAnalysis: v.object({
+      status: v.string(),
+      verdict: v.optional(v.string()),
+      confidence: v.optional(v.string()),
+      summary: v.optional(v.string()),
+      dimensions: v.optional(
+        v.array(
+          v.object({
+            name: v.string(),
+            label: v.string(),
+            rating: v.string(),
+            detail: v.string(),
+          }),
+        ),
+      ),
+      guidance: v.optional(v.string()),
+      findings: v.optional(v.string()),
+      model: v.optional(v.string()),
+      checkedAt: v.number(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const version = await ctx.db.get(args.versionId)
+    if (!version) return
+    await ctx.db.patch(args.versionId, { llmAnalysis: args.llmAnalysis })
+  },
+})
+
 export const approveSkillByHashInternal = internalMutation({
   args: {
     sha256hash: v.string(),
@@ -1956,17 +2039,38 @@ export const approveSkillByHashInternal = internalMutation({
     if (skill) {
       const isMalicious = args.status === 'malicious'
       const isSuspicious = args.status === 'suspicious'
+      const isClean = !isMalicious && !isSuspicious
 
-      // Malicious/suspicious skills are visible (transparency) but not indexed
-      // Malicious skills have downloads blocked via moderationFlags
+      // Defense-in-depth: read existing flags to merge scanner results.
+      // The stricter verdict always wins across scanners.
+      const existingFlags: string[] = (skill.moderationFlags as string[] | undefined) ?? []
+      const existingReason: string | undefined = skill.moderationReason as string | undefined
+      const alreadyBlocked = existingFlags.includes('blocked.malware')
+      const alreadyFlagged = existingFlags.includes('flagged.suspicious')
+
+      // Determine new flags based on multi-scanner merge
+      let newFlags: string[] | undefined
+      if (isMalicious || alreadyBlocked) {
+        // Malicious from ANY scanner → blocked.malware (upgrade from suspicious)
+        newFlags = ['blocked.malware']
+      } else if (isSuspicious || alreadyFlagged) {
+        // Suspicious from ANY scanner → flagged.suspicious
+        newFlags = ['flagged.suspicious']
+      } else if (isClean) {
+        // Clean from this scanner — only clear if no other scanner has flagged
+        const otherScannerFlagged =
+          existingReason !== undefined &&
+          existingReason.startsWith('scanner.') &&
+          !existingReason.startsWith(`scanner.${args.scanner}.`) &&
+          !existingReason.endsWith('.clean') &&
+          !existingReason.endsWith('.pending')
+        newFlags = otherScannerFlagged ? existingFlags : undefined
+      }
+
       await ctx.db.patch(skill._id, {
         moderationStatus: 'active', // Always visible for transparency
         moderationReason: `scanner.${args.scanner}.${args.status}`,
-        moderationFlags: isMalicious
-          ? ['blocked.malware']
-          : isSuspicious
-            ? ['flagged.suspicious']
-            : undefined,
+        moderationFlags: newFlags,
         updatedAt: Date.now(),
       })
 
