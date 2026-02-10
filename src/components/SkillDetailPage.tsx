@@ -530,7 +530,10 @@ export function SkillDetailPage({
                     Reports require a reason. Abuse may result in a ban.
                   </div>
                 ) : null}
-                <SecurityScanResults sha256hash={latestVersion?.sha256hash} vtAnalysis={latestVersion?.vtAnalysis} />
+                <SecurityScanResults
+                  sha256hash={latestVersion?.sha256hash}
+                  vtAnalysis={latestVersion?.vtAnalysis}
+                />
                 {latestVersion?.sha256hash ? (
                   <p className="scan-disclaimer">
                     Like a lobster shell, security has layers — review code before you run it.

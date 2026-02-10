@@ -193,23 +193,32 @@ async function setRoleWithActor(
 }
 
 export const banUser = mutation({
-  args: { userId: v.id('users') },
+  args: { userId: v.id('users'), reason: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { user } = await requireUser(ctx)
-    return banUserWithActor(ctx, user, args.userId)
+    return banUserWithActor(ctx, user, args.userId, args.reason)
   },
 })
 
 export const banUserInternal = internalMutation({
-  args: { actorUserId: v.id('users'), targetUserId: v.id('users') },
+  args: {
+    actorUserId: v.id('users'),
+    targetUserId: v.id('users'),
+    reason: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const actor = await ctx.db.get(args.actorUserId)
     if (!actor || actor.deletedAt) throw new Error('User not found')
-    return banUserWithActor(ctx, actor, args.targetUserId)
+    return banUserWithActor(ctx, actor, args.targetUserId, args.reason)
   },
 })
 
-async function banUserWithActor(ctx: MutationCtx, actor: Doc<'users'>, targetUserId: Id<'users'>) {
+async function banUserWithActor(
+  ctx: MutationCtx,
+  actor: Doc<'users'>,
+  targetUserId: Id<'users'>,
+  reasonRaw?: string,
+) {
   assertModerator(actor)
 
   if (targetUserId === actor._id) throw new Error('Cannot ban yourself')
@@ -221,6 +230,10 @@ async function banUserWithActor(ctx: MutationCtx, actor: Doc<'users'>, targetUse
   }
 
   const now = Date.now()
+  const reason = reasonRaw?.trim()
+  if (reason && reason.length > 500) {
+    throw new Error('Reason too long (max 500 chars)')
+  }
   if (target.deletedAt) {
     return { ok: true as const, alreadyBanned: true, deletedSkills: 0 }
   }
@@ -249,6 +262,7 @@ async function banUserWithActor(ctx: MutationCtx, actor: Doc<'users'>, targetUse
     deletedAt: now,
     role: 'user',
     updatedAt: now,
+    banReason: reason || undefined,
   })
 
   await ctx.runMutation(internal.telemetry.clearUserTelemetryInternal, { userId: targetUserId })
@@ -258,7 +272,7 @@ async function banUserWithActor(ctx: MutationCtx, actor: Doc<'users'>, targetUse
     action: 'user.ban',
     targetType: 'user',
     targetId: targetUserId,
-    metadata: { deletedSkills: skills.length },
+    metadata: { deletedSkills: skills.length, reason: reason || undefined },
     createdAt: now,
   })
 

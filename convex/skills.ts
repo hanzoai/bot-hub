@@ -770,7 +770,13 @@ type StatsResult = {
   byStatus: Record<string, number>
   byReason: Record<string, number>
   byFlags: Record<string, number>
-  vtStats: { clean: number; suspicious: number; malicious: number; pending: number; noAnalysis: number }
+  vtStats: {
+    clean: number
+    suspicious: number
+    malicious: number
+    pending: number
+    noAnalysis: number
+  }
 }
 
 export const getStatsInternal = internalAction({
@@ -791,7 +797,13 @@ export const getStatsInternal = internalAction({
         byStatus: Record<string, number>
         byReason: Record<string, number>
         byFlags: Record<string, number>
-        vtStats: { clean: number; suspicious: number; malicious: number; pending: number; noAnalysis: number }
+        vtStats: {
+          clean: number
+          suspicious: number
+          malicious: number
+          pending: number
+          noAnalysis: number
+        }
         nextCursor: number | null
         done: boolean
       } = await ctx.runQuery(internal.skills.getStatsPageInternal, { cursor })

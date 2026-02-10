@@ -36,6 +36,7 @@ read_when:
   - hard-deletes all owned skills
   - revokes API tokens
   - sets `deletedAt` on the user
+- Optional ban reason is stored in `users.banReason` and audit logs.
 - Moderators cannot ban admins; nobody can ban themselves.
 - Report counters effectively reset because deleted/banned skills are no longer
   considered active in the per-user report cap.

@@ -20,6 +20,7 @@ const users = defineTable({
   githubCreatedAt: v.optional(v.number()),
   githubFetchedAt: v.optional(v.number()),
   deletedAt: v.optional(v.number()),
+  banReason: v.optional(v.string()),
   createdAt: v.optional(v.number()),
   updatedAt: v.optional(v.number()),
 })

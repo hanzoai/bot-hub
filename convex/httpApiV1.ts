@@ -562,6 +562,7 @@ async function usersPostRouterV1Handler(ctx: ActionCtx, request: Request) {
 
   const handleRaw = typeof payload.handle === 'string' ? payload.handle.trim() : ''
   const userIdRaw = typeof payload.userId === 'string' ? payload.userId.trim() : ''
+  const reasonRaw = typeof payload.reason === 'string' ? payload.reason.trim() : ''
   if (!handleRaw && !userIdRaw) {
     return text('Missing userId or handle', 400, rate.headers)
   }
@@ -592,10 +593,15 @@ async function usersPostRouterV1Handler(ctx: ActionCtx, request: Request) {
   }
 
   if (action === 'ban') {
+    const reason = reasonRaw.length > 0 ? reasonRaw : undefined
+    if (reason && reason.length > 500) {
+      return text('Reason too long (max 500 chars)', 400, rate.headers)
+    }
     try {
       const result = await ctx.runMutation(internal.users.banUserInternal, {
         actorUserId,
         targetUserId,
+        reason,
       })
       return json(result, 200, rate.headers)
     } catch (error) {

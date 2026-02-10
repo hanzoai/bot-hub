@@ -152,13 +152,13 @@ Ban a user and hard-delete owned skills (moderator/admin only).
 Body:
 
 ```json
-{ "handle": "user_handle" }
+{ "handle": "user_handle", "reason": "optional ban reason" }
 ```
 
 or
 
 ```json
-{ "userId": "users_..." }
+{ "userId": "users_...", "reason": "optional ban reason" }
 ```
 
 Response:
