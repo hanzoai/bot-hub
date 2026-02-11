@@ -2,15 +2,15 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { internalAction } from './_generated/server'
+import type { SkillEvalContext } from './lib/securityPrompt'
 import {
-  LLM_EVAL_MAX_OUTPUT_TOKENS,
-  SECURITY_EVALUATOR_SYSTEM_PROMPT,
   assembleEvalUserMessage,
   detectInjectionPatterns,
   getLlmEvalModel,
+  LLM_EVAL_MAX_OUTPUT_TOKENS,
   parseLlmEvalResponse,
+  SECURITY_EVALUATOR_SYSTEM_PROMPT,
 } from './lib/securityPrompt'
-import type { SkillEvalContext } from './lib/securityPrompt'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -191,8 +191,10 @@ export const evaluateWithLlm = internalAction({
 
         if (response.status === 429 || response.status >= 500) {
           if (attempt < MAX_RETRIES) {
-            const delay = Math.pow(2, attempt) * 2000 + Math.random() * 1000
-            console.log(`[llmEval] Rate limited (${response.status}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`)
+            const delay = 2 ** attempt * 2000 + Math.random() * 1000
+            console.log(
+              `[llmEval] Rate limited (${response.status}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`,
+            )
             await new Promise((r) => setTimeout(r, delay))
             continue
           }
@@ -287,9 +289,7 @@ export const evaluateBySlug = internalAction({
       return { error: 'No published version' }
     }
 
-    console.log(
-      `[llmEval:bySlug] Evaluating ${args.slug} (versionId: ${skill.latestVersionId})`,
-    )
+    console.log(`[llmEval:bySlug] Evaluating ${args.slug} (versionId: ${skill.latestVersionId})`)
 
     await ctx.scheduler.runAfter(0, internal.llmEval.evaluateWithLlm, {
       versionId: skill.latestVersionId,
@@ -329,10 +329,10 @@ export const backfillLlmEval = internalAction({
     let accScheduled = args.accScheduled ?? 0
     let accSkipped = args.accSkipped ?? 0
 
-    const batch = await ctx.runQuery(
-      internal.skills.getActiveSkillBatchForLlmBackfillInternal,
-      { cursor, batchSize },
-    )
+    const batch = await ctx.runQuery(internal.skills.getActiveSkillBatchForLlmBackfillInternal, {
+      cursor,
+      batchSize,
+    })
 
     if (batch.skills.length === 0 && batch.done) {
       console.log('[llmEval:backfill] No more skills to evaluate')

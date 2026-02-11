@@ -132,23 +132,17 @@ function LlmAnalysisDetail({ analysis }: { analysis: LlmAnalysis }) {
 
   return (
     <div className={`analysis-detail${isOpen ? ' is-open' : ''}`}>
-      <div
+      <button
+        type="button"
         className="analysis-detail-header"
         onClick={() => setIsOpen((prev) => !prev)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setIsOpen((prev) => !prev)
-          }
-        }}
+        aria-expanded={isOpen}
       >
         <span className="analysis-summary-text">{analysis.summary}</span>
         <span className="analysis-detail-toggle">
           Details <span className="chevron">{'\u25BE'}</span>
         </span>
-      </div>
+      </button>
       <div className="analysis-body">
         {analysis.dimensions && analysis.dimensions.length > 0 ? (
           <div className="analysis-dimensions">
@@ -169,11 +163,18 @@ function LlmAnalysisDetail({ analysis }: { analysis: LlmAnalysis }) {
         {analysis.findings ? (
           <div className="scan-findings-section">
             <div className="scan-findings-title">Scan Findings in Context</div>
-            {analysis.findings.split('\n').map((line, i) => (
-              <div key={i} className="scan-finding-row">
-                {line}
-              </div>
-            ))}
+            {(() => {
+              const counts = new Map<string, number>()
+              return analysis.findings.split('\n').map((line) => {
+                const count = (counts.get(line) ?? 0) + 1
+                counts.set(line, count)
+                return (
+                  <div key={`${line}-${count}`} className="scan-finding-row">
+                    {line}
+                  </div>
+                )
+              })
+            })()}
           </div>
         ) : null}
         {analysis.guidance ? (
@@ -580,7 +581,11 @@ export function SkillDetailPage({
               {canManage ? (
                 <p className="pending-banner-appeal">
                   If you believe this skill has been incorrectly flagged, please{' '}
-                  <a href="https://github.com/openclaw/clawhub/issues" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href="https://github.com/openclaw/clawhub/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     submit an issue on GitHub
                   </a>{' '}
                   and we'll break down why it was flagged and what you can do.

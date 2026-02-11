@@ -2059,8 +2059,7 @@ export const approveSkillByHashInternal = internalMutation({
       } else if (isClean) {
         // Clean from this scanner — only clear if no other scanner has flagged
         const otherScannerFlagged =
-          existingReason !== undefined &&
-          existingReason.startsWith('scanner.') &&
+          existingReason?.startsWith('scanner.') &&
           !existingReason.startsWith(`scanner.${args.scanner}.`) &&
           !existingReason.endsWith('.clean') &&
           !existingReason.endsWith('.pending')
