@@ -344,12 +344,12 @@ export const backfillLlmEval = internalAction({
     )
 
     for (const { versionId, slug } of batch.skills) {
-      // The query already filters out versions with llmAnalysis, but double-check
+      // Re-evaluate all (full file content reading upgrade)
       const version = (await ctx.runQuery(internal.skills.getVersionByIdInternal, {
         versionId,
       })) as Doc<'skillVersions'> | null
 
-      if (!version || (version.llmAnalysis && version.llmAnalysis.status !== 'error')) {
+      if (!version) {
         accSkipped++
         continue
       }
