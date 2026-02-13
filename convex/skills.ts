@@ -50,6 +50,16 @@ const HARD_DELETE_LEADERBOARD_BATCH_SIZE = 25
 const MAX_ACTIVE_REPORTS_PER_USER = 20
 const AUTO_HIDE_REPORT_THRESHOLD = 3
 const MAX_REPORT_REASON_SAMPLE = 5
+const RATE_LIMIT_HOUR_MS = 60 * 60 * 1000
+const RATE_LIMIT_DAY_MS = 24 * RATE_LIMIT_HOUR_MS
+const LOW_TRUST_ACCOUNT_AGE_MS = 30 * RATE_LIMIT_DAY_MS
+const TRUSTED_PUBLISHER_SKILL_THRESHOLD = 10
+const LOW_TRUST_BURST_THRESHOLD_PER_HOUR = 8
+const OWNER_ACTIVITY_SCAN_LIMIT = 500
+const NEW_SKILL_RATE_LIMITS = {
+  lowTrust: { perHour: 5, perDay: 20 },
+  trusted: { perHour: 20, perDay: 80 },
+} as const
 
 const SORT_INDEXES = {
   newest: 'by_active_created',
@@ -68,6 +78,61 @@ function isSkillVersionId(
 
 function isUserId(value: Id<'users'> | null | undefined): value is Id<'users'> {
   return typeof value === 'string' && value.startsWith('users:')
+}
+
+type OwnerTrustSignals = {
+  isLowTrust: boolean
+  skillsLastHour: number
+  skillsLastDay: number
+}
+
+async function getOwnerTrustSignals(
+  ctx: QueryCtx | MutationCtx,
+  owner: Doc<'users'>,
+  now: number,
+): Promise<OwnerTrustSignals> {
+  const ownerSkills = await ctx.db
+    .query('skills')
+    .withIndex('by_owner', (q) => q.eq('ownerUserId', owner._id))
+    .order('desc')
+    .take(OWNER_ACTIVITY_SCAN_LIMIT)
+
+  const hourThreshold = now - RATE_LIMIT_HOUR_MS
+  const dayThreshold = now - RATE_LIMIT_DAY_MS
+  let skillsLastHour = 0
+  let skillsLastDay = 0
+
+  for (const skill of ownerSkills) {
+    if (skill.createdAt >= dayThreshold) {
+      skillsLastDay += 1
+      if (skill.createdAt >= hourThreshold) {
+        skillsLastHour += 1
+      }
+    }
+  }
+
+  const accountCreatedAt = owner.createdAt ?? owner._creationTime
+  const accountAgeMs = Math.max(0, now - accountCreatedAt)
+  const isLowTrust =
+    accountAgeMs < LOW_TRUST_ACCOUNT_AGE_MS ||
+    ownerSkills.length < TRUSTED_PUBLISHER_SKILL_THRESHOLD ||
+    skillsLastHour >= LOW_TRUST_BURST_THRESHOLD_PER_HOUR
+
+  return { isLowTrust, skillsLastHour, skillsLastDay }
+}
+
+function enforceNewSkillRateLimit(signals: OwnerTrustSignals) {
+  const limits = signals.isLowTrust ? NEW_SKILL_RATE_LIMITS.lowTrust : NEW_SKILL_RATE_LIMITS.trusted
+  if (signals.skillsLastHour >= limits.perHour) {
+    throw new ConvexError(
+      `Rate limit: max ${limits.perHour} new skills per hour. Please wait before publishing more.`,
+    )
+  }
+  if (signals.skillsLastDay >= limits.perDay) {
+    throw new ConvexError(
+      `Rate limit: max ${limits.perDay} new skills per 24 hours. Please wait before publishing more.`,
+    )
+  }
 }
 
 async function resolveOwnerHandle(ctx: QueryCtx, ownerUserId: Id<'users'>) {
@@ -2162,11 +2227,27 @@ export const approveSkillByHashInternal = internalMutation({
         newFlags = otherScannerFlagged ? existingFlags : undefined
       }
 
+      const now = Date.now()
+      let shouldHideSuspicious = false
+      if (isSuspicious && !alreadyBlocked) {
+        const owner = await ctx.db.get(skill.ownerUserId)
+        if (owner && !owner.deletedAt) {
+          const trustSignals = await getOwnerTrustSignals(ctx, owner, now)
+          shouldHideSuspicious = trustSignals.isLowTrust
+        }
+      }
+
       await ctx.db.patch(skill._id, {
-        moderationStatus: 'active', // Always visible for transparency
+        moderationStatus: shouldHideSuspicious ? 'hidden' : 'active',
         moderationReason: `scanner.${args.scanner}.${args.status}`,
         moderationFlags: newFlags,
-        updatedAt: Date.now(),
+        moderationNotes: shouldHideSuspicious
+          ? 'Auto-hidden: suspicious result from low-trust publisher.'
+          : undefined,
+        hiddenAt: shouldHideSuspicious ? now : undefined,
+        hiddenBy: undefined,
+        lastReviewedAt: shouldHideSuspicious ? now : undefined,
+        updatedAt: now,
       })
 
       // Auto-ban authors of malicious skills (skips moderators/admins)
@@ -2807,6 +2888,9 @@ export const insertVersion = internalMutation({
 
     const now = Date.now()
     if (!skill) {
+      const ownerTrustSignals = await getOwnerTrustSignals(ctx, user, now)
+      enforceNewSkillRateLimit(ownerTrustSignals)
+
       const forkOfSlug = args.forkOf?.slug.trim().toLowerCase() || ''
       const forkOfVersion = args.forkOf?.version?.trim() || undefined
 
