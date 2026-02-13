@@ -30,7 +30,20 @@ function SkillsHome() {
     dir: 'desc',
     nonSuspiciousOnly: true,
   }) as { page: PublicSkill[] } | undefined
-  const popular = popularResult?.page ?? []
+  const popular = (popularResult?.page ?? []).map((skill) => {
+    const stats = (skill as PublicSkill & { stats?: PublicSkill['stats'] }).stats
+    return {
+      ...skill,
+      stats: {
+        downloads: stats?.downloads ?? 0,
+        stars: stats?.stars ?? 0,
+        installsCurrent: stats?.installsCurrent ?? 0,
+        installsAllTime: stats?.installsAllTime ?? 0,
+        versions: stats?.versions ?? 0,
+        comments: stats?.comments ?? 0,
+      },
+    }
+  })
 
   return (
     <main>
