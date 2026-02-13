@@ -1259,6 +1259,8 @@ code {
 .skill-detail-stack {
   display: grid;
   gap: 16px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .skill-hero {
@@ -1699,6 +1701,8 @@ code {
 
 .tab-card {
   gap: 14px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .tab-header {
@@ -1731,11 +1735,14 @@ code {
 .tab-body {
   display: grid;
   gap: 20px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .file-list {
   display: grid;
   gap: 12px;
+  max-width: 100%;
   padding-top: 8px;
   border-top: 1px solid var(--line);
 }
@@ -1751,6 +1758,7 @@ code {
   display: grid;
   gap: 8px;
   max-height: 260px;
+  max-width: 100%;
   overflow: auto;
   padding-right: 4px;
 }
@@ -1766,6 +1774,7 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  max-width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -2350,6 +2359,7 @@ code {
 
 .markdown {
   line-height: 1.7;
+  max-width: 100%;
   color: #3f3a34;
 }
 
@@ -2376,6 +2386,7 @@ code {
 
 .markdown pre {
   white-space: pre;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 250, 247, 0.88));

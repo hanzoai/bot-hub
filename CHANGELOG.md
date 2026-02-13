@@ -17,9 +17,9 @@
 - VirusTotal: fix scan sync race conditions and retry behavior in scan/backfill paths.
 - Metadata: tolerate trailing commas in JSON metadata.
 - Auth: allow soft-deleted users to re-authenticate on fresh login, while keeping banned users blocked (thanks @tanujbhaud, #177).
+- Web: prevent horizontal overflow from long code blocks in skill pages (thanks @bewithgaurav, #183).
 
 ## 0.6.0 - 2026-02-10
-
 ### Added
 - CLI/API: add `set-role` to change user roles (admin only).
 - Security: quarantine skill publishes with VirusTotal scans + UI (thanks @aleph8, #130).
