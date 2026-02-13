@@ -15,8 +15,16 @@ vi.mock('./lib/embeddings', () => ({
 
 vi.mock('./lib/badges', () => ({
   getSkillBadgeMaps: getSkillBadgeMapsMock,
-  isSkillHighlighted: (skill: { badges?: Record<string, unknown> }) => Boolean(skill.badges?.highlighted),
+  isSkillHighlighted: (skill: { badges?: Record<string, unknown> }) =>
+    Boolean(skill.badges?.highlighted),
 }))
+
+type WrappedHandler = {
+  _handler: (ctx: unknown, args: unknown) => Promise<unknown>
+}
+
+const searchSkillsHandler = (searchSkills as unknown as WrappedHandler)._handler
+const lexicalFallbackSkillsHandler = (lexicalFallbackSkills as unknown as WrappedHandler)._handler
 
 describe('search helpers', () => {
   it('returns fallback results when vector candidates are empty', async () => {
@@ -34,7 +42,7 @@ describe('search helpers', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce(fallback)
 
-    const result = await (searchSkills as unknown as { _handler: Function })._handler(
+    const result = await searchSkillsHandler(
       {
         vectorSearch: vi.fn().mockResolvedValue([]),
         runQuery,
@@ -51,7 +59,11 @@ describe('search helpers', () => {
   })
 
   it('applies highlightedOnly filtering in lexical fallback', async () => {
-    const highlighted = makeSkillDoc({ id: 'skills:hl', slug: 'orf-highlighted', displayName: 'ORF Highlighted' })
+    const highlighted = makeSkillDoc({
+      id: 'skills:hl',
+      slug: 'orf-highlighted',
+      displayName: 'ORF Highlighted',
+    })
     const plain = makeSkillDoc({ id: 'skills:plain', slug: 'orf-plain', displayName: 'ORF Plain' })
     getSkillBadgeMapsMock.mockResolvedValueOnce(
       new Map([
@@ -60,7 +72,7 @@ describe('search helpers', () => {
       ]),
     )
 
-    const result = await (lexicalFallbackSkills as unknown as { _handler: Function })._handler(
+    const result = await lexicalFallbackSkillsHandler(
       makeLexicalCtx({
         exactSlugSkill: null,
         recentSkills: [highlighted, plain],
@@ -80,10 +92,11 @@ describe('search helpers', () => {
       recentSkills: [],
     })
 
-    const result = await (lexicalFallbackSkills as unknown as { _handler: Function })._handler(
-      ctx,
-      { query: 'orf', queryTokens: ['orf'], limit: 10 },
-    )
+    const result = await lexicalFallbackSkillsHandler(ctx, {
+      query: 'orf',
+      queryTokens: ['orf'],
+      limit: 10,
+    })
 
     expect(result).toHaveLength(1)
     expect(result[0].skill.slug).toBe('orf')
@@ -95,25 +108,45 @@ describe('search helpers', () => {
     const vectorEntries = [
       {
         embeddingId: 'skillEmbeddings:a',
-        skill: makePublicSkill({ id: 'skills:a', slug: 'foo-a', displayName: 'Foo Alpha', downloads: 10 }),
+        skill: makePublicSkill({
+          id: 'skills:a',
+          slug: 'foo-a',
+          displayName: 'Foo Alpha',
+          downloads: 10,
+        }),
         version: null,
         ownerHandle: 'one',
       },
       {
         embeddingId: 'skillEmbeddings:b',
-        skill: makePublicSkill({ id: 'skills:b', slug: 'foo-b', displayName: 'Foo Beta', downloads: 2 }),
+        skill: makePublicSkill({
+          id: 'skills:b',
+          slug: 'foo-b',
+          displayName: 'Foo Beta',
+          downloads: 2,
+        }),
         version: null,
         ownerHandle: 'two',
       },
     ]
     const fallbackEntries = [
       {
-        skill: makePublicSkill({ id: 'skills:a', slug: 'foo-a', displayName: 'Foo Alpha', downloads: 10 }),
+        skill: makePublicSkill({
+          id: 'skills:a',
+          slug: 'foo-a',
+          displayName: 'Foo Alpha',
+          downloads: 10,
+        }),
         version: null,
         ownerHandle: 'one',
       },
       {
-        skill: makePublicSkill({ id: 'skills:c', slug: 'foo-c', displayName: 'Foo Classic', downloads: 1 }),
+        skill: makePublicSkill({
+          id: 'skills:c',
+          slug: 'foo-c',
+          displayName: 'Foo Classic',
+          downloads: 1,
+        }),
         version: null,
         ownerHandle: 'three',
       },
@@ -125,7 +158,7 @@ describe('search helpers', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce(fallbackEntries)
 
-    const result = await (searchSkills as unknown as { _handler: Function })._handler(
+    const result = await searchSkillsHandler(
       {
         vectorSearch: vi.fn().mockResolvedValue([
           { _id: 'skillEmbeddings:a', _score: 0.4 },
@@ -226,11 +259,7 @@ function makePublicSkill(params: {
   }
 }
 
-function makeSkillDoc(params: {
-  id: string
-  slug: string
-  displayName: string
-}) {
+function makeSkillDoc(params: { id: string; slug: string; displayName: string }) {
   return {
     ...makePublicSkill(params),
     _creationTime: 1,
