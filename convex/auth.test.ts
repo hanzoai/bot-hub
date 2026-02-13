@@ -109,4 +109,44 @@ describe('handleSoftDeletedUserReauth', () => {
 
     expect(ctx.db.patch).not.toHaveBeenCalled()
   })
+
+  it('blocks users auto-banned for malware when existingUserId matches', async () => {
+    const { ctx } = makeCtx({
+      user: { deletedAt: 123 },
+      banRecords: [{ action: 'user.autoban.malware' }],
+    })
+
+    await expect(
+      handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: userId }),
+    ).rejects.toThrow(BANNED_REAUTH_MESSAGE)
+
+    expect(ctx.db.patch).not.toHaveBeenCalled()
+  })
+
+  it('blocks reauth when ban records include mixed actions', async () => {
+    const { ctx } = makeCtx({
+      user: { deletedAt: 123 },
+      banRecords: [{ action: 'profile.update' }, { action: 'user.autoban.malware' }],
+    })
+
+    await expect(
+      handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: null }),
+    ).rejects.toThrow(BANNED_REAUTH_MESSAGE)
+
+    expect(ctx.db.patch).not.toHaveBeenCalled()
+  })
+
+  it('does not block reauth for non-ban audit actions', async () => {
+    const { ctx } = makeCtx({
+      user: { deletedAt: 123 },
+      banRecords: [{ action: 'profile.update' }, { action: 'user.role.change' }],
+    })
+
+    await handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: null })
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(userId, {
+      deletedAt: undefined,
+      updatedAt: expect.any(Number),
+    })
+  })
 })
