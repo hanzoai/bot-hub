@@ -15,6 +15,7 @@ import {
   type QualityAssessment,
   toStructuralFingerprint,
 } from './skillQuality'
+import { generateSkillSummary } from './skillSummary'
 import {
   buildEmbeddingText,
   getFrontmatterMetadata,
@@ -121,13 +122,19 @@ export async function publishVersionForUser(
   const ownerCreatedAt = owner?.createdAt ?? owner?._creationTime ?? Date.now()
   const now = Date.now()
   const frontmatterMetadata = getFrontmatterMetadata(frontmatter)
-  const summary =
+  const summaryFromFrontmatter =
     frontmatterMetadata &&
     typeof frontmatterMetadata === 'object' &&
     !Array.isArray(frontmatterMetadata) &&
     typeof (frontmatterMetadata as Record<string, unknown>).description === 'string'
       ? ((frontmatterMetadata as Record<string, unknown>).description as string)
       : undefined
+  const summary = await generateSkillSummary({
+    slug,
+    displayName,
+    readmeText,
+    currentSummary: summaryFromFrontmatter ?? existingSkill?.summary ?? undefined,
+  })
 
   let qualityAssessment: QualityAssessment | null = null
   if (isNewSkill) {
@@ -242,6 +249,7 @@ export async function publishVersionForUser(
       metadata,
       clawdis,
     },
+    summary,
     embedding,
     qualityAssessment: qualityAssessment
       ? {

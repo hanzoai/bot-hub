@@ -2998,6 +2998,7 @@ export const insertVersion = internalMutation({
       metadata: v.optional(v.any()),
       clawdis: v.optional(v.any()),
     }),
+    summary: v.optional(v.string()),
     qualityAssessment: v.optional(
       v.object({
         decision: v.union(v.literal('pass'), v.literal('quarantine'), v.literal('reject')),
@@ -3093,7 +3094,7 @@ export const insertVersion = internalMutation({
         }
       }
 
-      const summary = getFrontmatterValue(args.parsed.frontmatter, 'description')
+      const summary = args.summary ?? getFrontmatterValue(args.parsed.frontmatter, 'description')
       const summaryValue = summary ?? undefined
       const moderationFlags = deriveModerationFlags({
         skill: { slug: args.slug, displayName: args.displayName, summary: summaryValue },
@@ -3172,7 +3173,8 @@ export const insertVersion = internalMutation({
 
     const latestBefore = skill.latestVersionId
 
-    const nextSummary = getFrontmatterValue(args.parsed.frontmatter, 'description') ?? skill.summary
+    const nextSummary =
+      args.summary ?? getFrontmatterValue(args.parsed.frontmatter, 'description') ?? skill.summary
     const moderationFlags = deriveModerationFlags({
       skill: { slug: skill.slug, displayName: args.displayName, summary: nextSummary ?? undefined },
       parsed: args.parsed,

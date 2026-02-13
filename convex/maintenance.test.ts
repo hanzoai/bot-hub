@@ -28,6 +28,10 @@ vi.mock('./_generated/api', () => ({
   },
 }))
 
+vi.mock('./lib/skillSummary', () => ({
+  generateSkillSummary: vi.fn(),
+}))
+
 const {
   backfillSkillFingerprintsInternalHandler,
   backfillSkillSummariesInternalHandler,
@@ -35,6 +39,7 @@ const {
   nominateEmptySkillSpammersInternalHandler,
 } = await import('./maintenance')
 const { internal } = await import('./_generated/api')
+const { generateSkillSummary } = await import('./lib/skillSummary')
 
 function makeBlob(text: string) {
   return { text: () => Promise.resolve(text) } as unknown as Blob
@@ -47,6 +52,8 @@ describe('maintenance backfill', () => {
         {
           kind: 'ok',
           skillId: 'skills:1',
+          skillSlug: 'skill-1',
+          skillDisplayName: 'Skill 1',
           versionId: 'skillVersions:1',
           skillSummary: '>',
           versionParsed: { frontmatter: { description: '>' } },
@@ -90,6 +97,8 @@ describe('maintenance backfill', () => {
         {
           kind: 'ok',
           skillId: 'skills:1',
+          skillSlug: 'skill-1',
+          skillDisplayName: 'Skill 1',
           versionId: 'skillVersions:1',
           skillSummary: '>',
           versionParsed: { frontmatter: { description: '>' } },
@@ -119,6 +128,8 @@ describe('maintenance backfill', () => {
         {
           kind: 'ok',
           skillId: 'skills:1',
+          skillSlug: 'skill-1',
+          skillDisplayName: 'Skill 1',
           versionId: 'skillVersions:1',
           skillSummary: null,
           versionParsed: { frontmatter: {} },
@@ -139,6 +150,49 @@ describe('maintenance backfill', () => {
 
     expect(result.stats.missingStorageBlob).toBe(1)
     expect(runMutation).not.toHaveBeenCalled()
+  })
+
+  it('fills empty summary via AI when useAi is enabled', async () => {
+    vi.mocked(generateSkillSummary).mockResolvedValue('AI generated summary.')
+
+    const runQuery = vi.fn().mockResolvedValue({
+      items: [
+        {
+          kind: 'ok',
+          skillId: 'skills:1',
+          skillSlug: 'ai-skill',
+          skillDisplayName: 'AI Skill',
+          versionId: 'skillVersions:1',
+          skillSummary: null,
+          versionParsed: { frontmatter: {} },
+          readmeStorageId: 'storage:1',
+        },
+      ],
+      cursor: null,
+      isDone: true,
+    })
+
+    const runMutation = vi.fn().mockResolvedValue({ ok: true })
+    const storageGet = vi.fn().mockResolvedValue(makeBlob('# AI Skill\n\nUseful automation.'))
+
+    const result = await backfillSkillSummariesInternalHandler(
+      { runQuery, runMutation, storage: { get: storageGet } } as never,
+      { dryRun: false, batchSize: 10, maxBatches: 1, useAi: true },
+    )
+
+    expect(result.ok).toBe(true)
+    expect(result.stats.skillsPatched).toBe(1)
+    expect(result.stats.aiSummariesPatched).toBe(1)
+    expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
+      skillId: 'skills:1',
+      versionId: 'skillVersions:1',
+      summary: 'AI generated summary.',
+      parsed: {
+        frontmatter: {},
+        metadata: undefined,
+        clawdis: undefined,
+      },
+    })
   })
 })
 

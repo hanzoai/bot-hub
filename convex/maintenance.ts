@@ -11,6 +11,7 @@ import {
   getTrustTier,
   type TrustTier,
 } from './lib/skillQuality'
+import { generateSkillSummary } from './lib/skillSummary'
 import { hashSkillFiles } from './lib/skills'
 
 const DEFAULT_BATCH_SIZE = 50
@@ -23,6 +24,7 @@ const DEFAULT_EMPTY_SKILL_NOMINATION_THRESHOLD = 3
 type BackfillStats = {
   skillsScanned: number
   skillsPatched: number
+  aiSummariesPatched: number
   versionsPatched: number
   missingLatestVersion: number
   missingReadme: number
@@ -33,6 +35,8 @@ type BackfillPageItem =
   | {
       kind: 'ok'
       skillId: Id<'skills'>
+      skillSlug: string
+      skillDisplayName: string
       versionId: Id<'skillVersions'>
       skillSummary: Doc<'skills'>['summary']
       versionParsed: Doc<'skillVersions'>['parsed']
@@ -88,6 +92,8 @@ export const getSkillBackfillPageInternal = internalQuery({
       items.push({
         kind: 'ok',
         skillId: skill._id,
+        skillSlug: skill.slug,
+        skillDisplayName: skill.displayName,
         versionId: version._id,
         skillSummary: skill.summary,
         versionParsed: version.parsed,
@@ -128,6 +134,7 @@ export type BackfillActionArgs = {
   dryRun?: boolean
   batchSize?: number
   maxBatches?: number
+  useAi?: boolean
 }
 
 export type BackfillActionResult = { ok: true; stats: BackfillStats }
@@ -137,12 +144,14 @@ export async function backfillSkillSummariesInternalHandler(
   args: BackfillActionArgs,
 ): Promise<BackfillActionResult> {
   const dryRun = Boolean(args.dryRun)
+  const useAi = Boolean(args.useAi)
   const batchSize = clampInt(args.batchSize ?? DEFAULT_BATCH_SIZE, 1, MAX_BATCH_SIZE)
   const maxBatches = clampInt(args.maxBatches ?? DEFAULT_MAX_BATCHES, 1, MAX_MAX_BATCHES)
 
   const totals: BackfillStats = {
     skillsScanned: 0,
     skillsPatched: 0,
+    aiSummariesPatched: 0,
     versionsPatched: 0,
     missingLatestVersion: 0,
     missingReadme: 0,
@@ -189,8 +198,24 @@ export async function backfillSkillSummariesInternalHandler(
         currentParsed: item.versionParsed as ParsedSkillData,
       })
 
-      if (!patch.summary && !patch.parsed) continue
-      if (patch.summary) totals.skillsPatched++
+      let nextSummary = patch.summary
+      const missingSummary = !item.skillSummary?.trim()
+      if (!nextSummary && useAi && missingSummary) {
+        nextSummary = await generateSkillSummary({
+          slug: item.skillSlug,
+          displayName: item.skillDisplayName,
+          readmeText,
+        })
+      }
+
+      const shouldPatchSummary =
+        typeof nextSummary === 'string' && nextSummary.trim() && nextSummary !== item.skillSummary
+
+      if (!shouldPatchSummary && !patch.parsed) continue
+      if (shouldPatchSummary) {
+        totals.skillsPatched++
+        if (!patch.summary) totals.aiSummariesPatched++
+      }
       if (patch.parsed) totals.versionsPatched++
 
       if (dryRun) continue
@@ -198,7 +223,7 @@ export async function backfillSkillSummariesInternalHandler(
       await ctx.runMutation(internal.maintenance.applySkillBackfillPatchInternal, {
         skillId: item.skillId,
         versionId: item.versionId,
-        summary: patch.summary,
+        summary: shouldPatchSummary ? nextSummary : undefined,
         parsed: patch.parsed,
       })
     }
@@ -218,6 +243,7 @@ export const backfillSkillSummariesInternal = internalAction({
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
     maxBatches: v.optional(v.number()),
+    useAi: v.optional(v.boolean()),
   },
   handler: backfillSkillSummariesInternalHandler,
 })
@@ -227,6 +253,7 @@ export const backfillSkillSummaries: ReturnType<typeof action> = action({
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
     maxBatches: v.optional(v.number()),
+    useAi: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<BackfillActionResult> => {
     const { user } = await requireUserFromAction(ctx)
@@ -239,7 +266,7 @@ export const backfillSkillSummaries: ReturnType<typeof action> = action({
 })
 
 export const scheduleBackfillSkillSummaries: ReturnType<typeof action> = action({
-  args: { dryRun: v.optional(v.boolean()) },
+  args: { dryRun: v.optional(v.boolean()), useAi: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const { user } = await requireUserFromAction(ctx)
     assertRole(user, ['admin'])
@@ -247,6 +274,7 @@ export const scheduleBackfillSkillSummaries: ReturnType<typeof action> = action(
       dryRun: Boolean(args.dryRun),
       batchSize: DEFAULT_BATCH_SIZE,
       maxBatches: DEFAULT_MAX_BATCHES,
+      useAi: Boolean(args.useAi),
     })
     return { ok: true as const }
   },
