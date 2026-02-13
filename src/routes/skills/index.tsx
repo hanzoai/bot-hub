@@ -23,9 +23,9 @@ type ListSortKey = Exclude<SortKey, 'relevance'>
 type SortDir = 'asc' | 'desc'
 
 function parseSort(value: unknown): SortKey {
-  if (typeof value !== 'string') return 'newest'
+  if (typeof value !== 'string') return 'downloads'
   if ((sortKeys as readonly string[]).includes(value)) return value as SortKey
-  return 'newest'
+  return 'downloads'
 }
 
 function parseDir(value: unknown, sort: SortKey): SortDir {
@@ -34,7 +34,7 @@ function parseDir(value: unknown, sort: SortKey): SortDir {
 }
 
 function toListSort(sort: SortKey): ListSortKey {
-  return sort === 'relevance' ? 'newest' : sort
+  return sort === 'relevance' ? 'downloads' : sort
 }
 
 type SkillListEntry = {
@@ -111,8 +111,8 @@ export function SkillsIndex() {
   const hasQuery = trimmedQuery.length > 0
   const sort =
     search.sort === 'relevance' && !hasQuery
-      ? 'newest'
-      : (search.sort ?? (hasQuery ? 'relevance' : 'newest'))
+      ? 'downloads'
+      : (search.sort ?? (hasQuery ? 'relevance' : 'downloads'))
   const listSort = toListSort(sort)
   const dir = parseDir(search.dir, sort)
   const searchKey = trimmedQuery

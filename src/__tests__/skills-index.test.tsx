@@ -51,7 +51,7 @@ describe('SkillsIndex', () => {
     // usePaginatedQuery should be called with the API endpoint and sort/dir args
     expect(usePaginatedQueryMock).toHaveBeenCalledWith(
       expect.anything(),
-      { sort: 'newest', dir: 'desc', nonSuspiciousOnly: false },
+      { sort: 'downloads', dir: 'desc', nonSuspiciousOnly: false },
       { initialNumItems: 25 },
     )
   })
@@ -152,7 +152,7 @@ describe('SkillsIndex', () => {
 
     expect(usePaginatedQueryMock).toHaveBeenCalledWith(
       expect.anything(),
-      { sort: 'newest', dir: 'desc', nonSuspiciousOnly: true },
+      { sort: 'downloads', dir: 'desc', nonSuspiciousOnly: true },
       { initialNumItems: 25 },
     )
   })
