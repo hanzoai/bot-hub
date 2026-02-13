@@ -48,6 +48,7 @@ function SkillsHome() {
                   sort: undefined,
                   dir: undefined,
                   highlighted: undefined,
+                  nonSuspicious: undefined,
                   view: undefined,
                   focus: undefined,
                 }}
@@ -121,6 +122,7 @@ function SkillsHome() {
               sort: undefined,
               dir: undefined,
               highlighted: undefined,
+              nonSuspicious: undefined,
               view: undefined,
               focus: undefined,
             }}

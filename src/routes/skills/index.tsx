@@ -78,6 +78,12 @@ export const Route = createFileRoute('/skills/')({
         search.highlighted === '1' || search.highlighted === 'true' || search.highlighted === true
           ? true
           : undefined,
+      nonSuspicious:
+        search.nonSuspicious === '1' ||
+        search.nonSuspicious === 'true' ||
+        search.nonSuspicious === true
+          ? true
+          : undefined,
       view: search.view === 'cards' || search.view === 'list' ? search.view : undefined,
       focus: search.focus === 'search' ? 'search' : undefined,
     }
@@ -91,6 +97,7 @@ export function SkillsIndex() {
   const [query, setQuery] = useState(search.q ?? '')
   const view = search.view ?? 'list'
   const highlightedOnly = search.highlighted ?? false
+  const nonSuspiciousOnly = search.nonSuspicious ?? false
   const searchSkills = useAction(api.search.searchSkills)
   const [searchResults, setSearchResults] = useState<Array<SkillSearchEntry>>([])
   const [searchLimit, setSearchLimit] = useState(pageSize)
@@ -108,16 +115,22 @@ export function SkillsIndex() {
       : (search.sort ?? (hasQuery ? 'relevance' : 'newest'))
   const listSort = toListSort(sort)
   const dir = parseDir(search.dir, sort)
-  const searchKey = trimmedQuery ? `${trimmedQuery}::${highlightedOnly ? '1' : '0'}` : ''
+  const searchKey = trimmedQuery
+    ? `${trimmedQuery}::${highlightedOnly ? '1' : '0'}::${nonSuspiciousOnly ? '1' : '0'}`
+    : ''
 
   // Use convex-helpers usePaginatedQuery for better cache behavior
   const {
     results: paginatedResults,
     status: paginationStatus,
     loadMore: loadMorePaginated,
-  } = usePaginatedQuery(api.skills.listPublicPageV2, hasQuery ? 'skip' : { sort: listSort, dir }, {
-    initialNumItems: pageSize,
-  })
+  } = usePaginatedQuery(
+    api.skills.listPublicPageV2,
+    hasQuery ? 'skip' : { sort: listSort, dir, nonSuspiciousOnly },
+    {
+      initialNumItems: pageSize,
+    },
+  )
 
   // Derive loading states from pagination status
   // status: 'LoadingFirstPage' | 'CanLoadMore' | 'LoadingMore' | 'Exhausted'
@@ -159,6 +172,7 @@ export function SkillsIndex() {
           const data = (await searchSkills({
             query: trimmedQuery,
             highlightedOnly,
+            nonSuspiciousOnly,
             limit: searchLimit,
           })) as Array<SkillSearchEntry>
           if (requestId === searchRequest.current) {
@@ -172,7 +186,7 @@ export function SkillsIndex() {
       })()
     }, 220)
     return () => window.clearTimeout(handle)
-  }, [hasQuery, highlightedOnly, searchLimit, searchSkills, trimmedQuery])
+  }, [hasQuery, highlightedOnly, nonSuspiciousOnly, searchLimit, searchSkills, trimmedQuery])
 
   const baseItems = useMemo(() => {
     if (hasQuery) {
@@ -262,6 +276,10 @@ export function SkillsIndex() {
     return () => observer.disconnect()
   }, [canLoadMore, loadMore])
 
+  const activeFilters: string[] = []
+  if (highlightedOnly) activeFilters.push('highlighted')
+  if (nonSuspiciousOnly) activeFilters.push('non-suspicious')
+
   return (
     <main className="section">
       <header className="skills-header">
@@ -272,7 +290,7 @@ export function SkillsIndex() {
           <p className="section-subtitle" style={{ marginBottom: 0 }}>
             {isLoadingSkills
               ? 'Loading skills…'
-              : `Browse the skill library${highlightedOnly ? ' (highlighted)' : ''}.`}
+              : `Browse the skill library${activeFilters.length ? ` (${activeFilters.join(', ')})` : ''}.`}
           </p>
         </div>
         <div className="skills-toolbar">
@@ -309,6 +327,22 @@ export function SkillsIndex() {
               }}
             >
               Highlighted
+            </button>
+            <button
+              className={`search-filter-button${nonSuspiciousOnly ? ' is-active' : ''}`}
+              type="button"
+              aria-pressed={nonSuspiciousOnly}
+              onClick={() => {
+                void navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    nonSuspicious: nonSuspiciousOnly ? undefined : true,
+                  }),
+                  replace: true,
+                })
+              }}
+            >
+              Hide suspicious
             </button>
             <select
               className="skills-sort"

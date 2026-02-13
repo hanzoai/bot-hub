@@ -7,17 +7,20 @@ vi.mock('@tanstack/react-router', () => ({
 
 import { Route } from '../routes/search'
 
-function runBeforeLoad(search: { q?: string; highlighted?: boolean }, hostname = 'clawdhub.com') {
+function runBeforeLoad(
+  search: { q?: string; highlighted?: boolean; nonSuspicious?: boolean },
+  hostname = 'clawdhub.com',
+) {
   const route = Route as unknown as {
     __config: {
       beforeLoad?: (args: {
-        search: { q?: string; highlighted?: boolean }
+        search: { q?: string; highlighted?: boolean; nonSuspicious?: boolean }
         location: { url: URL }
       }) => void
     }
   }
   const beforeLoad = route.__config.beforeLoad as (args: {
-    search: { q?: string; highlighted?: boolean }
+    search: { q?: string; highlighted?: boolean; nonSuspicious?: boolean }
     location: { url: URL }
   }) => void
   let thrown: unknown
@@ -41,6 +44,24 @@ describe('search route', () => {
           sort: undefined,
           dir: undefined,
           highlighted: true,
+          nonSuspicious: undefined,
+          view: undefined,
+        },
+        replace: true,
+      },
+    })
+  })
+
+  it('forwards nonSuspicious filter to skills index', () => {
+    expect(runBeforeLoad({ q: 'crab', nonSuspicious: true }, 'clawdhub.com')).toEqual({
+      redirect: {
+        to: '/skills',
+        search: {
+          q: 'crab',
+          sort: undefined,
+          dir: undefined,
+          highlighted: undefined,
+          nonSuspicious: true,
           view: undefined,
         },
         replace: true,

@@ -81,6 +81,7 @@ export default function Header() {
                 sort: undefined,
                 dir: undefined,
                 highlighted: undefined,
+                nonSuspicious: undefined,
                 view: undefined,
                 focus: undefined,
               }}
@@ -108,6 +109,7 @@ export default function Header() {
                     sort: undefined,
                     dir: undefined,
                     highlighted: undefined,
+                    nonSuspicious: undefined,
                     view: undefined,
                     focus: 'search',
                   }
@@ -158,6 +160,7 @@ export default function Header() {
                         sort: undefined,
                         dir: undefined,
                         highlighted: undefined,
+                        nonSuspicious: undefined,
                         view: undefined,
                         focus: undefined,
                       }}
@@ -193,6 +196,7 @@ export default function Header() {
                             sort: undefined,
                             dir: undefined,
                             highlighted: undefined,
+                            nonSuspicious: undefined,
                             view: undefined,
                             focus: 'search',
                           }
