@@ -8,6 +8,7 @@ import { SoulCard } from '../components/SoulCard'
 import { getSkillBadges } from '../lib/badges'
 import type { PublicSkill, PublicSoul } from '../lib/publicUser'
 import { getSiteMode } from '../lib/site'
+import { mapPublicSkillPageEntries } from '../lib/skillPageEntries'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -19,6 +20,12 @@ function Home() {
 }
 
 function SkillsHome() {
+  type SkillPageEntry = {
+    skill: PublicSkill
+    ownerHandle?: string | null
+    latestVersion?: unknown
+  }
+
   const highlighted =
     (useQuery(api.skills.list, {
       batch: 'highlighted',
@@ -29,21 +36,8 @@ function SkillsHome() {
     sort: 'downloads',
     dir: 'desc',
     nonSuspiciousOnly: true,
-  }) as { page: PublicSkill[] } | undefined
-  const popular = (popularResult?.page ?? []).map((skill) => {
-    const stats = (skill as PublicSkill & { stats?: PublicSkill['stats'] }).stats
-    return {
-      ...skill,
-      stats: {
-        downloads: stats?.downloads ?? 0,
-        stars: stats?.stars ?? 0,
-        installsCurrent: stats?.installsCurrent ?? 0,
-        installsAllTime: stats?.installsAllTime ?? 0,
-        versions: stats?.versions ?? 0,
-        comments: stats?.comments ?? 0,
-      },
-    }
-  })
+  }) as { page: SkillPageEntry[] } | undefined
+  const popular = mapPublicSkillPageEntries(popularResult?.page)
 
   return (
     <main>
