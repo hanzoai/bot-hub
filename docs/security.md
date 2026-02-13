@@ -29,6 +29,8 @@ read_when:
   - audit log entry: `skill.auto_hide`
 - Public queries hide non-active moderation statuses; staff can still access via
   staff-only queries and unhide/restore/delete/ban.
+- Skills directory supports an optional "Hide suspicious" filter to exclude
+  active-but-flagged (`flagged.suspicious`) entries from browse/search results.
 
 ## Bans
 

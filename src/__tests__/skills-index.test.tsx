@@ -51,7 +51,7 @@ describe('SkillsIndex', () => {
     // usePaginatedQuery should be called with the API endpoint and sort/dir args
     expect(usePaginatedQueryMock).toHaveBeenCalledWith(
       expect.anything(),
-      { sort: 'newest', dir: 'desc' },
+      { sort: 'newest', dir: 'desc', nonSuspiciousOnly: false },
       { initialNumItems: 25 },
     )
   })
@@ -79,6 +79,7 @@ describe('SkillsIndex', () => {
     expect(actionFn).toHaveBeenCalledWith({
       query: 'remind',
       highlightedOnly: false,
+      nonSuspiciousOnly: false,
       limit: 25,
     })
     await act(async () => {
@@ -87,6 +88,7 @@ describe('SkillsIndex', () => {
     expect(actionFn).toHaveBeenCalledWith({
       query: 'remind',
       highlightedOnly: false,
+      nonSuspiciousOnly: false,
       limit: 25,
     })
   })
@@ -115,6 +117,7 @@ describe('SkillsIndex', () => {
     expect(actionFn).toHaveBeenLastCalledWith({
       query: 'remind',
       highlightedOnly: false,
+      nonSuspiciousOnly: false,
       limit: 50,
     })
   })
@@ -141,6 +144,17 @@ describe('SkillsIndex', () => {
 
     expect(titles[0]).toBe('Older High Score')
     expect(titles[1]).toBe('Newer Low Score')
+  })
+
+  it('passes nonSuspiciousOnly to list query when filter is active', () => {
+    searchMock = { nonSuspicious: true }
+    render(<SkillsIndex />)
+
+    expect(usePaginatedQueryMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { sort: 'newest', dir: 'desc', nonSuspiciousOnly: true },
+      { initialNumItems: 25 },
+    )
   })
 })
 

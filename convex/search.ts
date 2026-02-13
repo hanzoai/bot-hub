@@ -6,6 +6,7 @@ import { getSkillBadgeMaps, isSkillHighlighted, type SkillBadgeMap } from './lib
 import { generateEmbedding } from './lib/embeddings'
 import { toPublicSkill, toPublicSoul } from './lib/public'
 import { matchesExactTokens, tokenize } from './lib/searchText'
+import { isSkillSuspicious } from './lib/skillSafety'
 
 type SkillSearchEntry = {
   embeddingId?: Id<'skillEmbeddings'>
@@ -92,6 +93,7 @@ export const searchSkills: ReturnType<typeof action> = action({
     query: v.string(),
     limit: v.optional(v.number()),
     highlightedOnly: v.optional(v.boolean()),
+    nonSuspiciousOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<SearchResult[]> => {
     const query = args.query.trim()
@@ -122,6 +124,7 @@ export const searchSkills: ReturnType<typeof action> = action({
 
       hydrated = (await ctx.runQuery(internal.search.hydrateResults, {
         embeddingIds: results.map((result) => result._id),
+        nonSuspiciousOnly: args.nonSuspiciousOnly,
       })) as SkillSearchEntry[]
 
       scoreById = new Map<Id<'skillEmbeddings'>, number>(
@@ -169,6 +172,7 @@ export const searchSkills: ReturnType<typeof action> = action({
             queryTokens,
             limit: Math.min(Math.max(limit * 4, 200), FALLBACK_SCAN_LIMIT),
             highlightedOnly: args.highlightedOnly,
+            nonSuspiciousOnly: args.nonSuspiciousOnly,
           })) as SkillSearchEntry[])
 
     const mergedMatches = mergeUniqueBySkillId(exactMatches, fallbackMatches)
@@ -202,7 +206,10 @@ export const getBadgeMapsForSkills = internalQuery({
 })
 
 export const hydrateResults = internalQuery({
-  args: { embeddingIds: v.array(v.id('skillEmbeddings')) },
+  args: {
+    embeddingIds: v.array(v.id('skillEmbeddings')),
+    nonSuspiciousOnly: v.optional(v.boolean()),
+  },
   handler: async (ctx, args): Promise<SkillSearchEntry[]> => {
     const ownerHandleCache = new Map<Id<'users'>, Promise<string | null>>()
 
@@ -222,6 +229,7 @@ export const hydrateResults = internalQuery({
         if (!embedding) return null
         const skill = await ctx.db.get(embedding.skillId)
         if (!skill || skill.softDeletedAt) return null
+        if (args.nonSuspiciousOnly && isSkillSuspicious(skill)) return null
         const [version, ownerHandle] = await Promise.all([
           ctx.db.get(embedding.versionId),
           getOwnerHandle(skill.ownerUserId),
@@ -242,6 +250,7 @@ export const lexicalFallbackSkills = internalQuery({
     queryTokens: v.array(v.string()),
     limit: v.optional(v.number()),
     highlightedOnly: v.optional(v.boolean()),
+    nonSuspiciousOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<SkillSearchEntry[]> => {
     const limit = Math.min(Math.max(args.limit ?? 200, 10), FALLBACK_SCAN_LIMIT)
@@ -254,7 +263,11 @@ export const lexicalFallbackSkills = internalQuery({
         .query('skills')
         .withIndex('by_slug', (q) => q.eq('slug', slugQuery))
         .unique()
-      if (exactSlugSkill && !exactSlugSkill.softDeletedAt) {
+      if (
+        exactSlugSkill &&
+        !exactSlugSkill.softDeletedAt &&
+        (!args.nonSuspiciousOnly || !isSkillSuspicious(exactSlugSkill))
+      ) {
         seenSkillIds.add(exactSlugSkill._id)
         candidateSkills.push(exactSlugSkill)
       }
@@ -268,6 +281,7 @@ export const lexicalFallbackSkills = internalQuery({
 
     for (const skill of recentSkills) {
       if (seenSkillIds.has(skill._id)) continue
+      if (args.nonSuspiciousOnly && isSkillSuspicious(skill)) continue
       seenSkillIds.add(skill._id)
       candidateSkills.push(skill)
     }

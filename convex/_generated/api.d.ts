@@ -41,6 +41,7 @@ import type * as lib_securityPrompt from "../lib/securityPrompt.js";
 import type * as lib_skillBackfill from "../lib/skillBackfill.js";
 import type * as lib_skillPublish from "../lib/skillPublish.js";
 import type * as lib_skillQuality from "../lib/skillQuality.js";
+import type * as lib_skillSafety from "../lib/skillSafety.js";
 import type * as lib_skillStats from "../lib/skillStats.js";
 import type * as lib_skillZip from "../lib/skillZip.js";
 import type * as lib_skills from "../lib/skills.js";
@@ -110,6 +111,7 @@ declare const fullApi: ApiFromModules<{
   "lib/skillBackfill": typeof lib_skillBackfill;
   "lib/skillPublish": typeof lib_skillPublish;
   "lib/skillQuality": typeof lib_skillQuality;
+  "lib/skillSafety": typeof lib_skillSafety;
   "lib/skillStats": typeof lib_skillStats;
   "lib/skillZip": typeof lib_skillZip;
   "lib/skills": typeof lib_skills;

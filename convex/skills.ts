@@ -30,6 +30,7 @@ import {
   publishVersionForUser,
   queueHighlightedWebhook,
 } from './lib/skillPublish'
+import { isSkillSuspicious } from './lib/skillSafety'
 import { getFrontmatterValue, hashSkillFiles } from './lib/skills'
 import schema from './schema'
 
@@ -1456,6 +1457,7 @@ export const listPublicPageV2 = query({
       ),
     ),
     dir: v.optional(v.union(v.literal('asc'), v.literal('desc'))),
+    nonSuspiciousOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const sort = args.sort ?? 'newest'
@@ -1473,8 +1475,12 @@ export const listPublicPageV2 = query({
       .order(dir)
       .paginate(paginationOpts)
 
+    const filteredPage = args.nonSuspiciousOnly
+      ? result.page.filter((skill) => !isSkillSuspicious(skill))
+      : result.page
+
     // Build the public skill entries (fetch latestVersion + ownerHandle)
-    const items = await buildPublicSkillEntries(ctx, result.page)
+    const items = await buildPublicSkillEntries(ctx, filteredPage)
 
     return {
       ...result,

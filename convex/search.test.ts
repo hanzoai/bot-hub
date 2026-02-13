@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { tokenize } from './lib/searchText'
-import { __test, lexicalFallbackSkills, searchSkills } from './search'
+import { __test, hydrateResults, lexicalFallbackSkills, searchSkills } from './search'
 
 const { generateEmbeddingMock, getSkillBadgeMapsMock } = vi.hoisted(() => ({
   generateEmbeddingMock: vi.fn(),
@@ -28,6 +28,14 @@ type WrappedHandler = {
 
 const searchSkillsHandler = (searchSkills as unknown as WrappedHandler)._handler
 const lexicalFallbackSkillsHandler = (lexicalFallbackSkills as unknown as WrappedHandler)._handler
+const hydrateResultsHandler = (
+  hydrateResults as unknown as {
+    _handler: (
+      ctx: unknown,
+      args: unknown,
+    ) => Promise<Array<{ skill: { slug: string; _id: string } }>>
+  }
+)._handler
 
 describe('search helpers', () => {
   it('returns fallback results when vector candidates are empty', async () => {
@@ -85,6 +93,33 @@ describe('search helpers', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].skill.slug).toBe('orf-highlighted')
+  })
+
+  it('applies nonSuspiciousOnly filtering in lexical fallback', async () => {
+    const suspicious = makeSkillDoc({
+      id: 'skills:suspicious',
+      slug: 'orf-suspicious',
+      displayName: 'ORF Suspicious',
+      moderationFlags: ['flagged.suspicious'],
+    })
+    const clean = makeSkillDoc({ id: 'skills:clean', slug: 'orf-clean', displayName: 'ORF Clean' })
+    getSkillBadgeMapsMock.mockResolvedValueOnce(
+      new Map([
+        ['skills:suspicious', {}],
+        ['skills:clean', {}],
+      ]),
+    )
+
+    const result = await lexicalFallbackSkillsHandler(
+      makeLexicalCtx({
+        exactSlugSkill: null,
+        recentSkills: [suspicious, clean],
+      }),
+      { query: 'orf', queryTokens: ['orf'], nonSuspiciousOnly: true, limit: 10 },
+    )
+
+    expect(result).toHaveLength(1)
+    expect(result[0].skill.slug).toBe('orf-clean')
   })
 
   it('includes exact slug match from by_slug even when recent scan is empty', async () => {
@@ -177,6 +212,34 @@ describe('search helpers', () => {
     expect(new Set(result.map((entry: { skill: { _id: string } }) => entry.skill._id)).size).toBe(2)
   })
 
+  it('filters suspicious vector results in hydrateResults when requested', async () => {
+    const result = await hydrateResultsHandler(
+      {
+        db: {
+          get: vi.fn(async (id: string) => {
+            if (id === 'skillEmbeddings:1') {
+              return { _id: 'skillEmbeddings:1', skillId: 'skills:1', versionId: 'skillVersions:1' }
+            }
+            if (id === 'skills:1') {
+              return makeSkillDoc({
+                id: 'skills:1',
+                slug: 'suspicious',
+                displayName: 'Suspicious',
+                moderationFlags: ['flagged.suspicious'],
+              })
+            }
+            if (id === 'users:owner') return { _id: 'users:owner', handle: 'owner' }
+            if (id === 'skillVersions:1') return { _id: 'skillVersions:1', version: '1.0.0' }
+            return null
+          }),
+        },
+      },
+      { embeddingIds: ['skillEmbeddings:1'], nonSuspiciousOnly: true },
+    )
+
+    expect(result).toHaveLength(0)
+  })
+
   it('advances candidate limit until max', () => {
     expect(__test.getNextCandidateLimit(50, 1000)).toBe(100)
     expect(__test.getNextCandidateLimit(800, 1000)).toBe(1000)
@@ -262,12 +325,19 @@ function makePublicSkill(params: {
   }
 }
 
-function makeSkillDoc(params: { id: string; slug: string; displayName: string }) {
+function makeSkillDoc(params: {
+  id: string
+  slug: string
+  displayName: string
+  moderationFlags?: string[]
+  moderationReason?: string
+}) {
   return {
     ...makePublicSkill(params),
     _creationTime: 1,
     moderationStatus: 'active',
-    moderationFlags: [],
+    moderationFlags: params.moderationFlags ?? [],
+    moderationReason: params.moderationReason,
     softDeletedAt: undefined,
   }
 }

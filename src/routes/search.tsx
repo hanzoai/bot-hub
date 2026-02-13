@@ -5,6 +5,8 @@ export const Route = createFileRoute('/search')({
   validateSearch: (search) => ({
     q: typeof search.q === 'string' && search.q.trim() ? search.q : undefined,
     highlighted: search.highlighted === '1' || search.highlighted === 'true' ? true : undefined,
+    nonSuspicious:
+      search.nonSuspicious === '1' || search.nonSuspicious === 'true' ? true : undefined,
   }),
   beforeLoad: ({ search, location }) => {
     const hostname =
@@ -19,6 +21,7 @@ export const Route = createFileRoute('/search')({
           sort: undefined,
           dir: undefined,
           highlighted: search.highlighted || undefined,
+          nonSuspicious: search.nonSuspicious || undefined,
           view: undefined,
           focus: undefined,
         },
