@@ -16,9 +16,62 @@ type HydratedEntry = {
 
 type SearchResult = HydratedEntry & { score: number }
 
+const SLUG_EXACT_BOOST = 1.4
+const SLUG_PREFIX_BOOST = 0.8
+const NAME_EXACT_BOOST = 1.1
+const NAME_PREFIX_BOOST = 0.6
+const POPULARITY_WEIGHT = 0.08
+
 function getNextCandidateLimit(current: number, max: number) {
   const next = Math.min(current * 2, max)
   return next > current ? next : null
+}
+
+function matchesAllTokens(
+  queryTokens: string[],
+  candidateTokens: string[],
+  matcher: (candidate: string, query: string) => boolean,
+) {
+  if (queryTokens.length === 0 || candidateTokens.length === 0) return false
+  return queryTokens.every((queryToken) =>
+    candidateTokens.some((candidateToken) => matcher(candidateToken, queryToken)),
+  )
+}
+
+function getLexicalBoost(queryTokens: string[], displayName: string, slug: string) {
+  const slugTokens = tokenize(slug)
+  const nameTokens = tokenize(displayName)
+
+  let boost = 0
+  if (matchesAllTokens(queryTokens, slugTokens, (candidate, query) => candidate === query)) {
+    boost += SLUG_EXACT_BOOST
+  } else if (
+    matchesAllTokens(queryTokens, slugTokens, (candidate, query) => candidate.startsWith(query))
+  ) {
+    boost += SLUG_PREFIX_BOOST
+  }
+
+  if (matchesAllTokens(queryTokens, nameTokens, (candidate, query) => candidate === query)) {
+    boost += NAME_EXACT_BOOST
+  } else if (
+    matchesAllTokens(queryTokens, nameTokens, (candidate, query) => candidate.startsWith(query))
+  ) {
+    boost += NAME_PREFIX_BOOST
+  }
+
+  return boost
+}
+
+function scoreSkillResult(
+  queryTokens: string[],
+  vectorScore: number,
+  displayName: string,
+  slug: string,
+  downloads: number,
+) {
+  const lexicalBoost = getLexicalBoost(queryTokens, displayName, slug)
+  const popularityBoost = Math.log1p(Math.max(downloads, 0)) * POPULARITY_WEIGHT
+  return vectorScore + lexicalBoost + popularityBoost
 }
 
 export const searchSkills: ReturnType<typeof action> = action({
@@ -96,11 +149,21 @@ export const searchSkills: ReturnType<typeof action> = action({
     }
 
     return exactMatches
-      .map((entry) => ({
-        ...entry,
-        score: scoreById.get(entry.embeddingId) ?? 0,
-      }))
+      .map((entry) => {
+        const vectorScore = scoreById.get(entry.embeddingId) ?? 0
+        return {
+          ...entry,
+          score: scoreSkillResult(
+            queryTokens,
+            vectorScore,
+            entry.skill.displayName,
+            entry.skill.slug,
+            entry.skill.stats.downloads,
+          ),
+        }
+      })
       .filter((entry) => entry.skill)
+      .sort((a, b) => b.score - a.score || b.skill.stats.downloads - a.skill.stats.downloads)
       .slice(0, limit)
   },
 })
@@ -251,4 +314,9 @@ export const getSkillBadgeMapsInternal = internalQuery({
   },
 })
 
-export const __test = { getNextCandidateLimit }
+export const __test = {
+  getNextCandidateLimit,
+  matchesAllTokens,
+  getLexicalBoost,
+  scoreSkillResult,
+}
