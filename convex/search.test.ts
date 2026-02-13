@@ -36,4 +36,25 @@ describe('search helpers', () => {
     )
     expect(highDownloads).toBeGreaterThan(lowDownloads)
   })
+
+  it('merges fallback matches without duplicate skill ids', () => {
+    const primary = [
+      {
+        embeddingId: 'skillEmbeddings:1',
+        skill: { _id: 'skills:1' },
+      },
+    ] as unknown as Parameters<typeof __test.mergeUniqueBySkillId>[0]
+    const fallback = [
+      {
+        skill: { _id: 'skills:1' },
+      },
+      {
+        skill: { _id: 'skills:2' },
+      },
+    ] as unknown as Parameters<typeof __test.mergeUniqueBySkillId>[1]
+
+    const merged = __test.mergeUniqueBySkillId(primary, fallback)
+    expect(merged).toHaveLength(2)
+    expect(merged.map((entry) => entry.skill._id)).toEqual(['skills:1', 'skills:2'])
+  })
 })
