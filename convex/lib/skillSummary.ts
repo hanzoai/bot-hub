@@ -56,6 +56,11 @@ function deriveSummaryFallback(readmeText: string) {
   return undefined
 }
 
+function deriveIdentityFallback(args: { slug: string; displayName: string }) {
+  const base = args.displayName.trim() || args.slug.trim()
+  return normalizeSummary(`Automation skill for ${base}.`)
+}
+
 function extractResponseText(payload: unknown) {
   if (!payload || typeof payload !== 'object') return null
   const output = (payload as { output?: unknown }).output
@@ -86,9 +91,11 @@ export async function generateSkillSummary(args: {
   const existing = normalizeSummary(args.currentSummary)
   if (existing) return existing
 
-  const fallback = deriveSummaryFallback(args.readmeText)
+  const contentFallback = deriveSummaryFallback(args.readmeText)
+  const fallback = contentFallback ?? deriveIdentityFallback(args)
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return fallback
+  if (!contentFallback) return fallback
 
   const input = [
     `Skill slug: ${args.slug}`,

@@ -42,6 +42,21 @@ describe('skillSummary', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('uses identity fallback for empty content without API call', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock as typeof fetch
+
+    const summary = await generateSkillSummary({
+      slug: 'empty-skill',
+      displayName: 'Empty Skill',
+      readmeText: '---\nname: empty-skill\n---\n',
+    })
+
+    expect(summary).toBe('Automation skill for Empty Skill.')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('uses OpenAI when key is set and summary missing', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key')
     globalThis.fetch = vi.fn().mockResolvedValue({
