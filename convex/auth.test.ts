@@ -4,16 +4,14 @@ import { BANNED_REAUTH_MESSAGE, handleSoftDeletedUserReauth } from './auth'
 
 function makeCtx({
   user,
-  banRecord,
+  banRecords,
 }: {
   user: { deletedAt?: number } | null
-  banRecord?: Record<string, unknown> | null
+  banRecords?: Array<Record<string, unknown>>
 }) {
   const query = {
     withIndex: vi.fn().mockReturnValue({
-      filter: vi.fn().mockReturnValue({
-        first: vi.fn().mockResolvedValue(banRecord ?? null),
-      }),
+      collect: vi.fn().mockResolvedValue(banRecords ?? []),
     }),
   }
   const ctx = {
@@ -48,7 +46,7 @@ describe('handleSoftDeletedUserReauth', () => {
   })
 
   it('restores soft-deleted users when not banned', async () => {
-    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecord: null })
+    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecords: [] })
 
     await handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: userId })
 
@@ -59,7 +57,7 @@ describe('handleSoftDeletedUserReauth', () => {
   })
 
   it('restores soft-deleted users on fresh login (existingUserId is null)', async () => {
-    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecord: null })
+    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecords: [] })
 
     await handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: null })
 
@@ -80,7 +78,7 @@ describe('handleSoftDeletedUserReauth', () => {
   })
 
   it('blocks banned users with a custom message', async () => {
-    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecord: { action: 'user.ban' } })
+    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecords: [{ action: 'user.ban' }] })
 
     await expect(
       handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: userId }),
@@ -90,7 +88,20 @@ describe('handleSoftDeletedUserReauth', () => {
   })
 
   it('blocks banned users on fresh login (existingUserId is null)', async () => {
-    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecord: { action: 'user.ban' } })
+    const { ctx } = makeCtx({ user: { deletedAt: 123 }, banRecords: [{ action: 'user.ban' }] })
+
+    await expect(
+      handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: null }),
+    ).rejects.toThrow(BANNED_REAUTH_MESSAGE)
+
+    expect(ctx.db.patch).not.toHaveBeenCalled()
+  })
+
+  it('blocks users auto-banned for malware on fresh login', async () => {
+    const { ctx } = makeCtx({
+      user: { deletedAt: 123 },
+      banRecords: [{ action: 'user.autoban.malware' }],
+    })
 
     await expect(
       handleSoftDeletedUserReauth(ctx as never, { userId, existingUserId: null }),

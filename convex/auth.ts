@@ -7,6 +7,8 @@ import type { DataModel, Id } from './_generated/dataModel'
 export const BANNED_REAUTH_MESSAGE =
   'Your account has been banned for uploading malicious skills. If you believe this is a mistake, please contact security@openclaw.ai and we will work with you to restore access.'
 
+const REAUTH_BLOCKING_BAN_ACTIONS = new Set(['user.ban', 'user.autoban.malware'])
+
 export async function handleSoftDeletedUserReauth(
   ctx: GenericMutationCtx<DataModel>,
   args: { userId: Id<'users'>; existingUserId: Id<'users'> | null },
@@ -20,13 +22,14 @@ export async function handleSoftDeletedUserReauth(
   }
 
   const userId = args.userId
-  const banRecord = await ctx.db
+  const banRecords = await ctx.db
     .query('auditLogs')
     .withIndex('by_target', (q) => q.eq('targetType', 'user').eq('targetId', userId.toString()))
-    .filter((q) => q.eq(q.field('action'), 'user.ban'))
-    .first()
+    .collect()
 
-  if (banRecord) {
+  const hasBlockingBan = banRecords.some((record) => REAUTH_BLOCKING_BAN_ACTIONS.has(record.action))
+
+  if (hasBlockingBan) {
     throw new ConvexError(BANNED_REAUTH_MESSAGE)
   }
 

@@ -330,6 +330,7 @@ export const autobanMalwareAuthorInternal = internalMutation({
       deletedAt: now,
       role: 'user',
       updatedAt: now,
+      banReason: 'malware auto-ban',
     })
 
     await ctx.runMutation(internal.telemetry.clearUserTelemetryInternal, {
