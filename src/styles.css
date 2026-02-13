@@ -1902,6 +1902,51 @@ code {
   font-size: 0.9rem;
 }
 
+.comment-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.comment-body {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.comment-body-text {
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-delete {
+  justify-self: end;
+  align-self: center;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  border-color: rgba(255, 107, 74, 0.25);
+  background: transparent;
+  box-shadow: none;
+}
+
+.comment-delete:hover {
+  color: var(--ink);
+  border-color: rgba(255, 107, 74, 0.4);
+  background: rgba(255, 107, 74, 0.08);
+}
+
+.comment-delete:focus-visible {
+  outline: 3px solid rgba(255, 107, 74, 0.25);
+  outline-offset: 2px;
+}
+
 .sidebar-card {
   gap: 20px;
 }

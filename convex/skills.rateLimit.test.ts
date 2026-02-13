@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { approveSkillByHashInternal, insertVersion } from './skills'
+import { approveSkillByHashInternal, escalateByVtInternal, insertVersion } from './skills'
 
 type WrappedHandler<TArgs> = {
   _handler: (ctx: unknown, args: TArgs) => Promise<unknown>
@@ -9,6 +9,9 @@ const insertVersionHandler = (insertVersion as unknown as WrappedHandler<Record<
   ._handler
 const approveSkillByHashHandler = (
   approveSkillByHashInternal as unknown as WrappedHandler<Record<string, unknown>>
+)._handler
+const escalateByVtHandler = (
+  escalateByVtInternal as unknown as WrappedHandler<Record<string, unknown>>
 )._handler
 
 function createPublishArgs(overrides?: Partial<Record<string, unknown>>) {
@@ -146,6 +149,128 @@ describe('skills anti-spam guards', () => {
       expect.objectContaining({
         moderationStatus: 'hidden',
         moderationReason: 'scanner.llm.suspicious',
+      }),
+    )
+  })
+
+  it('keeps admin-owned skills non-suspicious for suspicious scanner verdicts', async () => {
+    const patch = vi.fn(async () => {})
+    const version = { _id: 'skillVersions:1', skillId: 'skills:1' }
+    const skill = {
+      _id: 'skills:1',
+      slug: 'trusted-skill',
+      ownerUserId: 'users:owner',
+      moderationFlags: ['flagged.suspicious'],
+      moderationReason: 'scanner.vt.suspicious',
+    }
+    const owner = {
+      _id: 'users:owner',
+      role: 'admin',
+      _creationTime: Date.now() - 60 * 24 * 60 * 60 * 1000,
+      createdAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
+      deletedAt: undefined,
+    }
+
+    const db = {
+      get: vi.fn(async (id: string) => {
+        if (id === 'skills:1') return skill
+        if (id === 'users:owner') return owner
+        return null
+      }),
+      query: vi.fn((table: string) => {
+        if (table === 'skillVersions') {
+          return {
+            withIndex: () => ({
+              unique: async () => version,
+            }),
+          }
+        }
+        if (table === 'skills') {
+          return {
+            withIndex: (name: string) => {
+              if (name === 'by_owner') {
+                return {
+                  order: () => ({
+                    take: async () => [],
+                  }),
+                }
+              }
+              throw new Error(`unexpected skills index ${name}`)
+            },
+          }
+        }
+        throw new Error(`unexpected table ${table}`)
+      }),
+      patch,
+    }
+
+    await approveSkillByHashHandler(
+      { db, scheduler: { runAfter: vi.fn() } } as never,
+      {
+        sha256hash: 'h'.repeat(64),
+        scanner: 'llm',
+        status: 'suspicious',
+      } as never,
+    )
+
+    expect(patch).toHaveBeenCalledWith(
+      'skills:1',
+      expect.objectContaining({
+        moderationStatus: 'active',
+        moderationReason: 'scanner.llm.clean',
+        moderationFlags: undefined,
+      }),
+    )
+  })
+
+  it('vt suspicious escalation does not keep suspicious flags for admin owners', async () => {
+    const patch = vi.fn(async () => {})
+    const version = { _id: 'skillVersions:1', skillId: 'skills:1' }
+    const skill = {
+      _id: 'skills:1',
+      slug: 'trusted-skill',
+      ownerUserId: 'users:owner',
+      moderationFlags: ['flagged.suspicious'],
+      moderationReason: 'scanner.llm.suspicious',
+    }
+    const owner = {
+      _id: 'users:owner',
+      role: 'admin',
+      deletedAt: undefined,
+    }
+
+    const db = {
+      get: vi.fn(async (id: string) => {
+        if (id === 'skills:1') return skill
+        if (id === 'users:owner') return owner
+        return null
+      }),
+      query: vi.fn((table: string) => {
+        if (table === 'skillVersions') {
+          return {
+            withIndex: () => ({
+              unique: async () => version,
+            }),
+          }
+        }
+        throw new Error(`unexpected table ${table}`)
+      }),
+      patch,
+    }
+
+    await escalateByVtHandler(
+      { db, scheduler: { runAfter: vi.fn() } } as never,
+      {
+        sha256hash: 'h'.repeat(64),
+        status: 'suspicious',
+      } as never,
+    )
+
+    expect(patch).toHaveBeenCalledWith(
+      'skills:1',
+      expect.objectContaining({
+        moderationFlags: undefined,
+        moderationReason: 'scanner.llm.clean',
       }),
     )
   })

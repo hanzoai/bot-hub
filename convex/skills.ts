@@ -87,6 +87,23 @@ type OwnerTrustSignals = {
   skillsLastDay: number
 }
 
+function isPrivilegedOwnerForSuspiciousBypass(owner: Doc<'users'> | null | undefined) {
+  if (!owner) return false
+  return owner.role === 'admin' || owner.role === 'moderator'
+}
+
+function stripSuspiciousFlag(flags: string[] | undefined) {
+  if (!flags?.length) return undefined
+  const next = flags.filter((flag) => flag !== 'flagged.suspicious')
+  return next.length ? next : undefined
+}
+
+function normalizeScannerSuspiciousReason(reason: string | undefined) {
+  if (!reason) return reason
+  if (!reason.startsWith('scanner.') || !reason.endsWith('.suspicious')) return reason
+  return `${reason.slice(0, -'.suspicious'.length)}.clean`
+}
+
 async function getOwnerTrustSignals(
   ctx: QueryCtx | MutationCtx,
   owner: Doc<'users'>,
@@ -2227,6 +2244,7 @@ export const approveSkillByHashInternal = internalMutation({
     // Update the skill's moderation status based on scan result
     const skill = await ctx.db.get(version.skillId)
     if (skill) {
+      const owner = skill.ownerUserId ? await ctx.db.get(skill.ownerUserId) : null
       const isMalicious = args.status === 'malicious'
       const isSuspicious = args.status === 'suspicious'
       const isClean = !isMalicious && !isSuspicious
@@ -2237,13 +2255,15 @@ export const approveSkillByHashInternal = internalMutation({
       const existingReason: string | undefined = skill.moderationReason as string | undefined
       const alreadyBlocked = existingFlags.includes('blocked.malware')
       const alreadyFlagged = existingFlags.includes('flagged.suspicious')
+      const bypassSuspicious =
+        isSuspicious && !alreadyBlocked && isPrivilegedOwnerForSuspiciousBypass(owner)
 
       // Determine new flags based on multi-scanner merge
       let newFlags: string[] | undefined
       if (isMalicious || alreadyBlocked) {
         // Malicious from ANY scanner → blocked.malware (upgrade from suspicious)
         newFlags = ['blocked.malware']
-      } else if (isSuspicious || alreadyFlagged) {
+      } else if ((isSuspicious || alreadyFlagged) && !bypassSuspicious) {
         // Suspicious from ANY scanner → flagged.suspicious
         newFlags = ['flagged.suspicious']
       } else if (isClean) {
@@ -2255,11 +2275,13 @@ export const approveSkillByHashInternal = internalMutation({
           !existingReason.endsWith('.pending')
         newFlags = otherScannerFlagged ? existingFlags : undefined
       }
+      if (!alreadyBlocked && isPrivilegedOwnerForSuspiciousBypass(owner)) {
+        newFlags = stripSuspiciousFlag(newFlags ?? existingFlags)
+      }
 
       const now = Date.now()
       let shouldHideSuspicious = false
-      if (isSuspicious && !alreadyBlocked) {
-        const owner = await ctx.db.get(skill.ownerUserId)
+      if (isSuspicious && !alreadyBlocked && !bypassSuspicious) {
         if (owner && !owner.deletedAt) {
           const trustSignals = await getOwnerTrustSignals(ctx, owner, now)
           shouldHideSuspicious = trustSignals.isLowTrust
@@ -2274,7 +2296,9 @@ export const approveSkillByHashInternal = internalMutation({
           : 'active'
       const nextModerationReason = qualityLocked
         ? 'quality.low'
-        : `scanner.${args.scanner}.${args.status}`
+        : bypassSuspicious
+          ? `scanner.${args.scanner}.clean`
+          : `scanner.${args.scanner}.${args.status}`
       const nextModerationNotes = qualityLocked
         ? (skill.moderationNotes ??
           'Quality gate quarantine is still active. Manual moderation review required.')
@@ -2330,18 +2354,28 @@ export const escalateByVtInternal = internalMutation({
     const isMalicious = args.status === 'malicious'
     const existingFlags: string[] = (skill.moderationFlags as string[] | undefined) ?? []
     const alreadyBlocked = existingFlags.includes('blocked.malware')
+    const owner = skill.ownerUserId ? await ctx.db.get(skill.ownerUserId) : null
+    const bypassSuspicious =
+      !isMalicious && !alreadyBlocked && isPrivilegedOwnerForSuspiciousBypass(owner)
 
     // Determine new flags — stricter verdict always wins
     let newFlags: string[]
     if (isMalicious || alreadyBlocked) {
       newFlags = ['blocked.malware']
+    } else if (bypassSuspicious) {
+      newFlags = stripSuspiciousFlag(existingFlags) ?? []
     } else {
       newFlags = ['flagged.suspicious']
     }
 
     const patch: Record<string, unknown> = {
-      moderationFlags: newFlags,
+      moderationFlags: newFlags.length ? newFlags : undefined,
       updatedAt: Date.now(),
+    }
+    if (bypassSuspicious) {
+      patch.moderationReason = normalizeScannerSuspiciousReason(
+        skill.moderationReason as string | undefined,
+      )
     }
 
     // Only hide for malicious — suspicious stays visible with a flag
