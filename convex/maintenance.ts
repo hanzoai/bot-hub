@@ -847,6 +847,7 @@ type EmptySkillCleanupPageItem = {
   ownerUserId: Id<'users'>
   latestVersionId?: Id<'skillVersions'>
   softDeletedAt?: number
+  moderationReason?: string
   summary?: string
 }
 
@@ -861,7 +862,6 @@ type EmptySkillCleanupStats = {
   skillsEvaluated: number
   emptyDetected: number
   skillsDeleted: number
-  nominationsCreated: number
   missingLatestVersion: number
   missingVersionDoc: number
   missingReadme: number
@@ -877,6 +877,7 @@ type EmptySkillCleanupNomination = {
 }
 
 export type EmptySkillCleanupActionArgs = {
+  cursor?: string
   dryRun?: boolean
   batchSize?: number
   maxBatches?: number
@@ -886,6 +887,8 @@ export type EmptySkillCleanupActionArgs = {
 
 export type EmptySkillCleanupActionResult = {
   ok: true
+  cursor: string | null
+  isDone: boolean
   stats: EmptySkillCleanupStats
   nominations: EmptySkillCleanupNomination[]
 }
@@ -909,6 +912,7 @@ export const getEmptySkillCleanupPageInternal = internalQuery({
         ownerUserId: skill.ownerUserId,
         latestVersionId: skill.latestVersionId,
         softDeletedAt: skill.softDeletedAt,
+        moderationReason: skill.moderationReason,
         summary: skill.summary,
       })),
       cursor: continueCursor,
@@ -1034,7 +1038,6 @@ export async function cleanupEmptySkillsInternalHandler(
     skillsEvaluated: 0,
     emptyDetected: 0,
     skillsDeleted: 0,
-    nominationsCreated: 0,
     missingLatestVersion: 0,
     missingVersionDoc: 0,
     missingReadme: 0,
@@ -1045,7 +1048,7 @@ export async function cleanupEmptySkillsInternalHandler(
   const ownerTrustCache = new Map<string, { trustTier: TrustTier; handle: string | null }>()
   const emptyByOwner = new Map<string, EmptySkillCleanupNomination>()
 
-  let cursor: string | null = null
+  let cursor: string | null = args.cursor ?? null
   let isDone = false
   const now = Date.now()
 
@@ -1163,33 +1166,22 @@ export async function cleanupEmptySkillsInternalHandler(
     if (isDone) break
   }
 
-  if (!isDone) {
-    throw new ConvexError('Cleanup incomplete (maxBatches reached)')
-  }
-
   const nominations = Array.from(emptyByOwner.values())
     .filter((entry) => entry.emptySkillCount >= nominationThreshold)
     .sort((a, b) => b.emptySkillCount - a.emptySkillCount)
 
-  if (!dryRun) {
-    for (const nomination of nominations) {
-      const result = await ctx.runMutation(
-        internal.maintenance.nominateUserForEmptySkillSpamInternal,
-        {
-          userId: nomination.userId,
-          emptySkillCount: nomination.emptySkillCount,
-          sampleSlugs: nomination.sampleSlugs,
-        },
-      )
-      if (result.created) totals.nominationsCreated++
-    }
+  return {
+    ok: true as const,
+    cursor,
+    isDone,
+    stats: totals,
+    nominations: nominations.slice(0, 200),
   }
-
-  return { ok: true as const, stats: totals, nominations: nominations.slice(0, 200) }
 }
 
 export const cleanupEmptySkillsInternal = internalAction({
   args: {
+    cursor: v.optional(v.string()),
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
     maxBatches: v.optional(v.number()),
@@ -1201,6 +1193,7 @@ export const cleanupEmptySkillsInternal = internalAction({
 
 export const cleanupEmptySkills: ReturnType<typeof action> = action({
   args: {
+    cursor: v.optional(v.string()),
     dryRun: v.optional(v.boolean()),
     batchSize: v.optional(v.number()),
     maxBatches: v.optional(v.number()),
@@ -1211,6 +1204,146 @@ export const cleanupEmptySkills: ReturnType<typeof action> = action({
     const { user } = await requireUserFromAction(ctx)
     assertRole(user, ['admin'])
     return ctx.runAction(internal.maintenance.cleanupEmptySkillsInternal, args)
+  },
+})
+
+type EmptySkillBanNominationStats = {
+  skillsScanned: number
+  usersFlagged: number
+  nominationsCreated: number
+  nominationsExisting: number
+}
+
+export type EmptySkillBanNominationActionArgs = {
+  cursor?: string
+  batchSize?: number
+  maxBatches?: number
+  nominationThreshold?: number
+}
+
+export type EmptySkillBanNominationActionResult = {
+  ok: true
+  cursor: string | null
+  isDone: boolean
+  stats: EmptySkillBanNominationStats
+  nominations: EmptySkillCleanupNomination[]
+}
+
+export async function nominateEmptySkillSpammersInternalHandler(
+  ctx: ActionCtx,
+  args: EmptySkillBanNominationActionArgs,
+): Promise<EmptySkillBanNominationActionResult> {
+  const batchSize = clampInt(args.batchSize ?? DEFAULT_BATCH_SIZE, 1, MAX_BATCH_SIZE)
+  const maxBatches = clampInt(args.maxBatches ?? DEFAULT_MAX_BATCHES, 1, MAX_MAX_BATCHES)
+  const nominationThreshold = clampInt(
+    args.nominationThreshold ?? DEFAULT_EMPTY_SKILL_NOMINATION_THRESHOLD,
+    1,
+    100,
+  )
+
+  const totals: EmptySkillBanNominationStats = {
+    skillsScanned: 0,
+    usersFlagged: 0,
+    nominationsCreated: 0,
+    nominationsExisting: 0,
+  }
+
+  const ownerHandleCache = new Map<string, string | null>()
+  const emptyByOwner = new Map<string, EmptySkillCleanupNomination>()
+
+  let cursor: string | null = args.cursor ?? null
+  let isDone = false
+
+  for (let i = 0; i < maxBatches; i++) {
+    const page = (await ctx.runQuery(internal.maintenance.getEmptySkillCleanupPageInternal, {
+      cursor: cursor ?? undefined,
+      batchSize,
+    })) as EmptySkillCleanupPageResult
+
+    cursor = page.cursor
+    isDone = page.isDone
+
+    for (const item of page.items) {
+      totals.skillsScanned++
+      if (!item.softDeletedAt) continue
+      if (item.moderationReason !== 'quality.empty.backfill') continue
+
+      const ownerKey = String(item.ownerUserId)
+      let handle = ownerHandleCache.get(ownerKey)
+      if (handle === undefined) {
+        const owner = (await ctx.runQuery(internal.users.getByIdInternal, {
+          userId: item.ownerUserId,
+        })) as Doc<'users'> | null
+        handle = owner?.handle ?? null
+        ownerHandleCache.set(ownerKey, handle)
+      }
+
+      const nomination = emptyByOwner.get(ownerKey) ?? {
+        userId: item.ownerUserId,
+        handle,
+        emptySkillCount: 0,
+        sampleSlugs: [],
+      }
+      nomination.emptySkillCount += 1
+      if (nomination.sampleSlugs.length < 10 && !nomination.sampleSlugs.includes(item.slug)) {
+        nomination.sampleSlugs.push(item.slug)
+      }
+      emptyByOwner.set(ownerKey, nomination)
+    }
+
+    if (isDone) break
+  }
+
+  const nominations = Array.from(emptyByOwner.values())
+    .filter((entry) => entry.emptySkillCount >= nominationThreshold)
+    .sort((a, b) => b.emptySkillCount - a.emptySkillCount)
+  totals.usersFlagged = nominations.length
+
+  if (isDone) {
+    for (const nomination of nominations) {
+      const result = await ctx.runMutation(
+        internal.maintenance.nominateUserForEmptySkillSpamInternal,
+        {
+          userId: nomination.userId,
+          emptySkillCount: nomination.emptySkillCount,
+          sampleSlugs: nomination.sampleSlugs,
+        },
+      )
+      if (result.created) totals.nominationsCreated++
+      else totals.nominationsExisting++
+    }
+  }
+
+  return {
+    ok: true as const,
+    cursor,
+    isDone,
+    stats: totals,
+    nominations: nominations.slice(0, 200),
+  }
+}
+
+export const nominateEmptySkillSpammersInternal = internalAction({
+  args: {
+    cursor: v.optional(v.string()),
+    batchSize: v.optional(v.number()),
+    maxBatches: v.optional(v.number()),
+    nominationThreshold: v.optional(v.number()),
+  },
+  handler: nominateEmptySkillSpammersInternalHandler,
+})
+
+export const nominateEmptySkillSpammers: ReturnType<typeof action> = action({
+  args: {
+    cursor: v.optional(v.string()),
+    batchSize: v.optional(v.number()),
+    maxBatches: v.optional(v.number()),
+    nominationThreshold: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<EmptySkillBanNominationActionResult> => {
+    const { user } = await requireUserFromAction(ctx)
+    assertRole(user, ['admin'])
+    return ctx.runAction(internal.maintenance.nominateEmptySkillSpammersInternal, args)
   },
 })
 

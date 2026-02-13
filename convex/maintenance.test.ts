@@ -16,6 +16,7 @@ vi.mock('./_generated/api', () => ({
       applyEmptySkillCleanupInternal: Symbol('applyEmptySkillCleanupInternal'),
       nominateUserForEmptySkillSpamInternal: Symbol('nominateUserForEmptySkillSpamInternal'),
       cleanupEmptySkillsInternal: Symbol('cleanupEmptySkillsInternal'),
+      nominateEmptySkillSpammersInternal: Symbol('nominateEmptySkillSpammersInternal'),
     },
     skills: {
       getVersionByIdInternal: Symbol('skills.getVersionByIdInternal'),
@@ -31,6 +32,7 @@ const {
   backfillSkillFingerprintsInternalHandler,
   backfillSkillSummariesInternalHandler,
   cleanupEmptySkillsInternalHandler,
+  nominateEmptySkillSpammersInternalHandler,
 } = await import('./maintenance')
 const { internal } = await import('./_generated/api')
 
@@ -331,6 +333,8 @@ describe('maintenance empty skill cleanup', () => {
     )
 
     expect(result.ok).toBe(true)
+    expect(result.isDone).toBe(true)
+    expect(result.cursor).toBeNull()
     expect(result.stats.emptyDetected).toBe(1)
     expect(result.stats.skillsDeleted).toBe(0)
     expect(result.nominations).toEqual([
@@ -344,7 +348,7 @@ describe('maintenance empty skill cleanup', () => {
     expect(runMutation).not.toHaveBeenCalled()
   })
 
-  it('apply mode deletes empty skills and records nominations', async () => {
+  it('apply mode deletes empty skills', async () => {
     const runQuery = vi.fn().mockImplementation(async (endpoint: unknown) => {
       if (endpoint === internal.maintenance.getEmptySkillCleanupPageInternal) {
         return {
@@ -386,9 +390,6 @@ describe('maintenance empty skill cleanup', () => {
       if (endpoint === internal.maintenance.applyEmptySkillCleanupInternal) {
         return { deleted: true }
       }
-      if (endpoint === internal.maintenance.nominateUserForEmptySkillSpamInternal) {
-        return { created: true }
-      }
       throw new Error(`Unexpected mutation endpoint: ${String(endpoint)}`)
     })
 
@@ -404,15 +405,92 @@ describe('maintenance empty skill cleanup', () => {
     )
 
     expect(result.ok).toBe(true)
+    expect(result.isDone).toBe(true)
+    expect(result.cursor).toBeNull()
     expect(result.stats.emptyDetected).toBe(2)
     expect(result.stats.skillsDeleted).toBe(2)
-    expect(result.stats.nominationsCreated).toBe(1)
-    expect(runMutation).toHaveBeenCalledWith(
-      internal.maintenance.nominateUserForEmptySkillSpamInternal,
-      expect.objectContaining({
+    expect(result.nominations).toEqual([
+      {
         userId: 'users:1',
+        handle: 'spammer',
         emptySkillCount: 2,
-      }),
+        sampleSlugs: ['spam-a', 'spam-b'],
+      },
+    ])
+  })
+})
+
+describe('maintenance empty skill nominations', () => {
+  it('creates ban nominations from backfilled empty deletions', async () => {
+    const runQuery = vi.fn().mockImplementation(async (endpoint: unknown, args: unknown) => {
+      if (endpoint === internal.maintenance.getEmptySkillCleanupPageInternal) {
+        const cursor = (args as { cursor?: string | undefined }).cursor
+        if (!cursor) {
+          return {
+            items: [
+              {
+                skillId: 'skills:1',
+                slug: 'spam-a',
+                ownerUserId: 'users:1',
+                softDeletedAt: 1,
+                moderationReason: 'quality.empty.backfill',
+              },
+              {
+                skillId: 'skills:2',
+                slug: 'spam-b',
+                ownerUserId: 'users:1',
+                softDeletedAt: 1,
+                moderationReason: 'quality.empty.backfill',
+              },
+            ],
+            cursor: 'next',
+            isDone: false,
+          }
+        }
+        return {
+          items: [
+            {
+              skillId: 'skills:3',
+              slug: 'valid-hidden',
+              ownerUserId: 'users:2',
+              softDeletedAt: 1,
+              moderationReason: 'scanner.vt.suspicious',
+            },
+          ],
+          cursor: null,
+          isDone: true,
+        }
+      }
+      if (endpoint === internal.users.getByIdInternal) {
+        return { _id: 'users:1', handle: 'spammer' }
+      }
+      throw new Error(`Unexpected query endpoint: ${String(endpoint)}`)
+    })
+
+    const runMutation = vi.fn().mockImplementation(async (endpoint: unknown) => {
+      if (endpoint === internal.maintenance.nominateUserForEmptySkillSpamInternal) {
+        return { created: true }
+      }
+      throw new Error(`Unexpected mutation endpoint: ${String(endpoint)}`)
+    })
+
+    const result = await nominateEmptySkillSpammersInternalHandler(
+      { runQuery, runMutation } as never,
+      { batchSize: 10, maxBatches: 2, nominationThreshold: 2 },
     )
+
+    expect(result.ok).toBe(true)
+    expect(result.isDone).toBe(true)
+    expect(result.stats.usersFlagged).toBe(1)
+    expect(result.stats.nominationsCreated).toBe(1)
+    expect(result.stats.nominationsExisting).toBe(0)
+    expect(result.nominations).toEqual([
+      {
+        userId: 'users:1',
+        handle: 'spammer',
+        emptySkillCount: 2,
+        sampleSlugs: ['spam-a', 'spam-b'],
+      },
+    ])
   })
 })
