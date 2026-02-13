@@ -877,14 +877,16 @@ function rateHeaders(result: RateLimitResult): HeadersInit {
 }
 
 function getClientIp(request: Request) {
-  const header =
-    request.headers.get('cf-connecting-ip') ??
+  const cfHeader = request.headers.get('cf-connecting-ip')
+  if (cfHeader) return splitFirstIp(cfHeader)
+
+  if (!shouldTrustForwardedIps()) return null
+
+  const forwarded =
     request.headers.get('x-real-ip') ??
     request.headers.get('x-forwarded-for') ??
     request.headers.get('fly-client-ip')
-  if (!header) return null
-  if (header.includes(',')) return header.split(',')[0]?.trim() || null
-  return header.trim()
+  return splitFirstIp(forwarded)
 }
 
 function parseBearerToken(request: Request) {
@@ -924,6 +926,17 @@ function text(value: string, status: number, headers?: HeadersInit) {
 
 function mergeHeaders(base: HeadersInit, extra?: HeadersInit) {
   return { ...(base as Record<string, string>), ...(extra as Record<string, string>) }
+}
+
+function splitFirstIp(header: string | null) {
+  if (!header) return null
+  if (header.includes(',')) return header.split(',')[0]?.trim() || null
+  const trimmed = header.trim()
+  return trimmed || null
+}
+
+function shouldTrustForwardedIps() {
+  return String(process.env.TRUST_FORWARDED_IPS ?? '').toLowerCase() === 'true'
 }
 
 function getPathSegments(request: Request, prefix: string) {

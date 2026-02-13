@@ -1,8 +1,15 @@
 import { v } from 'convex/values'
-import { api } from './_generated/api'
-import { httpAction, mutation } from './_generated/server'
+import { api, internal } from './_generated/api'
+import { httpAction, internalMutation, mutation } from './_generated/server'
+import { applyRateLimit, getClientIp } from './lib/httpRateLimit'
 import { buildDeterministicZip } from './lib/skillZip'
+import { hashToken } from './lib/tokens'
 import { insertStatEvent } from './skillStatEvents'
+
+const DAY_MS = 86_400_000
+const DEDUPE_RETENTION_DAYS = 14
+const PRUNE_BATCH_SIZE = 200
+const PRUNE_MAX_BATCHES = 50
 
 export const downloadZip = httpAction(async (ctx, request) => {
   const url = new URL(request.url)
@@ -14,12 +21,15 @@ export const downloadZip = httpAction(async (ctx, request) => {
     return new Response('Missing slug', { status: 400 })
   }
 
+  const rate = await applyRateLimit(ctx, request, 'download')
+  if (!rate.ok) return rate.response
+
   const skillResult = await ctx.runQuery(api.skills.getBySlug, { slug })
   if (!skillResult?.skill) {
     return new Response('Skill not found', { status: 404 })
   }
 
-  // Block downloads based on moderation status
+  // Block downloads based on moderation status.
   const mod = skillResult.moderationInfo
   if (mod?.isMalwareBlocked) {
     return new Response(
@@ -77,15 +87,26 @@ export const downloadZip = httpAction(async (ctx, request) => {
   })
   const zipBlob = new Blob([zipArray], { type: 'application/zip' })
 
-  await ctx.runMutation(api.downloads.increment, { skillId: skill._id })
+  const ip = getClientIp(request) ?? 'unknown'
+  const ipHash = await hashToken(ip)
+  const dayStart = getDayStart(Date.now())
+  try {
+    await ctx.runMutation(internal.downloads.recordDownloadInternal, {
+      skillId: skill._id,
+      ipHash,
+      dayStart,
+    })
+  } catch {
+    // Best-effort metric path; do not fail downloads.
+  }
 
   return new Response(zipBlob, {
     status: 200,
-    headers: {
+    headers: mergeHeaders(rate.headers, {
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="${slug}-${version.version}.zip"`,
       'Cache-Control': 'private, max-age=60',
-    },
+    }),
   })
 })
 
@@ -101,3 +122,66 @@ export const increment = mutation({
     })
   },
 })
+
+export const recordDownloadInternal = internalMutation({
+  args: {
+    skillId: v.id('skills'),
+    ipHash: v.string(),
+    dayStart: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('downloadDedupes')
+      .withIndex('by_skill_ip_day', (q) =>
+        q.eq('skillId', args.skillId).eq('ipHash', args.ipHash).eq('dayStart', args.dayStart),
+      )
+      .unique()
+    if (existing) return
+
+    await ctx.db.insert('downloadDedupes', {
+      skillId: args.skillId,
+      ipHash: args.ipHash,
+      dayStart: args.dayStart,
+      createdAt: Date.now(),
+    })
+
+    await insertStatEvent(ctx, {
+      skillId: args.skillId,
+      kind: 'download',
+    })
+  },
+})
+
+export const pruneDownloadDedupesInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - DEDUPE_RETENTION_DAYS * DAY_MS
+
+    for (let batches = 0; batches < PRUNE_MAX_BATCHES; batches += 1) {
+      const stale = await ctx.db
+        .query('downloadDedupes')
+        .withIndex('by_day', (q) => q.lt('dayStart', cutoff))
+        .take(PRUNE_BATCH_SIZE)
+
+      if (stale.length === 0) break
+
+      for (const entry of stale) {
+        await ctx.db.delete(entry._id)
+      }
+
+      if (stale.length < PRUNE_BATCH_SIZE) break
+    }
+  },
+})
+
+export function getDayStart(timestamp: number) {
+  return Math.floor(timestamp / DAY_MS) * DAY_MS
+}
+
+export const __test = {
+  getDayStart,
+}
+
+function mergeHeaders(base: HeadersInit, extra: HeadersInit) {
+  return { ...(base as Record<string, string>), ...(extra as Record<string, string>) }
+}

@@ -32,6 +32,7 @@ import type * as lib_githubAccount from "../lib/githubAccount.js";
 import type * as lib_githubBackup from "../lib/githubBackup.js";
 import type * as lib_githubImport from "../lib/githubImport.js";
 import type * as lib_githubSoulBackup from "../lib/githubSoulBackup.js";
+import type * as lib_httpRateLimit from "../lib/httpRateLimit.js";
 import type * as lib_leaderboards from "../lib/leaderboards.js";
 import type * as lib_moderation from "../lib/moderation.js";
 import type * as lib_public from "../lib/public.js";
@@ -99,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   "lib/githubBackup": typeof lib_githubBackup;
   "lib/githubImport": typeof lib_githubImport;
   "lib/githubSoulBackup": typeof lib_githubSoulBackup;
+  "lib/httpRateLimit": typeof lib_httpRateLimit;
   "lib/leaderboards": typeof lib_leaderboards;
   "lib/moderation": typeof lib_moderation;
   "lib/public": typeof lib_public;

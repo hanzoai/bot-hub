@@ -19,10 +19,16 @@ Enforced per IP + per API key:
 
 - Read: 120/min per IP, 600/min per key
 - Write: 30/min per IP, 120/min per key
+- Download: 20/min per IP, 120/min per key (`/api/v1/download`)
 
 Headers:
 
 - `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After` (when limited)
+
+IP source:
+
+- Uses `cf-connecting-ip` by default.
+- Set `TRUST_FORWARDED_IPS=true` to allow fallback to `x-real-ip`, `x-forwarded-for`, or `fly-client-ip` (non-Cloudflare deployments).
 
 ## Public endpoints (no auth)
 

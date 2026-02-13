@@ -471,6 +471,15 @@ const rateLimits = defineTable({
   .index('by_key_window', ['key', 'windowStart'])
   .index('by_key', ['key'])
 
+const downloadDedupes = defineTable({
+  skillId: v.id('skills'),
+  ipHash: v.string(),
+  dayStart: v.number(),
+  createdAt: v.number(),
+})
+  .index('by_skill_ip_day', ['skillId', 'ipHash', 'dayStart'])
+  .index('by_day', ['dayStart'])
+
 const githubBackupSyncState = defineTable({
   key: v.string(),
   cursor: v.optional(v.string()),
@@ -541,6 +550,7 @@ export default defineSchema({
   vtScanLogs,
   apiTokens,
   rateLimits,
+  downloadDedupes,
   githubBackupSyncState,
   userSyncRoots,
   userSkillInstalls,
