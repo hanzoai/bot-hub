@@ -159,6 +159,18 @@ export function SkillsIndex() {
     setQuery(search.q ?? '')
   }, [search.q])
 
+  // Defense-in-depth for stale client bundles: always normalize browse mode to downloads sort.
+  useEffect(() => {
+    if (hasQuery || search.sort) return
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        sort: 'downloads',
+      }),
+      replace: true,
+    })
+  }, [hasQuery, navigate, search.sort])
+
   // Auto-focus search input when focus=search param is present
   useEffect(() => {
     if (search.focus === 'search' && searchInputRef.current) {
