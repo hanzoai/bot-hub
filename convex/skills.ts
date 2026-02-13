@@ -805,6 +805,57 @@ export const getOwnerSkillActivityInternal = internalQuery({
   },
 })
 
+export const clearOwnerSuspiciousFlagsInternal = internalMutation({
+  args: {
+    ownerUserId: v.id('users'),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const owner = await ctx.db.get(args.ownerUserId)
+    if (!owner || owner.deletedAt) throw new Error('Owner not found')
+    if (!isPrivilegedOwnerForSuspiciousBypass(owner)) {
+      return { inspected: 0, updated: 0, skipped: 'owner_not_privileged' as const }
+    }
+
+    const limit = clampInt(args.limit ?? 500, 1, 5000)
+    const skills = await ctx.db
+      .query('skills')
+      .withIndex('by_owner', (q) => q.eq('ownerUserId', args.ownerUserId))
+      .order('desc')
+      .take(limit)
+
+    let updated = 0
+    const now = Date.now()
+
+    for (const skill of skills) {
+      const existingFlags: string[] = (skill.moderationFlags as string[] | undefined) ?? []
+      const hasSuspiciousFlag = existingFlags.includes('flagged.suspicious')
+      const hasSuspiciousReason =
+        skill.moderationReason?.startsWith('scanner.') &&
+        skill.moderationReason.endsWith('.suspicious')
+      if (!hasSuspiciousFlag && !hasSuspiciousReason) continue
+
+      const patch: Partial<Doc<'skills'>> = { updatedAt: now }
+      patch.moderationFlags = stripSuspiciousFlag(existingFlags)
+      if (hasSuspiciousReason) {
+        patch.moderationReason = normalizeScannerSuspiciousReason(skill.moderationReason)
+      }
+      if (
+        (skill.moderationStatus ?? 'active') === 'hidden' &&
+        hasSuspiciousReason &&
+        !skill.softDeletedAt
+      ) {
+        patch.moderationStatus = 'active'
+      }
+
+      await ctx.db.patch(skill._id, patch)
+      updated += 1
+    }
+
+    return { inspected: skills.length, updated }
+  },
+})
+
 /**
  * Get quick stats without loading versions (fast).
  */

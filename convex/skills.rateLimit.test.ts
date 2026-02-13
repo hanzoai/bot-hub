@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { approveSkillByHashInternal, escalateByVtInternal, insertVersion } from './skills'
+import {
+  approveSkillByHashInternal,
+  clearOwnerSuspiciousFlagsInternal,
+  escalateByVtInternal,
+  insertVersion,
+} from './skills'
 
 type WrappedHandler<TArgs> = {
   _handler: (ctx: unknown, args: TArgs) => Promise<unknown>
@@ -12,6 +17,9 @@ const approveSkillByHashHandler = (
 )._handler
 const escalateByVtHandler = (
   escalateByVtInternal as unknown as WrappedHandler<Record<string, unknown>>
+)._handler
+const clearOwnerSuspiciousFlagsHandler = (
+  clearOwnerSuspiciousFlagsInternal as unknown as WrappedHandler<Record<string, unknown>>
 )._handler
 
 function createPublishArgs(overrides?: Partial<Record<string, unknown>>) {
@@ -271,6 +279,69 @@ describe('skills anti-spam guards', () => {
       expect.objectContaining({
         moderationFlags: undefined,
         moderationReason: 'scanner.llm.clean',
+      }),
+    )
+  })
+
+  it('bulk-clears suspicious flags/reasons for privileged owner skills', async () => {
+    const patch = vi.fn(async () => {})
+    const owner = {
+      _id: 'users:owner',
+      role: 'admin',
+      deletedAt: undefined,
+    }
+    const skills = [
+      {
+        _id: 'skills:1',
+        moderationFlags: ['flagged.suspicious'],
+        moderationReason: 'scanner.vt.suspicious',
+        moderationStatus: 'hidden',
+        softDeletedAt: undefined,
+      },
+      {
+        _id: 'skills:2',
+        moderationFlags: undefined,
+        moderationReason: 'scanner.llm.clean',
+        moderationStatus: 'active',
+        softDeletedAt: undefined,
+      },
+    ]
+
+    const db = {
+      get: vi.fn(async (id: string) => {
+        if (id === 'users:owner') return owner
+        return null
+      }),
+      query: vi.fn((table: string) => {
+        if (table === 'skills') {
+          return {
+            withIndex: (name: string) => {
+              if (name !== 'by_owner') throw new Error(`unexpected skills index ${name}`)
+              return {
+                order: () => ({
+                  take: async () => skills,
+                }),
+              }
+            },
+          }
+        }
+        throw new Error(`unexpected table ${table}`)
+      }),
+      patch,
+    }
+
+    const result = await clearOwnerSuspiciousFlagsHandler(
+      { db } as never,
+      { ownerUserId: 'users:owner', limit: 20 } as never,
+    )
+
+    expect(result).toEqual({ inspected: 2, updated: 1 })
+    expect(patch).toHaveBeenCalledWith(
+      'skills:1',
+      expect.objectContaining({
+        moderationFlags: undefined,
+        moderationReason: 'scanner.vt.clean',
+        moderationStatus: 'active',
       }),
     )
   })
