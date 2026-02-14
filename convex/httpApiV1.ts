@@ -846,7 +846,7 @@ async function resolveTagsBatch(
  * - Uses `internal.*` queries to avoid expanding the public Convex API surface.
  * - Sorts ids for stable query args (helps caching/log diffs).
  */
-async function resolveVersionTagsBatch<TTable extends string>(
+async function resolveVersionTagsBatch<TTable extends 'skillVersions' | 'soulVersions'>(
   ctx: ActionCtx,
   tagsList: Array<Record<string, Id<TTable>>>,
   getVersionsByIdsQuery: unknown,
@@ -860,7 +860,7 @@ async function resolveVersionTagsBatch<TTable extends string>(
 
   const versionIds = [...allVersionIds].sort() as Array<Id<TTable>>
   const versions =
-    ((await ctx.runQuery(getVersionsByIdsQuery as never, { versionIds })) as Array<{
+    ((await ctx.runQuery(getVersionsByIdsQuery as never, { versionIds } as never)) as Array<{
       _id: Id<TTable>
       version: string
       softDeletedAt?: unknown

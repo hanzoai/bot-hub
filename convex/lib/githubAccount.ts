@@ -5,7 +5,6 @@ import type { ActionCtx } from '../_generated/server'
 
 const GITHUB_API = 'https://api.github.com'
 const MIN_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000
-const FETCH_TTL_MS = 24 * 60 * 60 * 1000
 
 type GitHubUser = {
   created_at?: string
@@ -15,22 +14,29 @@ export async function requireGitHubAccountAge(ctx: ActionCtx, userId: Id<'users'
   const user = await ctx.runQuery(internal.users.getByIdInternal, { userId })
   if (!user || user.deletedAt || user.deactivatedAt) throw new ConvexError('User not found')
 
-  const handle = user.handle?.trim()
-  if (!handle) throw new ConvexError('GitHub handle required')
-
   const now = Date.now()
   let createdAt = user.githubCreatedAt ?? null
-  const fetchedAt = user.githubFetchedAt ?? 0
-  const stale = !createdAt || now - fetchedAt > FETCH_TTL_MS
 
-  if (stale) {
+  if (!createdAt) {
+    const providerAccountId = await ctx.runQuery(internal.users.getGitHubProviderAccountIdInternal, {
+      userId,
+    })
+    if (!providerAccountId) {
+      // Invariant: GitHub is our only auth provider, so this should never happen.
+      throw new ConvexError('GitHub account required')
+    }
+    if (!/^[0-9]+$/.test(providerAccountId)) {
+      throw new ConvexError('GitHub account lookup failed')
+    }
+
     const headers: Record<string, string> = { 'User-Agent': 'clawhub' }
     const token = process.env.GITHUB_TOKEN
     if (token) {
       headers.Authorization = `Bearer ${token}`
     }
 
-    const response = await fetch(`${GITHUB_API}/users/${encodeURIComponent(handle)}`, {
+    // Fetch by immutable GitHub numeric ID to avoid username swap attacks entirely.
+    const response = await fetch(`${GITHUB_API}/user/${providerAccountId}`, {
       headers,
     })
     if (!response.ok) {
