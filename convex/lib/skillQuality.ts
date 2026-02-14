@@ -23,6 +23,7 @@ export type QualitySignals = {
   bulletCount: number
   templateMarkerHits: number
   genericSummary: boolean
+  cjkChars: number
   structuralFingerprint: string
 }
 
@@ -40,6 +41,29 @@ function stripFrontmatter(raw: string) {
 }
 
 function tokenizeWords(text: string) {
+  const segmenterCtor = (Intl as typeof Intl & {
+    Segmenter?: new (
+      locale?: string | string[],
+      options?: { granularity?: 'grapheme' | 'word' | 'sentence' },
+    ) => {
+      segment: (
+        input: string,
+      ) => Iterable<{ segment: string; isWordLike?: boolean }>
+    }
+  }).Segmenter
+
+  if (segmenterCtor) {
+    const segmenter = new segmenterCtor(undefined, { granularity: 'word' })
+    const tokens: string[] = []
+    for (const entry of segmenter.segment(text)) {
+      if (!entry.isWordLike) continue
+      const token = entry.segment.trim().toLowerCase()
+      if (!token) continue
+      tokens.push(token)
+    }
+    if (tokens.length > 0) return tokens
+  }
+
   return (text.toLowerCase().match(/[a-z0-9][a-z0-9'-]*/g) ?? []).filter((word) => word.length > 1)
 }
 
@@ -95,6 +119,7 @@ export function computeQualitySignals(args: {
   const templateMarkerHits = TEMPLATE_MARKERS.filter((marker) => bodyLower.includes(marker)).length
   const summary = (args.summary ?? '').trim().toLowerCase()
   const genericSummary = /^expert guidance for [a-z0-9-]+\.?$/.test(summary)
+  const cjkChars = (body.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu) ?? []).length
 
   return {
     bodyChars,
@@ -104,6 +129,7 @@ export function computeQualitySignals(args: {
     bulletCount,
     templateMarkerHits,
     genericSummary,
+    cjkChars,
     structuralFingerprint: toStructuralFingerprint(args.readmeText),
   }
 }
@@ -127,8 +153,14 @@ export function evaluateQuality(args: {
 }): QualityAssessment {
   const { signals, trustTier, similarRecentCount } = args
   const score = scoreQuality(signals)
-  const rejectWordsThreshold = trustTier === 'low' ? 45 : trustTier === 'medium' ? 35 : 28
-  const rejectCharsThreshold = trustTier === 'low' ? 260 : trustTier === 'medium' ? 180 : 140
+  const cjkHeavy =
+    signals.cjkChars >= 40 || (signals.bodyChars > 0 && signals.cjkChars / signals.bodyChars >= 0.15)
+  let rejectWordsThreshold = trustTier === 'low' ? 45 : trustTier === 'medium' ? 35 : 28
+  let rejectCharsThreshold = trustTier === 'low' ? 260 : trustTier === 'medium' ? 180 : 140
+  if (cjkHeavy) {
+    rejectWordsThreshold = Math.max(24, rejectWordsThreshold - 16)
+    rejectCharsThreshold = Math.max(140, rejectCharsThreshold - 120)
+  }
   const quarantineScoreThreshold = trustTier === 'low' ? 72 : trustTier === 'medium' ? 60 : 50
   const similarityRejectThreshold = trustTier === 'low' ? 5 : trustTier === 'medium' ? 8 : 12
 
@@ -157,6 +189,7 @@ export function evaluateQuality(args: {
         bulletCount: signals.bulletCount,
         templateMarkerHits: signals.templateMarkerHits,
         genericSummary: signals.genericSummary,
+        cjkChars: signals.cjkChars,
       },
     }
   }
@@ -176,6 +209,7 @@ export function evaluateQuality(args: {
         bulletCount: signals.bulletCount,
         templateMarkerHits: signals.templateMarkerHits,
         genericSummary: signals.genericSummary,
+        cjkChars: signals.cjkChars,
       },
     }
   }
@@ -194,6 +228,7 @@ export function evaluateQuality(args: {
       bulletCount: signals.bulletCount,
       templateMarkerHits: signals.templateMarkerHits,
       genericSummary: signals.genericSummary,
+      cjkChars: signals.cjkChars,
     },
   }
 }

@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('./lib/apiTokenAuth', () => ({
   requireApiTokenUser: vi.fn(),
+  getOptionalApiTokenUserId: vi.fn(),
 }))
 
 vi.mock('./skills', () => ({
   publishVersionForUser: vi.fn(),
 }))
 
-const { requireApiTokenUser } = await import('./lib/apiTokenAuth')
+const { getOptionalApiTokenUserId, requireApiTokenUser } = await import('./lib/apiTokenAuth')
 const { publishVersionForUser } = await import('./skills')
 const { __handlers } = await import('./httpApiV1')
 
@@ -59,6 +60,8 @@ const blockedRate = () => ({
 })
 
 beforeEach(() => {
+  vi.mocked(getOptionalApiTokenUserId).mockReset()
+  vi.mocked(getOptionalApiTokenUserId).mockResolvedValue(null)
   vi.mocked(requireApiTokenUser).mockReset()
   vi.mocked(publishVersionForUser).mockReset()
 })
@@ -216,6 +219,52 @@ describe('httpApiV1 handlers', () => {
       new Request('https://example.com/api/v1/skills/missing'),
     )
     expect(response.status).toBe(404)
+  })
+
+  it('get skill returns pending-scan message for owner api token', async () => {
+    vi.mocked(getOptionalApiTokenUserId).mockResolvedValue('users:1' as never)
+    const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('slug' in args) {
+        return {
+          _id: 'skills:1',
+          slug: 'demo',
+          ownerUserId: 'users:1',
+          moderationStatus: 'hidden',
+          moderationReason: 'pending.scan',
+        }
+      }
+      return null
+    })
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const response = await __handlers.skillsGetRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/skills/demo'),
+    )
+    expect(response.status).toBe(423)
+    expect(await response.text()).toContain('security scan is pending')
+  })
+
+  it('get skill returns undelete hint for owner soft-deleted skill', async () => {
+    vi.mocked(getOptionalApiTokenUserId).mockResolvedValue('users:1' as never)
+    const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('slug' in args) {
+        return {
+          _id: 'skills:1',
+          slug: 'demo',
+          ownerUserId: 'users:1',
+          softDeletedAt: 1,
+          moderationStatus: 'hidden',
+        }
+      }
+      return null
+    })
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const response = await __handlers.skillsGetRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/skills/demo'),
+    )
+    expect(response.status).toBe(410)
+    expect(await response.text()).toContain('clawhub undelete demo')
   })
 
   it('get skill returns payload', async () => {

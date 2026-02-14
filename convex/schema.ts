@@ -96,6 +96,7 @@ const skills = defineTable({
         bulletCount: v.number(),
         templateMarkerHits: v.number(),
         genericSummary: v.boolean(),
+        cjkChars: v.optional(v.number()),
       }),
       evaluatedAt: v.number(),
     }),

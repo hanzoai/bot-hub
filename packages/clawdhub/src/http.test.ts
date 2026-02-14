@@ -10,7 +10,7 @@ function mockImmediateTimeouts() {
     return 1 as unknown as ReturnType<typeof setTimeout>
   })
   const clearTimeoutMock = vi.fn()
-  vi.stubGlobal('setTimeout', setTimeoutMock as typeof setTimeout)
+  vi.stubGlobal('setTimeout', setTimeoutMock as unknown as typeof setTimeout)
   vi.stubGlobal('clearTimeout', clearTimeoutMock as typeof clearTimeout)
   return { setTimeoutMock, clearTimeoutMock }
 }

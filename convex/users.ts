@@ -260,6 +260,27 @@ export const banUserInternal = internalMutation({
   },
 })
 
+export const unbanUser = mutation({
+  args: { userId: v.id('users'), reason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { user } = await requireUser(ctx)
+    return unbanUserWithActor(ctx, user, args.userId, args.reason)
+  },
+})
+
+export const unbanUserInternal = internalMutation({
+  args: {
+    actorUserId: v.id('users'),
+    targetUserId: v.id('users'),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorUserId)
+    if (!actor || actor.deletedAt || actor.deactivatedAt) throw new Error('User not found')
+    return unbanUserWithActor(ctx, actor, args.targetUserId, args.reason)
+  },
+})
+
 async function banUserWithActor(
   ctx: MutationCtx,
   actor: Doc<'users'>,
@@ -324,6 +345,49 @@ async function banUserWithActor(
   })
 
   return { ok: true as const, alreadyBanned: false, deletedSkills: skills.length }
+}
+
+async function unbanUserWithActor(
+  ctx: MutationCtx,
+  actor: Doc<'users'>,
+  targetUserId: Id<'users'>,
+  reasonRaw?: string,
+) {
+  assertAdmin(actor)
+  if (targetUserId === actor._id) throw new Error('Cannot unban yourself')
+
+  const target = await ctx.db.get(targetUserId)
+  if (!target) throw new Error('User not found')
+  if (target.deactivatedAt) {
+    throw new Error('Cannot unban a permanently deleted account')
+  }
+  if (!target.deletedAt) {
+    return { ok: true as const, alreadyUnbanned: true }
+  }
+
+  const reason = reasonRaw?.trim()
+  if (reason && reason.length > 500) {
+    throw new Error('Reason too long (max 500 chars)')
+  }
+
+  const now = Date.now()
+  await ctx.db.patch(targetUserId, {
+    deletedAt: undefined,
+    banReason: undefined,
+    role: 'user',
+    updatedAt: now,
+  })
+
+  await ctx.db.insert('auditLogs', {
+    actorUserId: actor._id,
+    action: 'user.unban',
+    targetType: 'user',
+    targetId: targetUserId,
+    metadata: { reason: reason || undefined },
+    createdAt: now,
+  })
+
+  return { ok: true as const, alreadyUnbanned: false }
 }
 
 /**

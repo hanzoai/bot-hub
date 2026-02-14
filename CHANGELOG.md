@@ -2,8 +2,16 @@
 
 ## Unreleased
 
+### Added
+- Admin: add manual unban for banned users (clears `deletedAt` + `banReason`, audit log entry). Revoked API tokens stay revoked.
+
+### Changed
+- Quality gate: language-aware word counting (`Intl.Segmenter`) and new `cjkChars` signal to reduce false rejects for non-Latin docs.
+- Jobs: run skill stat event processing every 5 minutes (was 15).
+
 ### Fixed
 - Users: sync handle on ensure when GitHub login changes (#293) (thanks @christianhpoe).
+- API: for owners, return clearer status/messages for hidden/soft-deleted skills instead of a generic 404.
 
 ## 0.6.1 - 2026-02-13
 

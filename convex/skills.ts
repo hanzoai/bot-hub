@@ -3002,6 +3002,7 @@ export const insertVersion = internalMutation({
           bulletCount: v.number(),
           templateMarkerHits: v.number(),
           genericSummary: v.boolean(),
+          cjkChars: v.optional(v.number()),
         }),
       }),
     ),

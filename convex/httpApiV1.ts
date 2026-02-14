@@ -3,7 +3,7 @@ import { api, internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import type { ActionCtx } from './_generated/server'
 import { httpAction } from './_generated/server'
-import { requireApiTokenUser } from './lib/apiTokenAuth'
+import { getOptionalApiTokenUserId, requireApiTokenUser } from './lib/apiTokenAuth'
 import { hashToken } from './lib/tokens'
 import { publishVersionForUser } from './skills'
 import { publishSoulVersionForUser } from './souls'
@@ -251,7 +251,11 @@ async function skillsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
 
   if (segments.length === 1) {
     const result = (await ctx.runQuery(api.skills.getBySlug, { slug })) as GetBySlugResult
-    if (!result?.skill) return text('Skill not found', 404, rate.headers)
+    if (!result?.skill) {
+      const hidden = await describeOwnerVisibleSkillState(ctx, request, slug)
+      if (hidden) return text(hidden.message, hidden.status, rate.headers)
+      return text('Skill not found', 404, rate.headers)
+    }
 
     const tags = await resolveTags(ctx, result.skill.tags)
     return json(
@@ -413,6 +417,52 @@ async function skillsGetRouterV1Handler(ctx: ActionCtx, request: Request) {
   }
 
   return text('Not found', 404, rate.headers)
+}
+
+async function describeOwnerVisibleSkillState(
+  ctx: ActionCtx,
+  request: Request,
+  slug: string,
+): Promise<{ status: number; message: string } | null> {
+  const skill = await ctx.runQuery(internal.skills.getSkillBySlugInternal, { slug })
+  if (!skill) return null
+
+  const apiTokenUserId = await getOptionalApiTokenUserId(ctx, request)
+  const isOwner = Boolean(apiTokenUserId && apiTokenUserId === skill.ownerUserId)
+  if (!isOwner) return null
+
+  if (skill.softDeletedAt) {
+    return {
+      status: 410,
+      message: `Skill is hidden/deleted. Run "clawhub undelete ${slug}" to restore it.`,
+    }
+  }
+
+  if (skill.moderationStatus === 'hidden') {
+    if (skill.moderationReason === 'pending.scan' || skill.moderationReason === 'scanner.vt.pending') {
+      return {
+        status: 423,
+        message: 'Skill is hidden while security scan is pending. Try again in a few minutes.',
+      }
+    }
+    if (skill.moderationReason === 'quality.low') {
+      return {
+        status: 403,
+        message:
+          'Skill is hidden by quality checks. Update SKILL.md content or run "clawhub undelete <slug>" after review.',
+      }
+    }
+    return {
+      status: 403,
+      message: `Skill is hidden by moderation${skill.moderationReason ? ` (${skill.moderationReason})` : ''}.`,
+    }
+  }
+
+  if (skill.moderationStatus === 'removed') {
+    return { status: 410, message: 'Skill has been removed by moderation.' }
+  }
+
+  return null
 }
 
 export const skillsGetRouterV1Http = httpAction(skillsGetRouterV1Handler)
