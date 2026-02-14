@@ -1,7 +1,6 @@
 import { getAuthUserId } from '@convex-dev/auth/server'
 import { paginationOptsValidator } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
-import { paginator } from 'convex-helpers/server/pagination'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
@@ -32,7 +31,6 @@ import {
 } from './lib/skillPublish'
 import { isSkillSuspicious } from './lib/skillSafety'
 import { getFrontmatterValue, hashSkillFiles } from './lib/skills'
-import schema from './schema'
 
 export { publishVersionForUser } from './lib/skillPublish'
 
@@ -1505,10 +1503,9 @@ export const listPublicPage = query({
 })
 
 /**
- * V2 of listPublicPage using convex-helpers paginator for better cache behavior.
+ * V2 of listPublicPage using standard Convex pagination (paginate + usePaginatedQuery).
  *
  * Key differences from V1:
- * - Uses `paginator` from convex-helpers (doesn't track end-cursor internally, better caching)
  * - Uses `by_active_updated` index to filter soft-deleted skills at query level
  * - Returns standard pagination shape compatible with usePaginatedQuery
  */
@@ -1530,15 +1527,15 @@ export const listPublicPageV2 = query({
   },
   handler: async (ctx, args) => {
     const sort = args.sort ?? 'newest'
-    const dir = args.dir ?? 'desc'
-    const paginationOpts = {
+    const dir = args.dir ?? (sort === 'name' ? 'asc' : 'desc')
+    const paginationOpts: { cursor: string | null; numItems: number; id?: number } = {
       ...args.paginationOpts,
       numItems: clampInt(args.paginationOpts.numItems, 1, MAX_PUBLIC_LIST_LIMIT),
     }
 
     // Use the index to filter out soft-deleted skills at query time.
     // softDeletedAt === undefined means active (non-deleted) skills only.
-    const result = await paginator(ctx.db, schema)
+    const result = await ctx.db
       .query('skills')
       .withIndex(SORT_INDEXES[sort], (q) => q.eq('softDeletedAt', undefined))
       .order(dir)
@@ -1550,11 +1547,7 @@ export const listPublicPageV2 = query({
 
     // Build the public skill entries (fetch latestVersion + ownerHandle)
     const items = await buildPublicSkillEntries(ctx, filteredPage)
-
-    return {
-      ...result,
-      page: items,
-    }
+    return { ...result, page: items }
   },
 })
 
