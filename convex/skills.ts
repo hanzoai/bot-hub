@@ -20,6 +20,10 @@ import {
   type SkillBadgeMap,
 } from './lib/badges'
 import { generateChangelogPreview as buildChangelogPreview } from './lib/changelog'
+import {
+  canHealSkillOwnershipByGitHubProviderAccountId,
+  getGitHubProviderAccountId,
+} from './lib/githubIdentity'
 import { buildTrendingLeaderboard } from './lib/leaderboards'
 import { deriveModerationFlags } from './lib/moderation'
 import { toPublicSkill, toPublicUser } from './lib/public'
@@ -3009,25 +3013,48 @@ export const insertVersion = internalMutation({
     ),
     embedding: v.array(v.number()),
   },
-  handler: async (ctx, args) => {
-    const userId = args.userId
-    const user = await ctx.db.get(userId)
-    if (!user || user.deletedAt || user.deactivatedAt) throw new Error('User not found')
+	  handler: async (ctx, args) => {
+	    const userId = args.userId
+	    const user = await ctx.db.get(userId)
+	    if (!user || user.deletedAt || user.deactivatedAt) throw new Error('User not found')
 
-    let skill = await ctx.db
-      .query('skills')
-      .withIndex('by_slug', (q) => q.eq('slug', args.slug))
+	    const now = Date.now()
+
+	    let skill = await ctx.db
+	      .query('skills')
+	      .withIndex('by_slug', (q) => q.eq('slug', args.slug))
       .unique()
 
     if (skill && skill.ownerUserId !== userId) {
-      throw new Error('Only the owner can publish updates')
-    }
+      // Fallback: Convex Auth can create duplicate `users` records. Heal ownership ONLY
+      // when the underlying GitHub identity matches (authAccounts.providerAccountId).
+      const owner = await ctx.db.get(skill.ownerUserId)
+      if (!owner || owner.deletedAt || owner.deactivatedAt) {
+        throw new Error('Only the owner can publish updates')
+      }
 
-    const now = Date.now()
-    const qualityAssessment = args.qualityAssessment
-    const isQualityQuarantine = qualityAssessment?.decision === 'quarantine'
-    const moderationReason = isQualityQuarantine ? 'quality.low' : 'pending.scan'
-    const moderationNotes = isQualityQuarantine
+      const [ownerProviderAccountId, callerProviderAccountId] = await Promise.all([
+        getGitHubProviderAccountId(ctx, skill.ownerUserId),
+        getGitHubProviderAccountId(ctx, userId),
+      ])
+
+      // Deny healing when GitHub identity isn't present/consistent.
+      if (
+        !canHealSkillOwnershipByGitHubProviderAccountId(
+          ownerProviderAccountId,
+          callerProviderAccountId,
+        )
+      ) {
+        throw new Error('Only the owner can publish updates')
+      }
+
+	      await ctx.db.patch(skill._id, { ownerUserId: userId, updatedAt: now })
+	    }
+
+	    const qualityAssessment = args.qualityAssessment
+	    const isQualityQuarantine = qualityAssessment?.decision === 'quarantine'
+	    const moderationReason = isQualityQuarantine ? 'quality.low' : 'pending.scan'
+	    const moderationNotes = isQualityQuarantine
       ? `Auto-quarantined by quality gate (score=${qualityAssessment.score}, tier=${qualityAssessment.trustTier}, similar=${qualityAssessment.similarRecentCount}).`
       : undefined
     const qualityRecord = qualityAssessment
@@ -3038,13 +3065,13 @@ export const insertVersion = internalMutation({
           similarRecentCount: qualityAssessment.similarRecentCount,
           reason: qualityAssessment.reason,
           signals: qualityAssessment.signals,
-          evaluatedAt: now,
-        }
-      : undefined
+	          evaluatedAt: now,
+	        }
+	      : undefined
 
-    if (!skill) {
-      const ownerTrustSignals = await getOwnerTrustSignals(ctx, user, now)
-      enforceNewSkillRateLimit(ownerTrustSignals)
+	    if (!skill) {
+	      const ownerTrustSignals = await getOwnerTrustSignals(ctx, user, now)
+	      enforceNewSkillRateLimit(ownerTrustSignals)
 
       const forkOfSlug = args.forkOf?.slug.trim().toLowerCase() || ''
       const forkOfVersion = args.forkOf?.version?.trim() || undefined
