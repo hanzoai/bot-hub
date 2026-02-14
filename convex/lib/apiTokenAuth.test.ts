@@ -82,4 +82,29 @@ describe('getOptionalApiTokenUserId', () => {
     expect(userId).toBeNull()
     expect(ctx.runQuery).toHaveBeenCalledTimes(2)
   })
+
+  it('returns null when user is deactivated', async () => {
+    const tokenId = 'apiTokens_3'
+    const ctx = {
+      runQuery: vi
+        .fn()
+        .mockImplementation(async (_fn, args: { tokenHash?: string; tokenId?: string }) => {
+          if (args.tokenHash) {
+            return { _id: tokenId, revokedAt: undefined }
+          }
+          if (args.tokenId) {
+            return { _id: 'users_deactivated', deactivatedAt: Date.now() }
+          }
+          return null
+        }),
+    }
+    const request = new Request('https://example.com', {
+      headers: { authorization: 'Bearer token-4' },
+    })
+
+    const userId = await getOptionalApiTokenUserId(ctx as never, request)
+
+    expect(userId).toBeNull()
+    expect(ctx.runQuery).toHaveBeenCalledTimes(2)
+  })
 })

@@ -39,7 +39,7 @@ export type PublicSoul = Pick<
 >
 
 export function toPublicUser(user: Doc<'users'> | null | undefined): PublicUser | null {
-  if (!user || user.deletedAt) return null
+  if (!user || user.deletedAt || user.deactivatedAt) return null
   return {
     _id: user._id,
     _creationTime: user._creationTime,

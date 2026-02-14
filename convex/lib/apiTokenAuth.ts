@@ -21,7 +21,7 @@ export async function requireApiTokenUser(
   const user = await ctx.runQuery(internal.tokens.getUserForTokenInternal, {
     tokenId: apiToken._id,
   })
-  if (!user || user.deletedAt) throw new ConvexError('Unauthorized')
+  if (!user || user.deletedAt || user.deactivatedAt) throw new ConvexError('Unauthorized')
 
   await ctx.runMutation(internal.tokens.touchInternal, { tokenId: apiToken._id })
   return { user, userId: user._id }
@@ -42,7 +42,7 @@ export async function getOptionalApiTokenUserId(
   const user = await ctx.runQuery(internal.tokens.getUserForTokenInternal, {
     tokenId: apiToken._id,
   })
-  if (!user || user.deletedAt) return null
+  if (!user || user.deletedAt || user.deactivatedAt) return null
 
   return user._id
 }

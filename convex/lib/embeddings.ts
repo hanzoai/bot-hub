@@ -42,7 +42,7 @@ export async function generateEmbedding(text: string) {
     return embedding
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('OpenAI API request timed out after 10 seconds')
+      throw new Error('OpenAI API request timed out after 10 seconds', { cause: error })
     }
     throw error
   } finally {
