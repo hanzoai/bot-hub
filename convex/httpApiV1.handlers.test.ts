@@ -524,6 +524,164 @@ describe('httpApiV1 handlers', () => {
     expect(response2.status).toBe(200)
   })
 
+  it('delete/undelete map forbidden/not-found/unknown to 403/404/500', async () => {
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+
+    const runMutationForbidden = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('key' in args) return okRate()
+      throw new Error('Forbidden')
+    })
+    const forbidden = await __handlers.skillsDeleteRouterV1Handler(
+      makeCtx({ runMutation: runMutationForbidden }),
+      new Request('https://example.com/api/v1/skills/demo', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer clh_test' },
+      }),
+    )
+    expect(forbidden.status).toBe(403)
+    expect(await forbidden.text()).toBe('Forbidden')
+
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runMutationNotFound = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('key' in args) return okRate()
+      throw new Error('Skill not found')
+    })
+    const notFound = await __handlers.skillsPostRouterV1Handler(
+      makeCtx({ runMutation: runMutationNotFound }),
+      new Request('https://example.com/api/v1/skills/demo/undelete', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer clh_test' },
+      }),
+    )
+    expect(notFound.status).toBe(404)
+    expect(await notFound.text()).toBe('Skill not found')
+
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runMutationUnknown = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
+      if ('key' in args) return okRate()
+      throw new Error('boom')
+    })
+    const unknown = await __handlers.soulsDeleteRouterV1Handler(
+      makeCtx({ runMutation: runMutationUnknown }),
+      new Request('https://example.com/api/v1/souls/demo-soul', {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer clh_test' },
+      }),
+    )
+    expect(unknown.status).toBe(500)
+    expect(await unknown.text()).toBe('Internal Server Error')
+  })
+
+  it('ban user requires auth', async () => {
+    vi.mocked(requireApiTokenUser).mockRejectedValueOnce(new Error('Unauthorized'))
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const response = await __handlers.usersPostRouterV1Handler(
+      makeCtx({ runMutation }),
+      new Request('https://example.com/api/v1/users/ban', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle: 'demo' }),
+      }),
+    )
+    expect(response.status).toBe(401)
+  })
+
+  it('ban user succeeds with handle', async () => {
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runQuery = vi.fn().mockResolvedValue({ _id: 'users:2' })
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce({ ok: true, alreadyBanned: false, deletedSkills: 2 })
+    const response = await __handlers.usersPostRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/users/ban', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle: 'demo' }),
+      }),
+    )
+    expect(response.status).toBe(200)
+    const json = await response.json()
+    expect(json.deletedSkills).toBe(2)
+  })
+
+  it('ban user forwards reason', async () => {
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runQuery = vi.fn().mockResolvedValue({ _id: 'users:2' })
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce({ ok: true, alreadyBanned: false, deletedSkills: 0 })
+    await __handlers.usersPostRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/users/ban', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle: 'demo', reason: 'malware' }),
+      }),
+    )
+    expect(runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorUserId: 'users:1',
+        targetUserId: 'users:2',
+        reason: 'malware',
+      }),
+    )
+  })
+
+  it('set role requires auth', async () => {
+    vi.mocked(requireApiTokenUser).mockRejectedValueOnce(new Error('Unauthorized'))
+    const runMutation = vi.fn().mockResolvedValue(okRate())
+    const response = await __handlers.usersPostRouterV1Handler(
+      makeCtx({ runMutation }),
+      new Request('https://example.com/api/v1/users/role', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle: 'demo', role: 'moderator' }),
+      }),
+    )
+    expect(response.status).toBe(401)
+  })
+
+  it('set role succeeds with handle', async () => {
+    vi.mocked(requireApiTokenUser).mockResolvedValue({
+      userId: 'users:1',
+      user: { handle: 'p' },
+    } as never)
+    const runQuery = vi.fn().mockResolvedValue({ _id: 'users:2' })
+    const runMutation = vi
+      .fn()
+      .mockResolvedValueOnce(okRate())
+      .mockResolvedValueOnce({ ok: true, role: 'moderator' })
+    const response = await __handlers.usersPostRouterV1Handler(
+      makeCtx({ runQuery, runMutation }),
+      new Request('https://example.com/api/v1/users/role', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle: 'demo', role: 'moderator' }),
+      }),
+    )
+    expect(response.status).toBe(200)
+    const json = await response.json()
+    expect(json.role).toBe('moderator')
+  })
   it('stars require auth', async () => {
     vi.mocked(requireApiTokenUser).mockRejectedValueOnce(new Error('Unauthorized'))
     const runMutation = vi.fn().mockResolvedValue(okRate())
