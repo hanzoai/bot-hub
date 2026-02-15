@@ -322,24 +322,16 @@ async function banUserWithActor(
     return { ok: true as const, alreadyBanned: true, deletedSkills: 0 }
   }
 
-  const skills = await ctx.db
-    .query('skills')
-    .withIndex('by_owner', (q) => q.eq('ownerUserId', targetUserId))
-    .collect()
-
-  for (const skill of skills) {
-    await ctx.scheduler.runAfter(0, internal.skills.hardDeleteInternal, {
-      skillId: skill._id,
-      actorUserId: actor._id,
-    })
-  }
+  const hiddenCount = await softDeleteSkillsForBan(ctx, targetUserId, now, { hiddenBy: actor._id })
 
   const tokens = await ctx.db
     .query('apiTokens')
     .withIndex('by_user', (q) => q.eq('userId', targetUserId))
     .collect()
   for (const token of tokens) {
-    await ctx.db.patch(token._id, { revokedAt: now })
+    if (!token.revokedAt) {
+      await ctx.db.patch(token._id, { revokedAt: now })
+    }
   }
 
   await ctx.db.patch(targetUserId, {
@@ -356,11 +348,11 @@ async function banUserWithActor(
     action: 'user.ban',
     targetType: 'user',
     targetId: targetUserId,
-    metadata: { deletedSkills: skills.length, reason: reason || undefined },
+    metadata: { hiddenSkills: hiddenCount, reason: reason || undefined },
     createdAt: now,
   })
 
-  return { ok: true as const, alreadyBanned: false, deletedSkills: skills.length }
+  return { ok: true as const, alreadyBanned: false, deletedSkills: hiddenCount }
 }
 
 async function unbanUserWithActor(
@@ -387,6 +379,7 @@ async function unbanUserWithActor(
   }
 
   const now = Date.now()
+  const bannedAt = target.deletedAt
   await ctx.db.patch(targetUserId, {
     deletedAt: undefined,
     banReason: undefined,
@@ -394,17 +387,116 @@ async function unbanUserWithActor(
     updatedAt: now,
   })
 
+  // Restore soft-deleted skills that were hidden due to the ban
+  const skills = await ctx.db
+    .query('skills')
+    .withIndex('by_owner', (q) => q.eq('ownerUserId', targetUserId))
+    .collect()
+
+  let restoredCount = 0
+  for (const skill of skills) {
+    // Only restore skills we soft-deleted as part of the ban flow.
+    if (
+      skill.softDeletedAt &&
+      skill.softDeletedAt === bannedAt &&
+      skill.moderationReason === 'user.banned'
+    ) {
+      await ctx.db.patch(skill._id, {
+        softDeletedAt: undefined,
+        moderationStatus: 'active',
+        moderationReason: 'restored.unban',
+        hiddenAt: undefined,
+        hiddenBy: undefined,
+        lastReviewedAt: now,
+        updatedAt: now,
+      })
+
+      // Restore embedding visibility
+      await restoreSkillEmbeddingVisibility(ctx, skill._id, now)
+
+      restoredCount += 1
+    }
+  }
+
   await ctx.db.insert('auditLogs', {
     actorUserId: actor._id,
     action: 'user.unban',
     targetType: 'user',
     targetId: targetUserId,
-    metadata: { reason: reason || undefined },
+    metadata: { reason: reason || undefined, restoredSkills: restoredCount },
     createdAt: now,
   })
 
-  return { ok: true as const, alreadyUnbanned: false }
+  return { ok: true as const, alreadyUnbanned: false, restoredSkills: restoredCount }
 }
+
+/**
+ * Admin-only: set or unset the trustedPublisher flag for a user.
+ * Trusted publishers bypass the pending.scan auto-hide for new skill publishes.
+ */
+export const setTrustedPublisher = mutation({
+  args: {
+    userId: v.id('users'),
+    trusted: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireUser(ctx)
+    assertAdmin(user)
+
+    const target = await ctx.db.get(args.userId)
+    if (!target) throw new Error('User not found')
+
+    const now = Date.now()
+    await ctx.db.patch(args.userId, {
+      trustedPublisher: args.trusted || undefined,
+      updatedAt: now,
+    })
+
+    await ctx.db.insert('auditLogs', {
+      actorUserId: user._id,
+      action: args.trusted ? 'user.trusted.set' : 'user.trusted.unset',
+      targetType: 'user',
+      targetId: args.userId,
+      metadata: { trusted: args.trusted },
+      createdAt: now,
+    })
+
+    return { ok: true as const, trusted: args.trusted }
+  },
+})
+
+export const setTrustedPublisherInternal = internalMutation({
+  args: {
+    actorUserId: v.id('users'),
+    targetUserId: v.id('users'),
+    trusted: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorUserId)
+    if (!actor || actor.deletedAt || actor.deactivatedAt) throw new Error('User not found')
+    assertAdmin(actor)
+
+    const target = await ctx.db.get(args.targetUserId)
+    if (!target) throw new Error('User not found')
+
+    const now = Date.now()
+    await ctx.db.patch(args.targetUserId, {
+      trustedPublisher: args.trusted || undefined,
+      updatedAt: now,
+    })
+
+    await ctx.db.insert('auditLogs', {
+      actorUserId: args.actorUserId,
+      action: args.trusted ? 'user.trusted.set' : 'user.trusted.unset',
+      targetType: 'user',
+      targetId: args.targetUserId,
+      metadata: { trusted: args.trusted },
+      createdAt: now,
+    })
+
+    return { ok: true as const, trusted: args.trusted }
+  },
+})
 
 /**
  * Auto-ban a user whose skill was flagged malicious by VT.
@@ -429,17 +521,7 @@ export const autobanMalwareAuthorInternal = internalMutation({
 
     const now = Date.now()
 
-    // Soft-delete all their skills
-    const skills = await ctx.db
-      .query('skills')
-      .withIndex('by_owner', (q) => q.eq('ownerUserId', args.ownerUserId))
-      .collect()
-
-    for (const skill of skills) {
-      if (!skill.softDeletedAt) {
-        await ctx.db.patch(skill._id, { softDeletedAt: now, updatedAt: now })
-      }
-    }
+    const hiddenCount = await softDeleteSkillsForBan(ctx, args.ownerUserId, now)
 
     // Revoke all API tokens
     const tokens = await ctx.db
@@ -464,7 +546,7 @@ export const autobanMalwareAuthorInternal = internalMutation({
       userId: args.ownerUserId,
     })
 
-    // Audit log — use the target as actor since there's no human actor
+    // Audit log -- use the target as actor since there's no human actor
     await ctx.db.insert('auditLogs', {
       actorUserId: args.ownerUserId,
       action: 'user.autoban.malware',
@@ -474,7 +556,7 @@ export const autobanMalwareAuthorInternal = internalMutation({
         trigger: 'vt.malicious',
         sha256hash: args.sha256hash,
         slug: args.slug,
-        deletedSkills: skills.length,
+        hiddenSkills: hiddenCount,
       },
       createdAt: now,
     })
@@ -483,6 +565,72 @@ export const autobanMalwareAuthorInternal = internalMutation({
       `[autoban] Banned ${target.handle ?? args.ownerUserId} — malicious skill: ${args.slug}`,
     )
 
-    return { ok: true, alreadyBanned: false, deletedSkills: skills.length }
+    return { ok: true, alreadyBanned: false, deletedSkills: hiddenCount }
   },
 })
+
+async function softDeleteSkillsForBan(
+  ctx: MutationCtx,
+  ownerUserId: Id<'users'>,
+  now: number,
+  options?: { hiddenBy?: Id<'users'> },
+) {
+  // Soft-delete owned skills (instead of hard-delete) so they can be restored on unban.
+  // The slug is still occupied by the soft-deleted record, preventing squatting.
+  const skills = await ctx.db
+    .query('skills')
+    .withIndex('by_owner', (q) => q.eq('ownerUserId', ownerUserId))
+    .collect()
+
+  let hiddenCount = 0
+  for (const skill of skills) {
+    if (skill.softDeletedAt) continue
+
+    // Only overwrite moderation fields for active skills. Keep existing hidden/removed
+    // moderation reasons intact.
+    const shouldMarkModeration = skill.moderationStatus === 'active'
+
+    const patch: Partial<Doc<'skills'>> = { softDeletedAt: now, updatedAt: now }
+    if (shouldMarkModeration) {
+      patch.moderationStatus = 'hidden'
+      patch.moderationReason = 'user.banned'
+      patch.hiddenAt = now
+      if (options?.hiddenBy) patch.hiddenBy = options.hiddenBy
+      patch.lastReviewedAt = now
+      hiddenCount += 1
+    }
+
+    await ctx.db.patch(skill._id, patch)
+    await markSkillEmbeddingsDeleted(ctx, skill._id, now)
+  }
+
+  return hiddenCount
+}
+
+async function markSkillEmbeddingsDeleted(ctx: MutationCtx, skillId: Id<'skills'>, now: number) {
+  const embeddings = await ctx.db
+    .query('skillEmbeddings')
+    .withIndex('by_skill', (q) => q.eq('skillId', skillId))
+    .collect()
+  for (const embedding of embeddings) {
+    if (embedding.visibility === 'deleted') continue
+    await ctx.db.patch(embedding._id, { visibility: 'deleted', updatedAt: now })
+  }
+}
+
+async function restoreSkillEmbeddingVisibility(ctx: MutationCtx, skillId: Id<'skills'>, now: number) {
+  const embeddings = await ctx.db
+    .query('skillEmbeddings')
+    .withIndex('by_skill', (q) => q.eq('skillId', skillId))
+    .collect()
+  for (const embedding of embeddings) {
+    const visibility = embedding.isLatest
+      ? embedding.isApproved
+        ? 'latest-approved'
+        : 'latest'
+      : embedding.isApproved
+        ? 'archived-approved'
+        : 'archived'
+    await ctx.db.patch(embedding._id, { visibility, updatedAt: now })
+  }
+}
