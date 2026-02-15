@@ -17,6 +17,7 @@ const users = defineTable({
   role: v.optional(v.union(v.literal('admin'), v.literal('moderator'), v.literal('user'))),
   githubCreatedAt: v.optional(v.number()),
   githubFetchedAt: v.optional(v.number()),
+  githubProfileSyncedAt: v.optional(v.number()),
   trustedPublisher: v.optional(v.boolean()),
   deactivatedAt: v.optional(v.number()),
   purgedAt: v.optional(v.number()),
