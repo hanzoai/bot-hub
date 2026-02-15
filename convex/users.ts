@@ -69,6 +69,7 @@ export const syncGitHubProfileInternal = internalMutation({
     userId: v.id('users'),
     name: v.string(),
     image: v.optional(v.string()),
+    profileName: v.optional(v.string()),
     syncedAt: v.number(),
   },
   handler: async (ctx, args) => {
@@ -96,6 +97,20 @@ export const syncGitHubProfileInternal = internalMutation({
     ) {
       updates.displayName = args.name
       didChangeProfile = true
+    }
+
+    // If displayName is derived/missing, prefer the GitHub profile "name" (full name).
+    const profileName = args.profileName?.trim()
+    if (profileName && profileName !== args.name) {
+      const currentDisplay = user.displayName?.trim()
+      const currentHandle = user.handle?.trim()
+      const currentLogin = user.name?.trim()
+      const isDerivedOrMissing =
+        !currentDisplay || currentDisplay === currentHandle || currentDisplay === currentLogin
+      if (isDerivedOrMissing && currentDisplay !== profileName) {
+        updates.displayName = profileName
+        didChangeProfile = true
+      }
     }
 
     // Update avatar if provided

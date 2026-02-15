@@ -359,4 +359,38 @@ describe('syncGitHubProfile', () => {
       syncedAt: now.getTime(),
     })
   })
+
+  it('forwards GitHub profile name (full name) when present', async () => {
+    vi.useFakeTimers()
+    const now = new Date('2026-02-02T12:00:00Z')
+    vi.setSystemTime(now)
+
+    const runQuery = vi.fn()
+      .mockResolvedValueOnce({
+        _id: 'users:1',
+        name: 'same',
+        githubProfileSyncedAt: now.getTime() - 10 * ONE_DAY_MS,
+      })
+      .mockResolvedValueOnce('12345')
+    const runMutation = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        login: 'same',
+        name: 'Real Name',
+        avatar_url: 'https://avatars.githubusercontent.com/u/1?v=1',
+      }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await syncGitHubProfile({ runQuery, runMutation } as never, 'users:1' as never)
+
+    expect(runMutation).toHaveBeenCalledWith(internal.users.syncGitHubProfileInternal, {
+      userId: 'users:1',
+      name: 'same',
+      image: 'https://avatars.githubusercontent.com/u/1?v=1',
+      profileName: 'Real Name',
+      syncedAt: now.getTime(),
+    })
+  })
 })

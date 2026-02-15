@@ -9,6 +9,7 @@ const MIN_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 type GitHubUser = {
   login?: string
+  name?: string
   avatar_url?: string
   created_at?: string
 }
@@ -115,13 +116,25 @@ export async function syncGitHubProfile(ctx: ActionCtx, userId: Id<'users'>) {
   const payload = (await response.json()) as GitHubUser
   const newLogin = payload.login?.trim()
   const newImage = payload.avatar_url?.trim()
+  const profileName = payload.name?.trim()
 
   if (!newLogin) return
 
-  await ctx.runMutation(internal.users.syncGitHubProfileInternal, {
+  const args: {
+    userId: Id<'users'>
+    name: string
+    image?: string
+    syncedAt: number
+    profileName?: string
+  } = {
     userId,
     name: newLogin,
     image: newImage,
     syncedAt: now,
-  })
+  }
+  if (profileName && profileName !== newLogin) {
+    args.profileName = profileName
+  }
+
+  await ctx.runMutation(internal.users.syncGitHubProfileInternal, args)
 }
