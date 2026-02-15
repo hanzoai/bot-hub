@@ -1970,6 +1970,11 @@ code {
   gap: 10px;
 }
 
+.skill-hero-cta .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .skill-version-pill {
   display: grid;
   gap: 4px;
