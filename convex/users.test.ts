@@ -103,6 +103,36 @@ describe('ensureHandler', () => {
       updatedAt: expect.any(Number),
     })
   })
+
+  it('does not patch when user metadata is already normalized', async () => {
+    const { ctx, patch, get } = makeCtx()
+    get.mockResolvedValue({
+      _id: 'users:4',
+      handle: 'steady',
+      displayName: 'Steady Name',
+      name: 'steady',
+      role: 'user',
+      _creationTime: 1,
+      createdAt: 1,
+    })
+    vi.mocked(requireUser).mockResolvedValue({
+      userId: 'users:4',
+      user: {
+        _creationTime: 1,
+        handle: 'steady',
+        displayName: 'Steady Name',
+        name: 'steady',
+        role: 'user',
+        createdAt: 1,
+      },
+    } as never)
+
+    const result = await ensureHandler(ctx)
+
+    expect(patch).not.toHaveBeenCalled()
+    expect(get).toHaveBeenCalledWith('users:4')
+    expect(result).toMatchObject({ _id: 'users:4' })
+  })
 })
 
 describe('users.list', () => {
@@ -303,5 +333,52 @@ describe('users.searchInternal', () => {
         role: 'user',
       },
     ])
+  })
+
+  it('rejects deactivated actors', async () => {
+    const { ctx, get } = makeListCtx([])
+    const handler = (
+      searchInternal as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> }
+    )._handler
+    get.mockResolvedValue({ _id: 'users:ghost', role: 'admin', deactivatedAt: Date.now() })
+
+    await expect(handler(ctx, { actorUserId: 'users:ghost' })).rejects.toThrow('Unauthorized')
+  })
+
+  it('rejects non-admin actors', async () => {
+    const { ctx, get } = makeListCtx([])
+    const handler = (
+      searchInternal as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> }
+    )._handler
+    get.mockResolvedValue({ _id: 'users:mod', role: 'moderator' })
+
+    await expect(handler(ctx, { actorUserId: 'users:mod', query: 'a' })).rejects.toThrow(
+      'Forbidden',
+    )
+  })
+
+  it('clamps limit for empty query and uses non-search path', async () => {
+    const users = Array.from({ length: 400 }, (_value, index) => ({
+      _id: `users:${index}`,
+      _creationTime: 1_000 - index,
+      handle: `user-${index}`,
+      role: 'user',
+    }))
+    const { ctx, take, collect, get } = makeListCtx(users)
+    const handler = (
+      searchInternal as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> }
+    )._handler
+    get.mockResolvedValue({ _id: 'users:admin', role: 'admin' })
+
+    const result = (await handler(ctx, {
+      actorUserId: 'users:admin',
+      limit: 999,
+      query: '   ',
+    })) as { items: Array<Record<string, unknown>>; total: number }
+
+    expect(take).toHaveBeenCalledWith(200)
+    expect(collect).not.toHaveBeenCalled()
+    expect(result.total).toBe(200)
+    expect(result.items).toHaveLength(200)
   })
 })
