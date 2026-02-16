@@ -178,4 +178,36 @@ describe('users.list', () => {
 
     expect(take).toHaveBeenCalledWith(2_000)
   })
+
+  it('handles malformed legacy user fields without throwing', async () => {
+    vi.mocked(requireUser).mockResolvedValue({
+      userId: 'users:admin',
+      user: { _id: 'users:admin', role: 'admin' },
+    } as never)
+    const users = [
+      {
+        _id: 'users:legacy',
+        _creationTime: 99,
+        handle: 123,
+        name: { broken: true },
+        displayName: null,
+        email: ['legacy@example.com'],
+        role: 'user',
+      },
+      {
+        _id: 'users:2',
+        _creationTime: 98,
+        handle: 'carol',
+        role: 'user',
+      },
+    ]
+    const { ctx } = makeListCtx(users)
+    const listHandler = (list as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler
+
+    await expect(listHandler(ctx, { limit: 50, search: 'car' })).resolves.toMatchObject({
+      total: 1,
+      items: [{ _id: 'users:2' }],
+    })
+  })
 })
