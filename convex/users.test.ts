@@ -6,12 +6,26 @@ vi.mock('./lib/access', async () => {
 })
 
 const { requireUser } = await import('./lib/access')
-const { ensureHandler } = await import('./users')
+const { ensureHandler, list } = await import('./users')
 
 function makeCtx() {
   const patch = vi.fn()
   const get = vi.fn()
   return { ctx: { db: { patch, get } } as never, patch, get }
+}
+
+function makeListCtx(users: Array<Record<string, unknown>>) {
+  const take = vi.fn(async (n: number) => users.slice(0, n))
+  const collect = vi.fn(async () => users)
+  const order = vi.fn(() => ({ take, collect }))
+  const query = vi.fn(() => ({ order }))
+  return {
+    ctx: { db: { query } } as never,
+    take,
+    collect,
+    order,
+    query,
+  }
 }
 
 describe('ensureHandler', () => {
@@ -86,5 +100,82 @@ describe('ensureHandler', () => {
       displayName: 'steady-handle',
       updatedAt: expect.any(Number),
     })
+  })
+})
+
+describe('users.list', () => {
+  afterEach(() => {
+    vi.mocked(requireUser).mockReset()
+  })
+
+  it('uses take(limit) without full collect when search is empty', async () => {
+    vi.mocked(requireUser).mockResolvedValue({
+      userId: 'users:admin',
+      user: { _id: 'users:admin', role: 'admin' },
+    } as never)
+    const users = [
+      { _id: 'users:1', _creationTime: 3, handle: 'alice', role: 'user' },
+      { _id: 'users:2', _creationTime: 2, handle: 'bob', role: 'user' },
+      { _id: 'users:3', _creationTime: 1, handle: 'carol', role: 'user' },
+    ]
+    const { ctx, take, collect } = makeListCtx(users)
+    const listHandler = (list as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler
+
+    const result = (await listHandler(ctx, { limit: 2 })) as {
+      items: Array<Record<string, unknown>>
+      total: number
+    }
+
+    expect(take).toHaveBeenCalledWith(2)
+    expect(collect).not.toHaveBeenCalled()
+    expect(result.total).toBe(2)
+    expect(result.items).toHaveLength(2)
+  })
+
+  it('uses bounded scan for search instead of full collect', async () => {
+    vi.mocked(requireUser).mockResolvedValue({
+      userId: 'users:admin',
+      user: { _id: 'users:admin', role: 'admin' },
+    } as never)
+    const users = [
+      { _id: 'users:1', _creationTime: 3, handle: 'alice', role: 'user' },
+      { _id: 'users:2', _creationTime: 2, handle: 'bob', role: 'user' },
+      { _id: 'users:3', _creationTime: 1, handle: 'carol', role: 'user' },
+    ]
+    const { ctx, take, collect } = makeListCtx(users)
+    const listHandler = (list as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler
+
+    const result = (await listHandler(ctx, { limit: 50, search: 'ali' })) as {
+      items: Array<Record<string, unknown>>
+      total: number
+    }
+
+    expect(take).toHaveBeenCalledWith(500)
+    expect(collect).not.toHaveBeenCalled()
+    expect(result.total).toBe(1)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]?.handle).toBe('alice')
+  })
+
+  it('clamps large limit and search scan size', async () => {
+    vi.mocked(requireUser).mockResolvedValue({
+      userId: 'users:admin',
+      user: { _id: 'users:admin', role: 'admin' },
+    } as never)
+    const users = Array.from({ length: 8_000 }, (_value, index) => ({
+      _id: `users:${index}`,
+      _creationTime: 10_000 - index,
+      handle: `user-${index}`,
+      role: 'user',
+    }))
+    const { ctx, take } = makeListCtx(users)
+    const listHandler = (list as unknown as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler
+
+    await listHandler(ctx, { limit: 999, search: 'user' })
+
+    expect(take).toHaveBeenCalledWith(2_000)
   })
 })
