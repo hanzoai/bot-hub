@@ -16,7 +16,7 @@ vi.mock('./lib/badges', () => ({
 import { listPublicPageV2 } from './skills'
 
 type ListArgs = {
-  paginationOpts: { cursor: string | null; numItems: number }
+  paginationOpts: { cursor: string | null; numItems: number; id?: number }
   sort?: 'newest' | 'updated' | 'downloads' | 'installs' | 'stars' | 'name'
   dir?: 'asc' | 'desc'
   highlightedOnly?: boolean
@@ -135,6 +135,54 @@ describe('skills.listPublicPageV2', () => {
     expect(result.page).toEqual([])
     expect(result.continueCursor).toBe('next-cursor')
     expect(result.isDone).toBe(false)
+  })
+
+  it('restarts pagination from first page when cursor is stale', async () => {
+    const plain = makeSkill('skills:plain', 'plain', 'users:1', 'skillVersions:1')
+    const paginateMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Failed to parse cursor'))
+      .mockResolvedValueOnce({
+        page: [plain],
+        continueCursor: 'next-cursor',
+        isDone: false,
+        pageStatus: null,
+        splitCursor: null,
+      })
+    const ctx = {
+      db: {
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({
+            order: vi.fn(() => ({ paginate: paginateMock })),
+          })),
+        })),
+        get: vi.fn(async (id: string) => {
+          if (id.startsWith('users:')) return makeUser(id)
+          if (id.startsWith('skillVersions:')) return makeVersion(id)
+          return null
+        }),
+      },
+    }
+
+    const result = await listPublicPageV2Handler(ctx, {
+      paginationOpts: { cursor: 'stale-cursor', numItems: 25, id: 123456 },
+      sort: 'downloads',
+      dir: 'desc',
+      highlightedOnly: false,
+      nonSuspiciousOnly: false,
+    })
+
+    expect(result.page).toHaveLength(1)
+    expect(result.page[0]?.skill.slug).toBe('plain')
+    expect(result.continueCursor).toBe('next-cursor')
+    expect(result.isDone).toBe(false)
+    expect(paginateMock).toHaveBeenNthCalledWith(1, { cursor: 'stale-cursor', numItems: 25 })
+    expect(paginateMock).toHaveBeenNthCalledWith(2, { cursor: null, numItems: 25 })
+    expect(paginateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.any(Number),
+      }),
+    )
   })
 })
 

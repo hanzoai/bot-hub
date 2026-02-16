@@ -1569,18 +1569,29 @@ export const listPublicPageV2 = query({
   handler: async (ctx, args) => {
     const sort = args.sort ?? 'newest'
     const dir = args.dir ?? (sort === 'name' ? 'asc' : 'desc')
-    const paginationOpts: { cursor: string | null; numItems: number; id?: number } = {
-      ...args.paginationOpts,
-      numItems: clampInt(args.paginationOpts.numItems, 1, MAX_PUBLIC_LIST_LIMIT),
-    }
+    const numItems = clampInt(args.paginationOpts.numItems, 1, MAX_PUBLIC_LIST_LIMIT)
+    const initialCursor = args.paginationOpts.cursor ?? null
 
-    // Use the index to filter out soft-deleted skills at query time.
-    // softDeletedAt === undefined means active (non-deleted) skills only.
-    const result = await ctx.db
-      .query('skills')
-      .withIndex(SORT_INDEXES[sort], (q) => q.eq('softDeletedAt', undefined))
-      .order(dir)
-      .paginate(paginationOpts)
+    const runPaginate = (cursor: string | null) =>
+      ctx.db
+        .query('skills')
+        .withIndex(SORT_INDEXES[sort], (q) => q.eq('softDeletedAt', undefined))
+        .order(dir)
+        .paginate({ cursor, numItems })
+
+    let result: Awaited<ReturnType<typeof runPaginate>>
+    try {
+      // Use the index to filter out soft-deleted skills at query time.
+      // softDeletedAt === undefined means active (non-deleted) skills only.
+      result = await runPaginate(initialCursor)
+    } catch (error) {
+      // Some clients may send stale cursors after index/query argument changes.
+      // Recover by restarting from the first page instead of surfacing a 500.
+      if (!initialCursor || !isCursorParseError(error)) {
+        throw error
+      }
+      result = await runPaginate(null)
+    }
 
     const filteredPage =
       args.nonSuspiciousOnly || args.highlightedOnly
@@ -1596,6 +1607,15 @@ export const listPublicPageV2 = query({
     return { ...result, page: items }
   },
 })
+
+function isCursorParseError(error: unknown) {
+  if (typeof error === 'string') return error.includes('Failed to parse cursor')
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    return typeof message === 'string' && message.includes('Failed to parse cursor')
+  }
+  return false
+}
 
 function sortToIndex(
   sort: 'downloads' | 'stars' | 'installsCurrent' | 'installsAllTime',
