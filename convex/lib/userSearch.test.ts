@@ -45,4 +45,27 @@ describe('buildUserSearchResults', () => {
     expect(result.total).toBe(1)
     expect(result.items[0]?._id).toBe('users:2')
   })
+
+  it('ranks exact id match above fuzzy matches', () => {
+    const users = [
+      makeUser({ _id: 'users:target', handle: 'target-user', _creationTime: 1 }),
+      makeUser({ _id: 'users:2', handle: 'users:target', _creationTime: 10 }),
+    ]
+
+    const result = buildUserSearchResults(users, 'users:target')
+    expect(result.total).toBe(2)
+    expect(result.items[0]?._id).toBe('users:target')
+  })
+
+  it('uses creation time as tie-break when scores are equal', () => {
+    const users = [
+      makeUser({ _id: 'users:older', handle: 'alpha', _creationTime: 1 }),
+      makeUser({ _id: 'users:newer', handle: 'alpha-two', _creationTime: 50 }),
+    ]
+
+    const result = buildUserSearchResults(users, 'pha')
+    expect(result.total).toBe(2)
+    expect(result.items[0]?._id).toBe('users:newer')
+    expect(result.items[1]?._id).toBe('users:older')
+  })
 })
