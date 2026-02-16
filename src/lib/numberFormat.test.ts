@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { formatCompactStat } from './numberFormat'
+import {
+  formatCompactStat,
+  formatSkillStatsTriplet,
+  formatSoulStatsTriplet,
+  type SkillStatsTriplet,
+  type SoulStatsTriplet,
+} from './numberFormat'
 
 describe('formatCompactStat', () => {
   it('keeps small values as whole numbers', () => {
@@ -23,5 +29,27 @@ describe('formatCompactStat', () => {
   it('preserves sign for negative values', () => {
     expect(formatCompactStat(-1_500)).toBe('-1.5k')
     expect(formatCompactStat(-2_500_000)).toBe('-2.5M')
+  })
+})
+
+describe('stats triplet formatters', () => {
+  it('formats skill triplet consistently', () => {
+    const stats: SkillStatsTriplet = { stars: 12_340, downloads: 23_683, installsAllTime: 1_045_000 }
+
+    expect(formatSkillStatsTriplet(stats)).toEqual({
+      stars: '12.3k',
+      downloads: '23.7k',
+      installsAllTime: '1M',
+    })
+  })
+
+  it('formats soul triplet consistently', () => {
+    const stats: SoulStatsTriplet = { stars: 3_540, downloads: 78_010, versions: 4 }
+
+    expect(formatSoulStatsTriplet(stats)).toEqual({
+      stars: '3.5k',
+      downloads: '78k',
+      versions: 4,
+    })
   })
 })

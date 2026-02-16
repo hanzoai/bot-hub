@@ -1,3 +1,15 @@
+export type SkillStatsTriplet = {
+  stars: number
+  downloads: number
+  installsAllTime?: number | null
+}
+
+export type SoulStatsTriplet = {
+  stars: number
+  downloads: number
+  versions: number
+}
+
 export function formatCompactStat(value: number): string {
   if (!Number.isFinite(value)) return '0'
   const sign = value < 0 ? '-' : ''
@@ -12,6 +24,22 @@ export function formatCompactStat(value: number): string {
   }
 
   return `${sign}${formatUnit(absolute / 1_000_000)}M`
+}
+
+export function formatSkillStatsTriplet(stats: SkillStatsTriplet) {
+  return {
+    stars: formatCompactStat(stats.stars),
+    downloads: formatCompactStat(stats.downloads),
+    installsAllTime: formatCompactStat(stats.installsAllTime ?? 0),
+  }
+}
+
+export function formatSoulStatsTriplet(stats: SoulStatsTriplet) {
+  return {
+    stars: formatCompactStat(stats.stars),
+    downloads: formatCompactStat(stats.downloads),
+    versions: stats.versions,
+  }
 }
 
 function formatUnit(scaled: number): string {

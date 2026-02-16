@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import { InstallSwitcher } from '../components/InstallSwitcher'
 import { SkillCard } from '../components/SkillCard'
+import { SkillStatsTripletLine } from '../components/SkillStats'
 import { SoulCard } from '../components/SoulCard'
+import { SoulStatsTripletLine } from '../components/SoulStats'
 import { UserBadge } from '../components/UserBadge'
 import { getSkillBadges } from '../lib/badges'
-import { formatCompactStat } from '../lib/numberFormat'
 import type { PublicSkill, PublicSoul, PublicUser } from '../lib/publicUser'
 import { getSiteMode } from '../lib/site'
 
@@ -101,9 +102,7 @@ function SkillsHome() {
                       link={false}
                     />
                     <div className="stat">
-                      ⭐ {formatCompactStat(entry.skill.stats.stars)} · ⤓{' '}
-                      {formatCompactStat(entry.skill.stats.downloads)} · ⤒{' '}
-                      {formatCompactStat(entry.skill.stats.installsAllTime ?? 0)}
+                      <SkillStatsTripletLine stats={entry.skill.stats} />
                     </div>
                   </div>
                 }
@@ -134,9 +133,7 @@ function SkillsHome() {
                       link={false}
                     />
                     <div className="stat">
-                      ⭐ {formatCompactStat(entry.skill.stats.stars)} · ⤓{' '}
-                      {formatCompactStat(entry.skill.stats.downloads)} · ⤒{' '}
-                      {formatCompactStat(entry.skill.stats.installsAllTime ?? 0)}
+                      <SkillStatsTripletLine stats={entry.skill.stats} />
                     </div>
                   </div>
                 }
@@ -256,8 +253,7 @@ function OnlyCrabsHome() {
                 summaryFallback="A SOUL.md bundle."
                 meta={
                   <div className="stat">
-                    ⭐ {formatCompactStat(soul.stats.stars)} · ⤓{' '}
-                    {formatCompactStat(soul.stats.downloads)} · {soul.stats.versions} v
+                    <SoulStatsTripletLine stats={soul.stats} />
                   </div>
                 }
               />
