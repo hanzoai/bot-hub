@@ -222,7 +222,7 @@ async function describeOwnerVisibleSkillState(
   if (skill.softDeletedAt) {
     return {
       status: 410,
-      message: `Skill is hidden/deleted. Run "clawhub undelete ${slug}" to restore it.`,
+      message: `Skill is hidden/deleted. Run "bothub undelete ${slug}" to restore it.`,
     }
   }
 
@@ -237,7 +237,7 @@ async function describeOwnerVisibleSkillState(
       return {
         status: 403,
         message:
-          'Skill is hidden by quality checks. Update SKILL.md content or run "clawhub undelete <slug>" after review.',
+          'Skill is hidden by quality checks. Update SKILL.md content or run "bothub undelete <slug>" after review.',
       }
     }
     return {

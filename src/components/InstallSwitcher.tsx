@@ -18,11 +18,11 @@ export function InstallSwitcher({ exampleSlug = 'sonoscli' }: InstallSwitcherPro
   const command = useMemo(() => {
     switch (pm) {
       case 'npm':
-        return `npx clawhub@latest install ${exampleSlug}`
+        return `npx bothub@latest install ${exampleSlug}`
       case 'pnpm':
-        return `pnpm dlx clawhub@latest install ${exampleSlug}`
+        return `pnpm dlx bothub@latest install ${exampleSlug}`
       case 'bun':
-        return `bunx clawhub@latest install ${exampleSlug}`
+        return `bunx bothub@latest install ${exampleSlug}`
     }
   }, [exampleSlug, pm])
 

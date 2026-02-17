@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
-import { getClawHubSiteUrl, normalizeClawHubSiteOrigin } from '../../lib/site'
+import { getBotHubSiteUrl, normalizeBotHubSiteOrigin } from '../../lib/site'
 import { useAuthStatus } from '../../lib/useAuthStatus'
 
 export const Route = createFileRoute('/cli/auth')({
@@ -33,9 +33,9 @@ function CliAuth() {
   const safeRedirect = useMemo(() => isAllowedRedirectUri(redirectUri), [redirectUri])
   const registry = useMemo(() => {
     if (typeof window !== 'undefined') {
-      return normalizeClawHubSiteOrigin(window.location.origin) ?? getClawHubSiteUrl()
+      return normalizeBotHubSiteOrigin(window.location.origin) ?? getBotHubSiteUrl()
     }
-    return getClawHubSiteUrl()
+    return getBotHubSiteUrl()
   }, [])
 
   useEffect(() => {

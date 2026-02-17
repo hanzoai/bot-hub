@@ -1,3 +1,3 @@
-# clawhub-schema
+# bothub-schema
 
-Shared runtime schemas (ArkType) for ClawHub.
+Shared runtime schemas (ArkType) for Bot Hub.

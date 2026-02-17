@@ -4,7 +4,7 @@ import type { GitHubBackupContext } from './githubBackup'
 
 const GITHUB_API = 'https://api.github.com'
 const META_FILENAME = '_meta.json'
-const USER_AGENT = 'clawhub/skills-restore'
+const USER_AGENT = 'bothub/skills-restore'
 
 type GitHubContentsEntry = {
   name?: string

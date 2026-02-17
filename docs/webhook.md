@@ -6,7 +6,7 @@ read_when:
 
 # Webhooks (Discord)
 
-ClawHub can post Discord embeds when skills are published or highlighted.
+Bot Hub can post Discord embeds when skills are published or highlighted.
 
 ## Setup
 
@@ -14,7 +14,7 @@ Set the webhook URL in the Convex environment:
 
 - `DISCORD_WEBHOOK_URL` (required): Discord webhook URL.
 - `DISCORD_WEBHOOK_HIGHLIGHTED_ONLY` (optional): `true` to only send for highlighted skills.
-- `SITE_URL` (optional): Base site URL for links (default `https://clawhub.ai`).
+- `SITE_URL` (optional): Base site URL for links (default `https://hub.hanzo.bot`).
 
 ## Events
 
@@ -38,13 +38,13 @@ Discord receives a JSON payload with a single embed:
     {
       "title": "Demo Skill",
       "description": "Nice skill",
-      "url": "https://clawhub.ai/owner/demo-skill",
+      "url": "https://hub.hanzo.bot/owner/demo-skill",
       "fields": [
         { "name": "Version", "value": "v1.2.3", "inline": true },
         { "name": "Owner", "value": "@owner", "inline": true },
         { "name": "Tags", "value": "latest, discord", "inline": false }
       ],
-      "footer": { "text": "ClawHub" }
+      "footer": { "text": "Bot Hub" }
     }
   ]
 }

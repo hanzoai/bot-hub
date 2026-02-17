@@ -1,16 +1,16 @@
 export type SiteMode = 'skills' | 'souls'
 
-const DEFAULT_CLAWHUB_SITE_URL = 'https://clawhub.ai'
+const DEFAULT_BOTHUB_SITE_URL = 'https://hub.hanzo.bot'
 const DEFAULT_ONLYCRABS_SITE_URL = 'https://onlycrabs.ai'
 const DEFAULT_ONLYCRABS_HOST = 'onlycrabs.ai'
-const LEGACY_CLAWDHUB_HOSTS = new Set(['clawdhub.com', 'www.clawdhub.com', 'auth.clawdhub.com'])
+const LEGACY_HOSTS = new Set(['clawhub.ai', 'www.clawhub.ai', 'auth.clawhub.com', 'clawdhub.ai'])
 
-export function normalizeClawHubSiteOrigin(value?: string | null) {
+export function normalizeBotHubSiteOrigin(value?: string | null) {
   if (!value) return null
   try {
     const url = new URL(value)
-    if (LEGACY_CLAWDHUB_HOSTS.has(url.hostname.toLowerCase())) {
-      return DEFAULT_CLAWHUB_SITE_URL
+    if (LEGACY_HOSTS.has(url.hostname.toLowerCase())) {
+      return DEFAULT_BOTHUB_SITE_URL
     }
     return url.origin
   } catch {
@@ -18,8 +18,8 @@ export function normalizeClawHubSiteOrigin(value?: string | null) {
   }
 }
 
-export function getClawHubSiteUrl() {
-  return normalizeClawHubSiteOrigin(import.meta.env.VITE_SITE_URL) ?? DEFAULT_CLAWHUB_SITE_URL
+export function getBotHubSiteUrl() {
+  return normalizeBotHubSiteOrigin(import.meta.env.VITE_SITE_URL) ?? DEFAULT_BOTHUB_SITE_URL
 }
 
 export function getOnlyCrabsSiteUrl() {
@@ -84,15 +84,15 @@ export function getSiteMode(): SiteMode {
 }
 
 export function getSiteName(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? 'SoulHub' : 'ClawHub'
+  return mode === 'souls' ? 'SoulHub' : 'Bot Hub'
 }
 
 export function getSiteDescription(mode: SiteMode = getSiteMode()) {
   return mode === 'souls'
     ? 'SoulHub — the home for SOUL.md bundles and personal system lore.'
-    : 'ClawHub — a fast skill registry for agents, with vector search.'
+    : 'Bot Hub — a fast skill registry for agents, with vector search.'
 }
 
 export function getSiteUrlForMode(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? getOnlyCrabsSiteUrl() : getClawHubSiteUrl()
+  return mode === 'souls' ? getOnlyCrabsSiteUrl() : getBotHubSiteUrl()
 }

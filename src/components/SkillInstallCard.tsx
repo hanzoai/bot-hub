@@ -1,4 +1,4 @@
-import type { ClawdisSkillMetadata } from 'clawhub-schema'
+import type { ClawdisSkillMetadata } from 'bothub-schema'
 import { formatInstallCommand, formatInstallLabel } from './skillDetailUtils'
 
 type SkillInstallCardProps = {

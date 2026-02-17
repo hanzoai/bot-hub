@@ -237,7 +237,7 @@ function InstalledSection(props: {
       ) : null}
 
       {data.roots.length === 0 ? (
-        <div className="card">No telemetry yet. Run `clawhub sync` from the CLI.</div>
+        <div className="card">No telemetry yet. Run `bothub sync` from the CLI.</div>
       ) : (
         <div style={{ display: 'grid', gap: 16 }}>
           {data.roots.map((root) => (

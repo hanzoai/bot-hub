@@ -1,0 +1,6 @@
+{
+  "apiBase": "https://hub.hanzo.bot",
+  "authBase": "https://hub.hanzo.bot",
+  "minCliVersion": "0.1.0",
+  "registry": "https://hub.hanzo.bot"
+}

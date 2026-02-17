@@ -340,7 +340,7 @@ function mergeSourceIntoMetadata(
   }
 
   if (qualityAssessment) {
-    base._clawhubQuality = {
+    base._bothubQuality = {
       score: qualityAssessment.score,
       decision: qualityAssessment.decision,
       trustTier: qualityAssessment.trustTier,

@@ -1,5 +1,5 @@
 {
-  "name": "clawhub",
+  "name": "bothub",
   "private": true,
   "workspaces": [
     "packages/*"
@@ -14,8 +14,8 @@
     "docs:list": "bun scripts/docs-list.ts",
     "format": "oxfmt --write",
     "lint": "bun run lint:oxlint",
-    "lint:fix": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./convex ./packages/clawdhub/src ./packages/schema/src --fix && bun run format",
-    "lint:oxlint": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./convex ./packages/clawdhub/src ./packages/schema/src",
+    "lint:fix": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./convex ./packages/bothub/src ./packages/schema/src --fix && bun run format",
+    "lint:oxlint": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./convex ./packages/bothub/src ./packages/schema/src",
     "preinstall": "bunx only-allow bun",
     "preview": "bun --bun vite preview",
     "test": "vitest run",
@@ -41,7 +41,7 @@
     "@tanstack/react-start": "^1.157.18",
     "@tanstack/router-plugin": "^1.157.18",
     "@vercel/analytics": "^1.6.1",
-    "clawhub-schema": "workspace:*",
+    "bothub-schema": "workspace:*",
     "clsx": "^2.1.1",
     "convex": "^1.31.7",
     "fflate": "^0.8.2",

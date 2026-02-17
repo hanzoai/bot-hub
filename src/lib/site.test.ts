@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   detectSiteMode,
   detectSiteModeFromUrl,
-  getClawHubSiteUrl,
+  getBotHubSiteUrl,
   getOnlyCrabsHost,
   getOnlyCrabsSiteUrl,
   getSiteDescription,
@@ -42,15 +42,15 @@ afterEach(() => {
 
 describe('site helpers', () => {
   it('returns default and env configured site URLs', () => {
-    expect(getClawHubSiteUrl()).toBe('https://clawhub.ai')
+    expect(getBotHubSiteUrl()).toBe('https://hub.hanzo.bot')
     withMetaEnv({ VITE_SITE_URL: 'https://example.com' }, () => {
-      expect(getClawHubSiteUrl()).toBe('https://example.com')
+      expect(getBotHubSiteUrl()).toBe('https://example.com')
     })
-    withMetaEnv({ VITE_SITE_URL: 'https://clawdhub.com' }, () => {
-      expect(getClawHubSiteUrl()).toBe('https://clawhub.ai')
+    withMetaEnv({ VITE_SITE_URL: 'https://hub.hanzo.bot' }, () => {
+      expect(getBotHubSiteUrl()).toBe('https://hub.hanzo.bot')
     })
-    withMetaEnv({ VITE_SITE_URL: 'https://auth.clawdhub.com' }, () => {
-      expect(getClawHubSiteUrl()).toBe('https://clawhub.ai')
+    withMetaEnv({ VITE_SITE_URL: 'https://auth.hub.hanzo.bot' }, () => {
+      expect(getBotHubSiteUrl()).toBe('https://hub.hanzo.bot')
     })
   })
 
@@ -85,11 +85,11 @@ describe('site helpers', () => {
       expect(getOnlyCrabsHost()).toBe('souls.example.com')
       expect(detectSiteMode('souls.example.com')).toBe('souls')
       expect(detectSiteMode('sub.souls.example.com')).toBe('souls')
-      expect(detectSiteMode('clawhub.ai')).toBe('skills')
+      expect(detectSiteMode('hub.hanzo.bot')).toBe('skills')
 
       expect(detectSiteModeFromUrl('https://souls.example.com/x')).toBe('souls')
       expect(detectSiteModeFromUrl('souls.example.com')).toBe('souls')
-      expect(detectSiteModeFromUrl('https://clawhub.ai')).toBe('skills')
+      expect(detectSiteModeFromUrl('https://hub.hanzo.bot')).toBe('skills')
     })
   })
 
@@ -124,13 +124,13 @@ describe('site helpers', () => {
   })
 
   it('derives site metadata from mode', () => {
-    expect(getSiteName('skills')).toBe('ClawHub')
+    expect(getSiteName('skills')).toBe('Bot Hub')
     expect(getSiteName('souls')).toBe('SoulHub')
 
-    expect(getSiteDescription('skills')).toContain('ClawHub')
+    expect(getSiteDescription('skills')).toContain('Bot Hub')
     expect(getSiteDescription('souls')).toContain('SoulHub')
 
-    expect(getSiteUrlForMode('skills')).toBe('https://clawhub.ai')
+    expect(getSiteUrlForMode('skills')).toBe('https://hub.hanzo.bot')
     expect(getSiteUrlForMode('souls')).toBe('https://onlycrabs.ai')
   })
 })

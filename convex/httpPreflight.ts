@@ -19,7 +19,7 @@ export function buildPreflightHeaders(request: Request) {
     {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD',
       'Access-Control-Allow-Headers':
-        requestedHeaders ?? 'Content-Type, Authorization, Digest, X-Clawhub-Version',
+        requestedHeaders ?? 'Content-Type, Authorization, Digest, X-BotHub-Version',
       'Access-Control-Max-Age': '86400',
       ...(vary ? { Vary: vary } : {}),
     },
