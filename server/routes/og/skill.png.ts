@@ -28,7 +28,7 @@ function cleanString(value: unknown) {
 }
 
 function getApiBase(eventHost: string | null) {
-  const direct = process.env.VITE_CONVEX_SITE_URL?.trim()
+  const direct = (process.env.VITE_API_URL ?? '').trim()
   if (direct) return direct
 
   const site = process.env.SITE_URL?.trim() || process.env.VITE_SITE_URL?.trim()

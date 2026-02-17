@@ -1,9 +1,8 @@
-import { useAction, useMutation, useQuery } from 'convex/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api } from '../../convex/_generated/api'
-import type { Doc } from '../../convex/_generated/dataModel'
+import { soulsApi } from '../lib/api'
+import type { Doc } from '../lib/types'
 import { SoulStatsTripletLine } from './SoulStats'
 import type { PublicSoul, PublicUser } from '../lib/publicUser'
 import { isModerator } from '../lib/roles'
@@ -22,53 +21,76 @@ type SoulBySlugResult = {
 
 export function SoulDetailPage({ slug }: SoulDetailPageProps) {
   const { isAuthenticated, me } = useAuthStatus()
-  const result = useQuery(api.souls.getBySlug, { slug }) as SoulBySlugResult | undefined
-  const toggleStar = useMutation(api.soulStars.toggle)
-  const addComment = useMutation(api.soulComments.add)
-  const removeComment = useMutation(api.soulComments.remove)
-  const getReadme = useAction(api.souls.getReadme)
-  const ensureSoulSeeds = useAction(api.seed.ensureSoulSeeds)
-  const seedEnsuredRef = useRef(false)
+
+  const [result, setResult] = useState<SoulBySlugResult | undefined>(undefined)
+  const [versions, setVersions] = useState<Doc<'soulVersions'>[] | undefined>(undefined)
+  const [isStarred, setIsStarred] = useState<boolean | undefined>(undefined)
+  const [comments, setComments] = useState<Array<{ comment: any; user: PublicUser | null }> | undefined>(undefined)
   const [readme, setReadme] = useState<string | null>(null)
   const [readmeError, setReadmeError] = useState<string | null>(null)
   const [comment, setComment] = useState('')
+
+  // Fetch soul detail
+  useEffect(() => {
+    setResult(undefined)
+    soulsApi
+      .getDetail(slug)
+      .then((data: any) => setResult(data as SoulBySlugResult))
+      .catch(() => setResult(null))
+  }, [slug])
 
   const isLoadingSoul = result === undefined
   const soul = result?.soul
   const owner = result?.owner
   const latestVersion = result?.latestVersion
-  const versions = useQuery(
-    api.souls.listVersions,
-    soul ? { soulId: soul._id, limit: 50 } : 'skip',
-  ) as Doc<'soulVersions'>[] | undefined
 
-  const isStarred = useQuery(
-    api.soulStars.isStarred,
-    isAuthenticated && soul ? { soulId: soul._id } : 'skip',
-  )
+  // Fetch versions
+  useEffect(() => {
+    if (!soul) return
+    soulsApi
+      .versions(slug, 50)
+      .then((r) => setVersions(r.items as any))
+      .catch(() => {})
+  }, [soul, slug])
 
-  const comments = useQuery(
-    api.soulComments.listBySoul,
-    soul ? { soulId: soul._id, limit: 50 } : 'skip',
-  ) as Array<{ comment: Doc<'soulComments'>; user: PublicUser | null }> | undefined
+  // Fetch star status
+  useEffect(() => {
+    if (!isAuthenticated || !soul) return
+    soulsApi
+      .isStarred(slug)
+      .then((r) => setIsStarred(r.starred))
+      .catch(() => setIsStarred(false))
+  }, [isAuthenticated, soul, slug])
+
+  // Fetch comments
+  useEffect(() => {
+    if (!soul) return
+    soulsApi
+      .comments(slug)
+      .then((r) =>
+        setComments(
+          r.items.map((item: any) => ({
+            comment: { _id: item.id ?? item._id, body: item.body, userId: item.userId, createdAt: item.createdAt },
+            user: item.user ?? { handle: item.userHandle, name: item.userDisplayName, _id: item.userId },
+          })),
+        ),
+      )
+      .catch(() => setComments([]))
+  }, [soul, slug])
 
   const readmeContent = useMemo(() => {
     if (!readme) return null
     return stripFrontmatter(readme)
   }, [readme])
 
-  useEffect(() => {
-    if (seedEnsuredRef.current) return
-    seedEnsuredRef.current = true
-    void ensureSoulSeeds({})
-  }, [ensureSoulSeeds])
-
+  // Fetch readme
   useEffect(() => {
     if (!latestVersion) return
     setReadme(null)
     setReadmeError(null)
     let cancelled = false
-    void getReadme({ versionId: latestVersion._id })
+    void soulsApi
+      .getReadme(slug, latestVersion._id)
       .then((data) => {
         if (cancelled) return
         setReadme(data.text)
@@ -81,7 +103,7 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
     return () => {
       cancelled = true
     }
-  }, [latestVersion, getReadme])
+  }, [latestVersion, slug])
 
   if (isLoadingSoul) {
     return (
@@ -102,7 +124,8 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
   }
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
-  const downloadBase = `${import.meta.env.VITE_CONVEX_SITE_URL}/api/v1/souls/${soul.slug}/file`
+  const apiBase = import.meta.env.VITE_API_URL ?? '/api'
+  const downloadBase = `${apiBase}/v1/souls/${soul.slug}/file`
 
   return (
     <main className="section">
@@ -127,7 +150,7 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                   <button
                     className={`star-toggle${isStarred ? ' is-active' : ''}`}
                     type="button"
-                    onClick={() => void toggleStar({ soulId: soul._id })}
+                    onClick={() => void soulsApi.toggleStar(slug).then((r) => setIsStarred(r.starred))}
                     aria-label={isStarred ? 'Unstar soul' : 'Star soul'}
                   >
                     <span aria-hidden="true">★</span>
@@ -207,9 +230,18 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
               onSubmit={(event) => {
                 event.preventDefault()
                 if (!comment.trim()) return
-                void addComment({ soulId: soul._id, body: comment.trim() }).then(() =>
-                  setComment(''),
-                )
+                void soulsApi.addComment(slug, comment.trim()).then(() => {
+                  setComment('')
+                  // Refresh comments
+                  soulsApi.comments(slug).then((r) =>
+                    setComments(
+                      r.items.map((item: any) => ({
+                        comment: { _id: item.id ?? item._id, body: item.body, userId: item.userId, createdAt: item.createdAt },
+                        user: item.user ?? { handle: item.userHandle, name: item.userDisplayName, _id: item.userId },
+                      })),
+                    ),
+                  )
+                })
               }}
               className="comment-form"
             >
@@ -241,7 +273,18 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                     <button
                       className="btn comment-delete"
                       type="button"
-                      onClick={() => void removeComment({ commentId: entry.comment._id })}
+                      onClick={() => {
+                        void soulsApi.deleteComment(slug, entry.comment._id).then(() => {
+                          soulsApi.comments(slug).then((r) =>
+                            setComments(
+                              r.items.map((item: any) => ({
+                                comment: { _id: item.id ?? item._id, body: item.body, userId: item.userId, createdAt: item.createdAt },
+                                user: item.user ?? { handle: item.userHandle, name: item.userDisplayName, _id: item.userId },
+                              })),
+                            ),
+                          )
+                        })
+                      }}
                     >
                       Delete
                     </button>

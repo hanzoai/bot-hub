@@ -1,4 +1,4 @@
-import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Doc } from '../../lib/types'
 import type { PublicSkill, PublicUser } from '../../lib/publicUser'
 
 export type SkillListEntry = {

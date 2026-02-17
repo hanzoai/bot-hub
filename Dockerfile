@@ -15,7 +15,6 @@ RUN bun install --frozen-lockfile
 COPY . .
 # Set API URL for build-time
 ENV VITE_API_URL=/api
-ENV VITE_CONVEX_URL=
 RUN bun --bun run build
 
 # ─── Stage 3: Production ────────────────────────────────────────────────────

@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { SkillFilesPanel } from './SkillFilesPanel'
 
 const getFileTextMock = vi.fn()
 
-vi.mock('convex/react', () => ({
-  useAction: () => getFileTextMock,
+vi.mock('../lib/api', () => ({
+  skillsApi: {
+    getFileText: (...args: unknown[]) => getFileTextMock(...args),
+  },
 }))
 
 vi.mock('react-markdown', () => ({
@@ -17,10 +18,10 @@ vi.mock('remark-gfm', () => ({
   default: {},
 }))
 
-type SkillFile = Doc<'skillVersions'>['files'][number]
+type SkillFile = { path: string; size: number; sha256: string }
 
 function makeFile(path: string, size: number): SkillFile {
-  return { path, size } as unknown as SkillFile
+  return { path, size, sha256: 'a'.repeat(64) }
 }
 
 describe('SkillFilesPanel', () => {
@@ -37,7 +38,8 @@ describe('SkillFilesPanel', () => {
 
     render(
       <SkillFilesPanel
-        versionId={'skillVersions:1' as Id<'skillVersions'>}
+        slug="test-skill"
+        versionId="skillVersions:1"
         readmeContent={'# skill'}
         readmeError={null}
         latestFiles={[makeFile('scripts/run.sh', 10)]}
@@ -60,7 +62,7 @@ describe('SkillFilesPanel', () => {
     const resolvers: Record<string, (value: { text: string; size: number; sha256: string }) => void> = {}
 
     getFileTextMock.mockImplementation(
-      ({ path }: { path: string }) =>
+      (_slug: string, _versionId: string, path: string) =>
         new Promise<{ text: string; size: number; sha256: string }>((resolve) => {
           resolvers[path] = resolve
         }),
@@ -68,7 +70,8 @@ describe('SkillFilesPanel', () => {
 
     render(
       <SkillFilesPanel
-        versionId={'skillVersions:1' as Id<'skillVersions'>}
+        slug="test-skill"
+        versionId="skillVersions:1"
         readmeContent={'# skill'}
         readmeError={null}
         latestFiles={[makeFile('a.txt', 5), makeFile('b.txt', 6)]}

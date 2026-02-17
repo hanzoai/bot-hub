@@ -124,6 +124,14 @@ export const skillsApi = {
 
   get: (slug: string) => apiFetch<Skill>(`/v1/skills/${slug}`),
 
+  /** Full skill detail with owner, versions, fork info. Returns Doc-shaped objects (_id, nested stats). */
+  getDetail: (slug: string, opts?: { staff?: boolean }) =>
+    apiFetch<any>(`/v1/skills/${slug}/detail${opts?.staff ? '?staff=1' : ''}`),
+
+  /** Get existing skill for update flow — returns null if not found */
+  getExisting: (slug: string) =>
+    apiFetch<any>(`/v1/skills/${slug}/detail`).catch(() => null),
+
   versions: (slug: string, limit = 50) =>
     apiFetch<{ items: SkillVersion[] }>(`/v1/skills/${slug}/versions?limit=${limit}`),
 
@@ -171,6 +179,33 @@ export const skillsApi = {
 
   deleteComment: (slug: string, commentId: string) =>
     apiFetch<{ ok: boolean }>(`/v1/skills/${slug}/comments/${commentId}`, { method: 'DELETE' }),
+
+  getFileText: (slug: string, versionId: string, path: string) =>
+    apiFetch<{ text: string; size: number; sha256: string }>(
+      `/v1/skills/${slug}/versions/${versionId}/file?path=${encodeURIComponent(path)}`,
+    ),
+
+  getReadme: (slug: string, versionId: string) =>
+    apiFetch<{ text: string }>(`/v1/skills/${slug}/versions/${versionId}/readme`),
+
+  report: (slug: string, reason: string) =>
+    apiFetch<{ reported: boolean }>(`/v1/skills/${slug}/report`, { method: 'POST', body: { reason } }),
+
+  updateTags: (slug: string, tags: Array<{ tag: string; versionId: string }>) =>
+    apiFetch<{ ok: boolean }>(`/v1/skills/${slug}/tags`, { method: 'PUT', body: { tags } }),
+
+  userSkills: (handle: string) =>
+    apiFetch<{ items: Skill[] }>(`/v1/users/${handle}/skills`),
+
+  generateChangelogPreview: (data: {
+    slug: string
+    version: string
+    readmeText: string
+    filePaths: string[]
+  }) => apiFetch<{ changelog: string }>(`/v1/skills/changelog-preview`, {
+    method: 'POST',
+    body: data,
+  }),
 }
 
 // ─── Search API ─────────────────────────────────────────────────────────────
@@ -208,6 +243,22 @@ export const usersApi = {
 
   updateProfile: (data: { displayName?: string; bio?: string; handle?: string }) =>
     apiFetch<{ ok: boolean }>('/v1/users/me', { method: 'PATCH', body: data }),
+
+  starredSkills: (handle: string, limit = 50) =>
+    apiFetch<{ items: Skill[] }>(`/v1/users/${handle}/starred-skills?limit=${limit}`),
+
+  list: (params?: { limit?: number; search?: string }) => {
+    const qs = new URLSearchParams()
+    if (params?.limit) qs.set('limit', String(params.limit))
+    if (params?.search) qs.set('q', params.search)
+    return apiFetch<{ items: any[]; total: number }>(`/v1/users?${qs}`)
+  },
+
+  setRole: (userId: string, role: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/users/${userId}/role`, { method: 'POST', body: { role } }),
+
+  banUser: (userId: string, reason?: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/users/${userId}/ban`, { method: 'POST', body: { reason } }),
 }
 
 // ─── Upload API ─────────────────────────────────────────────────────────────
@@ -234,4 +285,139 @@ export const tokensApi = {
 
   revoke: (id: string) =>
     apiFetch<{ ok: boolean }>(`/v1/tokens/${id}`, { method: 'DELETE' }),
+}
+
+// ─── Souls API ──────────────────────────────────────────────────────────────
+export const soulsApi = {
+  list: (params?: { limit?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.limit) qs.set('limit', String(params.limit))
+    return apiFetch<{ items: any[] }>(`/v1/souls?${qs}`)
+  },
+
+  getDetail: (slug: string) => apiFetch<any>(`/v1/souls/${slug}/detail`),
+
+  getExisting: (slug: string) => apiFetch<any>(`/v1/souls/${slug}/detail`).catch(() => null),
+
+  versions: (slug: string, limit = 50) =>
+    apiFetch<{ items: any[] }>(`/v1/souls/${slug}/versions?limit=${limit}`),
+
+  comments: (slug: string) =>
+    apiFetch<{ items: any[] }>(`/v1/souls/${slug}/comments`),
+
+  addComment: (slug: string, body: string) =>
+    apiFetch<{ id: string }>(`/v1/souls/${slug}/comments`, { method: 'POST', body: { body } }),
+
+  deleteComment: (slug: string, commentId: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/souls/${slug}/comments/${commentId}`, { method: 'DELETE' }),
+
+  toggleStar: (slug: string) =>
+    apiFetch<{ starred: boolean }>(`/v1/souls/${slug}/stars`, { method: 'POST' }),
+
+  isStarred: (slug: string) =>
+    apiFetch<{ starred: boolean }>(`/v1/souls/${slug}/stars/me`),
+
+  getReadme: (slug: string, versionId: string) =>
+    apiFetch<{ text: string }>(`/v1/souls/${slug}/versions/${versionId}/readme`),
+
+  publish: (data: {
+    slug: string
+    displayName: string
+    version: string
+    changelog: string
+    tags: string[]
+    files: Array<{ path: string; size: number; storageKey: string; sha256: string; contentType?: string }>
+  }) => apiFetch<{ soulId: string; versionId: string; version: string; slug: string }>(
+    `/v1/souls/publish`,
+    { method: 'POST', body: data },
+  ),
+
+  generateChangelogPreview: (data: {
+    slug: string
+    version: string
+    readmeText: string
+    filePaths: string[]
+  }) => apiFetch<{ changelog: string }>(`/v1/souls/changelog-preview`, {
+    method: 'POST',
+    body: data,
+  }),
+}
+
+// ─── Management API (staff/admin) ───────────────────────────────────────────
+export const managementApi = {
+  getBySlugForStaff: (slug: string) => apiFetch<any>(`/v1/management/skills/${slug}`),
+
+  listRecentVersions: (limit = 20) =>
+    apiFetch<{ items: any[] }>(`/v1/management/recent-versions?limit=${limit}`),
+
+  listReportedSkills: (limit = 25) =>
+    apiFetch<{ items: any[] }>(`/v1/management/reported-skills?limit=${limit}`),
+
+  listDuplicateCandidates: (limit = 20) =>
+    apiFetch<{ items: any[] }>(`/v1/management/duplicate-candidates?limit=${limit}`),
+
+  setBatch: (skillId: string, batch?: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/batch`, {
+      method: 'POST', body: { batch },
+    }),
+
+  setSoftDeleted: (skillId: string, deleted: boolean) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/soft-delete`, {
+      method: 'POST', body: { deleted },
+    }),
+
+  hardDelete: (skillId: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}`, { method: 'DELETE' }),
+
+  changeOwner: (skillId: string, ownerUserId: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/owner`, {
+      method: 'POST', body: { ownerUserId },
+    }),
+
+  setDuplicate: (skillId: string, canonicalSlug?: string) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/duplicate`, {
+      method: 'POST', body: { canonicalSlug },
+    }),
+
+  setOfficialBadge: (skillId: string, official: boolean) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/badge/official`, {
+      method: 'POST', body: { official },
+    }),
+
+  setDeprecatedBadge: (skillId: string, deprecated: boolean) =>
+    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/badge/deprecated`, {
+      method: 'POST', body: { deprecated },
+    }),
+}
+
+// ─── GitHub Import API ──────────────────────────────────────────────────────
+export const githubImportApi = {
+  preview: (url: string) =>
+    apiFetch<{ candidates: any[] }>(`/v1/import/github/preview`, { method: 'POST', body: { url } }),
+
+  previewCandidate: (url: string, candidatePath: string) =>
+    apiFetch<any>(`/v1/import/github/preview-candidate`, { method: 'POST', body: { url, candidatePath } }),
+
+  importSkill: (data: {
+    url: string
+    commit: string
+    candidatePath: string
+    selectedPaths: string[]
+    slug: string
+    displayName: string
+    version: string
+    tags: string[]
+  }) => apiFetch<{ slug: string; skillId: string; versionId: string }>(
+    `/v1/import/github/import`,
+    { method: 'POST', body: data },
+  ),
+}
+
+// ─── Telemetry API ──────────────────────────────────────────────────────────
+export const telemetryApi = {
+  getMyInstalled: (includeRemoved = false) =>
+    apiFetch<any>(`/v1/telemetry/installed?includeRemoved=${includeRemoved}`),
+
+  clearMyTelemetry: () =>
+    apiFetch<{ ok: boolean }>('/v1/telemetry/installed', { method: 'DELETE' }),
 }

@@ -1,23 +1,27 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useQuery } from 'convex/react'
 import { Clock, Package, Plus, Upload } from 'lucide-react'
-import { api } from '../../convex/_generated/api'
-import type { Doc } from '../../convex/_generated/dataModel'
+import { useEffect, useState } from 'react'
+import { skillsApi, type Skill } from '../lib/api'
 import { formatCompactStat } from '../lib/numberFormat'
-import type { PublicSkill } from '../lib/publicUser'
+import { useAuthStatus } from '../lib/useAuthStatus'
 
-type DashboardSkill = PublicSkill & { pendingReview?: boolean }
+type DashboardSkill = Skill & { pendingReview?: boolean }
 
 export const Route = createFileRoute('/dashboard')({
   component: Dashboard,
 })
 
 function Dashboard() {
-  const me = useQuery(api.users.me) as Doc<'users'> | null | undefined
-  const mySkills = useQuery(
-    api.skills.list,
-    me?._id ? { ownerUserId: me._id, limit: 100 } : 'skip',
-  ) as DashboardSkill[] | undefined
+  const { me } = useAuthStatus()
+  const [mySkills, setMySkills] = useState<DashboardSkill[] | undefined>(undefined)
+
+  useEffect(() => {
+    if (!me) return
+    skillsApi
+      .list({ sort: 'updated', limit: 100 })
+      .then((r) => setMySkills(r.items.filter((s) => s.ownerHandle === me.handle) as DashboardSkill[]))
+      .catch(() => setMySkills([]))
+  }, [me])
 
   if (!me) {
     return (
@@ -28,7 +32,7 @@ function Dashboard() {
   }
 
   const skills = mySkills ?? []
-  const ownerHandle = me.handle ?? me.name ?? me.displayName ?? me._id
+  const ownerHandle = me.handle ?? me.displayName ?? me.id
 
   return (
     <main className="section">
@@ -55,7 +59,7 @@ function Dashboard() {
       ) : (
         <div className="dashboard-grid">
           {skills.map((skill) => (
-            <SkillCard key={skill._id} skill={skill} ownerHandle={ownerHandle} />
+            <SkillCard key={skill.id} skill={skill} ownerHandle={ownerHandle} />
           ))}
         </div>
       )}
@@ -85,9 +89,9 @@ function SkillCard({ skill, ownerHandle }: { skill: DashboardSkill; ownerHandle:
         </div>
         {skill.summary && <p className="dashboard-skill-description">{skill.summary}</p>}
         <div className="dashboard-skill-stats">
-          <span>⤓ {formatCompactStat(skill.stats.downloads)}</span>
-          <span>★ {formatCompactStat(skill.stats.stars)}</span>
-          <span>{skill.stats.versions} v</span>
+          <span>⤓ {formatCompactStat(skill.statsDownloads)}</span>
+          <span>★ {formatCompactStat(skill.statsStars)}</span>
+          <span>{skill.statsVersions} v</span>
         </div>
       </div>
       <div className="dashboard-skill-actions">

@@ -1,19 +1,15 @@
-import { useAuthActions } from '@convex-dev/auth/react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useMutation } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '../../../convex/_generated/api'
+import { useAuthContext } from '../../lib/AuthContext'
+import { tokensApi } from '../../lib/api'
 import { getBotHubSiteUrl, normalizeBotHubSiteOrigin } from '../../lib/site'
-import { useAuthStatus } from '../../lib/useAuthStatus'
 
 export const Route = createFileRoute('/cli/auth')({
   component: CliAuth,
 })
 
 function CliAuth() {
-  const { isAuthenticated, isLoading, me } = useAuthStatus()
-  const { signIn } = useAuthActions()
-  const createToken = useMutation(api.tokens.create)
+  const { user: me, isAuthenticated, loading: isLoading, signIn } = useAuthContext()
 
   const search = Route.useSearch() as {
     redirect_uri?: string
@@ -28,7 +24,6 @@ function CliAuth() {
   const redirectUri = search.redirect_uri ?? ''
   const label = (decodeLabel(search.label_b64) ?? search.label ?? 'CLI token').trim() || 'CLI token'
   const state = typeof search.state === 'string' ? search.state.trim() : ''
-  const signInRedirectTo = getCurrentRelativeUrl()
 
   const safeRedirect = useMemo(() => isAllowedRedirectUri(redirectUri), [redirectUri])
   const registry = useMemo(() => {
@@ -47,7 +42,7 @@ function CliAuth() {
 
     const run = async () => {
       setStatus('Creating token…')
-      const result = await createToken({ label })
+      const result = await tokensApi.create(label)
       setToken(result.token)
       setStatus('Redirecting to CLI…')
       const hash = new URLSearchParams()
@@ -62,7 +57,7 @@ function CliAuth() {
       setStatus(message)
       setToken(null)
     })
-  }, [createToken, isAuthenticated, label, me, redirectUri, registry, safeRedirect, state])
+  }, [isAuthenticated, label, me, redirectUri, registry, safeRedirect, state])
 
   if (!safeRedirect) {
     return (
@@ -108,11 +103,9 @@ function CliAuth() {
             className="btn btn-primary"
             type="button"
             disabled={isLoading}
-            onClick={() =>
-              void signIn('github', signInRedirectTo ? { redirectTo: signInRedirectTo } : undefined)
-            }
+            onClick={() => signIn()}
           >
-            Sign in with GitHub
+            Sign in with Hanzo
           </button>
         </div>
       </main>
@@ -165,9 +158,4 @@ function decodeLabel(value: string | undefined) {
   } catch {
     return null
   }
-}
-
-function getCurrentRelativeUrl() {
-  if (typeof window === 'undefined') return '/'
-  return `${window.location.pathname}${window.location.search}${window.location.hash}`
 }

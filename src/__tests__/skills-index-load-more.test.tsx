@@ -1,49 +1,60 @@
 /* @vitest-environment jsdom */
-import { act, render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SkillsIndex } from '../routes/skills/index'
 
 const navigateMock = vi.fn()
-const useActionMock = vi.fn()
-const usePaginatedQueryMock = vi.fn()
-let searchMock: Record<string, unknown> = {}
+const listMock = vi.fn()
+const searchMock = vi.fn()
+let searchStateMock: Record<string, unknown> = {}
 
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (_config: { component: unknown; validateSearch: unknown }) => ({
     useNavigate: () => navigateMock,
-    useSearch: () => searchMock,
+    useSearch: () => searchStateMock,
   }),
   redirect: (options: unknown) => ({ redirect: options }),
   Link: (props: { children: ReactNode }) => <a href="/">{props.children}</a>,
 }))
 
-vi.mock('convex/react', () => ({
-  useAction: (...args: unknown[]) => useActionMock(...args),
-  usePaginatedQuery: (...args: unknown[]) => usePaginatedQueryMock(...args),
-}))
+vi.mock('../../lib/api', async () => {
+  return {
+    skillsApi: {
+      list: (...args: unknown[]) => listMock(...args),
+    },
+    searchApi: {
+      skills: (...args: unknown[]) => searchMock(...args),
+    },
+  }
+})
 
 describe('SkillsIndex load-more observer', () => {
   beforeEach(() => {
-    usePaginatedQueryMock.mockReset()
-    useActionMock.mockReset()
+    listMock.mockReset()
+    searchMock.mockReset()
     navigateMock.mockReset()
-    searchMock = {}
-    useActionMock.mockReturnValue(() => Promise.resolve([]))
+    searchStateMock = { sort: 'downloads' }
+    searchMock.mockResolvedValue({ items: [] })
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('triggers one request for repeated intersection callbacks', async () => {
-    const loadMorePaginated = vi.fn()
-    usePaginatedQueryMock.mockReturnValue({
-      results: [makeListResult('skill-0', 'Skill 0')],
-      status: 'CanLoadMore',
-      loadMore: loadMorePaginated,
-    })
+  it('triggers one additional request for intersection callback', async () => {
+    listMock
+      .mockResolvedValueOnce({
+        items: [makeListItem('skill-0', 'Skill 0')],
+        hasMore: true,
+        nextCursor: 'cursor-1',
+      })
+      .mockResolvedValueOnce({
+        items: [makeListItem('skill-1', 'Skill 1')],
+        hasMore: false,
+        nextCursor: undefined,
+      })
 
     type ObserverInstance = {
       callback: IntersectionObserverCallback
@@ -73,41 +84,42 @@ describe('SkillsIndex load-more observer', () => {
     )
 
     render(<SkillsIndex />)
+    await act(async () => {})
 
-    expect(observers).toHaveLength(1)
-    const observer = observers[0]
-    const entries = [{ isIntersecting: true }] as Array<IntersectionObserverEntry>
+    // First call was the initial list fetch
+    expect(listMock).toHaveBeenCalledTimes(1)
 
-    await act(async () => {
-      observer.callback(entries, observer as unknown as IntersectionObserver)
-      observer.callback(entries, observer as unknown as IntersectionObserver)
-      observer.callback(entries, observer as unknown as IntersectionObserver)
-    })
+    // Simulate intersection
+    const observer = observers[observers.length - 1]
+    if (observer) {
+      const entries = [{ isIntersecting: true }] as Array<IntersectionObserverEntry>
+      await act(async () => {
+        observer.callback(entries, observer as unknown as IntersectionObserver)
+      })
+    }
 
-    expect(loadMorePaginated).toHaveBeenCalledTimes(1)
+    // Second call should be the load-more
+    expect(listMock).toHaveBeenCalledTimes(2)
+    expect(listMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: 'cursor-1' }),
+    )
   })
 })
 
-function makeListResult(slug: string, displayName: string) {
+function makeListItem(slug: string, displayName: string) {
   return {
-    skill: {
-      _id: `skill_${slug}`,
-      slug,
-      displayName,
-      summary: `${displayName} summary`,
-      tags: {},
-      stats: {
-        downloads: 0,
-        installsCurrent: 0,
-        installsAllTime: 0,
-        stars: 0,
-        versions: 1,
-        comments: 0,
-      },
-      createdAt: 0,
-      updatedAt: 0,
-    },
-    latestVersion: null,
-    ownerHandle: null,
+    id: `skill_${slug}`,
+    slug,
+    displayName,
+    summary: `${displayName} summary`,
+    ownerUserId: 'user:1',
+    ownerHandle: 'test',
+    statsDownloads: 0,
+    statsStars: 0,
+    statsVersions: 1,
+    statsComments: 0,
+    badges: {},
+    createdAt: '2024-01-01T00:00:00Z',
+    updatedAt: '2024-01-01T00:00:00Z',
   }
 }

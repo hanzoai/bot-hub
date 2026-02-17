@@ -21,7 +21,7 @@ import {
 
 // ─── Auth hooks ─────────────────────────────────────────────────────────────
 export function useAuth() {
-  const [user, setUser] = useState<Awaited<ReturnType<typeof authApi.me>> | null>(null)
+  const [user, setUser] = useState<(Awaited<ReturnType<typeof authApi.me>> & { _id: string; _creationTime: number }) | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function useAuth() {
 
     authApi
       .me()
-      .then(setUser)
+      .then((data) => setUser({ ...data, _id: data.id, _creationTime: new Date(data.createdAt).getTime() }))
       .catch(() => {
         clearStoredToken()
         setUser(null)

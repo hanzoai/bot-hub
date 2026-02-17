@@ -1,3 +1,5 @@
-import { ConvexReactClient } from 'convex/react'
-
-export const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string)
+/**
+ * @deprecated — Convex client removed. Auth is now via REST API.
+ * This file is kept empty to prevent import errors from transitive deps.
+ */
+export {}

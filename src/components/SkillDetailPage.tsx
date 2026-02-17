@@ -1,9 +1,8 @@
 import { useNavigate } from '@tanstack/react-router'
 import type { ClawdisSkillMetadata } from 'bothub-schema'
-import { useAction, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useState } from 'react'
-import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { skillsApi } from '../lib/api'
+import type { Doc, Id } from '../lib/types'
 import type { PublicSkill, PublicUser } from '../lib/publicUser'
 import { canManageSkill, isModerator } from '../lib/roles'
 import { useAuthStatus } from '../lib/useAuthStatus'
@@ -61,12 +60,7 @@ function formatReportError(error: unknown) {
   }
 
   if (error instanceof Error) {
-    const cleaned = error.message
-      .replace(/\[CONVEX[^\]]*\]\s*/g, '')
-      .replace(/\[Request ID:[^\]]*\]\s*/g, '')
-      .replace(/^Server Error Called by client\s*/i, '')
-      .replace(/^ConvexError:\s*/i, '')
-      .trim()
+    const cleaned = error.message.trim()
     if (cleaned && cleaned !== 'Server Error') return cleaned
   }
 
@@ -82,18 +76,11 @@ export function SkillDetailPage({
   const { isAuthenticated, me } = useAuthStatus()
 
   const isStaff = isModerator(me)
-  const staffResult = useQuery(api.skills.getBySlugForStaff, isStaff ? { slug } : 'skip') as
-    | SkillBySlugResult
-    | undefined
-  const publicResult = useQuery(api.skills.getBySlug, !isStaff ? { slug } : 'skip') as
-    | SkillBySlugResult
-    | undefined
-  const result = isStaff ? staffResult : publicResult
 
-  const toggleStar = useMutation(api.stars.toggle)
-  const reportSkill = useMutation(api.skills.report)
-  const updateTags = useMutation(api.skills.updateTags)
-  const getReadme = useAction(api.skills.getReadme)
+  const [result, setResult] = useState<SkillBySlugResult | undefined>(undefined)
+  const [versions, setVersions] = useState<Doc<'skillVersions'>[] | undefined>(undefined)
+  const [diffVersions, setDiffVersions] = useState<Doc<'skillVersions'>[] | undefined>(undefined)
+  const [isStarred, setIsStarred] = useState<boolean | undefined>(undefined)
 
   const [readme, setReadme] = useState<string | null>(null)
   const [readmeError, setReadmeError] = useState<string | null>(null)
@@ -106,30 +93,52 @@ export function SkillDetailPage({
   const [reportError, setReportError] = useState<string | null>(null)
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
 
+  // Fetch skill detail
+  useEffect(() => {
+    setResult(undefined)
+    skillsApi
+      .getDetail(slug, { staff: isStaff })
+      .then((data: any) => setResult(data as SkillBySlugResult))
+      .catch(() => setResult(null))
+  }, [slug, isStaff])
+
   const isLoadingSkill = result === undefined
   const skill = result?.skill
   const owner = result?.owner
   const latestVersion = result?.latestVersion
 
-  const versions = useQuery(
-    api.skills.listVersions,
-    skill ? { skillId: skill._id, limit: 50 } : 'skip',
-  ) as Doc<'skillVersions'>[] | undefined
-  const shouldLoadDiffVersions = Boolean(skill && (activeTab === 'compare' || shouldPrefetchCompare))
-  const diffVersions = useQuery(
-    api.skills.listVersions,
-    shouldLoadDiffVersions && skill ? { skillId: skill._id, limit: 200 } : 'skip',
-  ) as Doc<'skillVersions'>[] | undefined
+  // Fetch versions list
+  useEffect(() => {
+    if (!skill) return
+    skillsApi
+      .versions(slug, 50)
+      .then((r) => setVersions(r.items as any))
+      .catch(() => {})
+  }, [skill, slug])
 
-  const isStarred = useQuery(
-    api.stars.isStarred,
-    isAuthenticated && skill ? { skillId: skill._id } : 'skip',
-  )
+  // Fetch diff versions (more)
+  const shouldLoadDiffVersions = Boolean(skill && (activeTab === 'compare' || shouldPrefetchCompare))
+  useEffect(() => {
+    if (!shouldLoadDiffVersions || !skill) return
+    skillsApi
+      .versions(slug, 200)
+      .then((r) => setDiffVersions(r.items as any))
+      .catch(() => {})
+  }, [shouldLoadDiffVersions, skill, slug])
+
+  // Fetch star status
+  useEffect(() => {
+    if (!isAuthenticated || !skill) return
+    skillsApi
+      .isStarred(slug)
+      .then((r) => setIsStarred(r.starred))
+      .catch(() => setIsStarred(false))
+  }, [isAuthenticated, skill, slug])
 
   const canManage = canManageSkill(me, skill)
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
-  const ownerParam = ownerHandle ?? (owner?._id ? String(owner._id) : null)
+  const ownerParam = ownerHandle ?? ((owner as any)?._id ? String((owner as any)._id) : null)
   const wantsCanonicalRedirect = Boolean(
     ownerParam &&
       (redirectToCanonical ||
@@ -204,14 +213,15 @@ export function SkillDetailPage({
     })
   }, [navigate, ownerParam, slug, wantsCanonicalRedirect])
 
+  // Fetch readme
   useEffect(() => {
     if (!latestVersion) return
-
     setReadme(null)
     setReadmeError(null)
     let cancelled = false
 
-    void getReadme({ versionId: latestVersion._id })
+    void skillsApi
+      .getReadme(slug, latestVersion._id)
       .then((data) => {
         if (cancelled) return
         setReadme(data.text)
@@ -225,7 +235,7 @@ export function SkillDetailPage({
     return () => {
       cancelled = true
     }
-  }, [latestVersion, getReadme])
+  }, [latestVersion, slug])
 
   useEffect(() => {
     if (!tagVersionId && latestVersion) {
@@ -250,10 +260,7 @@ export function SkillDetailPage({
   const submitTag = () => {
     if (!skill) return
     if (!tagName.trim() || !tagVersionId) return
-    void updateTags({
-      skillId: skill._id,
-      tags: [{ tag: tagName.trim(), versionId: tagVersionId }],
-    })
+    void skillsApi.updateTags(slug, [{ tag: tagName.trim(), versionId: tagVersionId }])
   }
 
   const submitReport = async () => {
@@ -268,7 +275,7 @@ export function SkillDetailPage({
     setIsSubmittingReport(true)
     setReportError(null)
     try {
-      const submission = await reportSkill({ skillId: skill._id, reason: trimmedReason })
+      const submission = await skillsApi.report(slug, trimmedReason)
       closeReportDialog()
       if (submission.reported) {
         window.alert('Thanks — your report has been submitted.')
@@ -315,7 +322,9 @@ export function SkillDetailPage({
           isAuthenticated={isAuthenticated}
           isStaff={isStaff}
           isStarred={isStarred}
-          onToggleStar={() => void toggleStar({ skillId: skill._id })}
+          onToggleStar={() => {
+            void skillsApi.toggleStar(slug).then((r) => setIsStarred(r.starred))
+          }}
           onOpenReport={openReportDialog}
           forkOf={forkOf}
           forkOfLabel={forkOfLabel}
@@ -386,7 +395,7 @@ export function SkillDetailPage({
           nixPlugin={Boolean(nixPlugin)}
         />
 
-        <SkillCommentsPanel skillId={skill._id} isAuthenticated={isAuthenticated} me={me ?? null} />
+        <SkillCommentsPanel slug={slug} isAuthenticated={isAuthenticated} me={me ?? null} />
       </div>
 
       <SkillReportDialog

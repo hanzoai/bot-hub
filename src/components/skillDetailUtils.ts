@@ -1,5 +1,5 @@
 import type { SkillInstallSpec } from 'bothub-schema'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Id } from '../lib/types'
 
 export function buildSkillHref(ownerHandle: string | null, ownerId: Id<'users'> | null, slug: string) {
   const owner = ownerHandle?.trim() || (ownerId ? String(ownerId) : 'unknown')

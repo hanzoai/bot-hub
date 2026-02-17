@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useAction, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '../../../convex/_generated/api'
+import { soulsApi } from '../../lib/api'
 import { SoulMetricsRow, SoulStatsTripletLine } from '../../components/SoulStats'
 import { SoulCard } from '../../components/SoulCard'
 import type { PublicSoul } from '../../lib/publicUser'
@@ -42,11 +41,38 @@ function SoulsIndex() {
   const view = search.view ?? 'list'
   const [query, setQuery] = useState(search.q ?? '')
 
-  const souls = useQuery(api.souls.list, { limit: 500 }) as PublicSoul[] | undefined
-  const ensureSoulSeeds = useAction(api.seed.ensureSoulSeeds)
-  const seedEnsuredRef = useRef(false)
+  const [souls, setSouls] = useState<PublicSoul[] | undefined>(undefined)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const isLoadingSouls = souls === undefined
+
+  // Fetch all souls
+  useEffect(() => {
+    soulsApi
+      .list({ limit: 500 })
+      .then((r) =>
+        setSouls(
+          r.items.map((item: any) => ({
+            _id: item.id ?? item._id,
+            _creationTime: item._creationTime ?? new Date(item.createdAt).getTime(),
+            slug: item.slug,
+            displayName: item.displayName,
+            summary: item.summary,
+            ownerUserId: item.ownerUserId,
+            latestVersionId: item.latestVersionId ?? null,
+            tags: item.tags ?? {},
+            stats: item.stats ?? {
+              downloads: item.statsDownloads ?? 0,
+              stars: item.statsStars ?? 0,
+              versions: item.statsVersions ?? 0,
+              comments: item.statsComments ?? 0,
+            },
+            createdAt: item.createdAt ? new Date(item.createdAt).getTime() : 0,
+            updatedAt: item.updatedAt ? new Date(item.updatedAt).getTime() : 0,
+          })),
+        ),
+      )
+      .catch(() => setSouls([]))
+  }, [])
 
   useEffect(() => {
     setQuery(search.q ?? '')
@@ -60,12 +86,6 @@ function SoulsIndex() {
       void navigate({ search: (prev) => ({ ...prev, focus: undefined }), replace: true })
     }
   }, [search.focus, navigate])
-
-  useEffect(() => {
-    if (seedEnsuredRef.current) return
-    seedEnsuredRef.current = true
-    void ensureSoulSeeds({})
-  }, [ensureSoulSeeds])
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase()

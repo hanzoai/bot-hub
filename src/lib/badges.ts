@@ -1,4 +1,4 @@
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../lib/types'
 
 type BadgeKind = Doc<'skillBadges'>['kind']
 
