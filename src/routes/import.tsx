@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useAction } from 'convex/react'
 import { useMemo, useState } from 'react'
-import { api } from '../../convex/_generated/api'
+import { githubImportApi } from '../lib/api'
 import { formatBytes } from '../lib/uploadUtils'
 import { useAuthStatus } from '../lib/useAuthStatus'
 
@@ -39,9 +38,6 @@ type CandidatePreview = {
 
 function ImportGitHub() {
   const { isAuthenticated, isLoading, me } = useAuthStatus()
-  const previewImport = useAction(api.githubImport.previewGitHubImport)
-  const previewCandidate = useAction(api.githubImport.previewGitHubImportCandidate)
-  const importSkill = useAction(api.githubImport.importGitHubSkill)
   const navigate = useNavigate()
 
   const [url, setUrl] = useState('')
@@ -78,7 +74,7 @@ function ImportGitHub() {
     setSelected({})
     setIsBusy(true)
     try {
-      const result = await previewImport({ url: url.trim() })
+      const result = await githubImportApi.preview(url.trim())
       const items = (result.candidates ?? []) as Candidate[]
       setCandidates(items)
       if (items.length === 1) {
@@ -102,10 +98,10 @@ function ImportGitHub() {
     setSelectedCandidatePath(candidatePath)
     setIsBusy(true)
     try {
-      const result = (await previewCandidate({
-        url: url.trim(),
+      const result = (await githubImportApi.previewCandidate(
+        url.trim(),
         candidatePath,
-      })) as CandidatePreview
+      )) as CandidatePreview
       setPreview(result)
       setSlug(result.defaults.slug)
       setDisplayName(result.defaults.displayName)
@@ -155,7 +151,7 @@ function ImportGitHub() {
         .split(',')
         .map((tag) => tag.trim())
         .filter(Boolean)
-      const result = await importSkill({
+      const result = await githubImportApi.importSkill({
         url: url.trim(),
         commit: preview.resolved.commit,
         candidatePath: preview.candidate.path,

@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useAction, useMutation, useQuery } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import semver from 'semver'
-import { api } from '../../convex/_generated/api'
+import { skillsApi, soulsApi, uploadApi } from '../lib/api'
 import { getSiteMode } from '../lib/site'
 import { expandDroppedItems, expandFiles } from '../lib/uploadFiles'
 import { useAuthStatus } from '../lib/useAuthStatus'
@@ -12,7 +11,6 @@ import {
   hashFile,
   isTextFile,
   readText,
-  uploadFile,
 } from './upload/-utils'
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -32,30 +30,7 @@ export function Upload() {
   const requiredFileLabel = isSoulMode ? 'SOUL.md' : 'SKILL.md'
   const contentLabel = isSoulMode ? 'soul' : 'skill'
 
-  const generateUploadUrl = useMutation(api.uploads.generateUploadUrl)
-  const publishVersion = useAction(
-    isSoulMode ? api.souls.publishVersion : api.skills.publishVersion,
-  )
-  const generateChangelogPreview = useAction(
-    isSoulMode ? api.souls.generateChangelogPreview : api.skills.generateChangelogPreview,
-  )
-  const existingSkill = useQuery(
-    api.skills.getBySlug,
-    !isSoulMode && updateSlug ? { slug: updateSlug } : 'skip',
-  )
-  const existingSoul = useQuery(
-    api.souls.getBySlug,
-    isSoulMode && updateSlug ? { slug: updateSlug } : 'skip',
-  )
-  const existing = (isSoulMode ? existingSoul : existingSkill) as
-    | {
-        skill?: { slug: string; displayName: string }
-        soul?: { slug: string; displayName: string }
-        latestVersion?: { version: string }
-      }
-    | null
-    | undefined
-
+  const [existing, setExisting] = useState<any>(undefined)
   const [hasAttempted, setHasAttempted] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [slug, setSlug] = useState(updateSlug ?? '')
@@ -112,6 +87,13 @@ export function Upload() {
   const trimmedName = displayName.trim()
   const trimmedChangelog = changelog.trim()
 
+  // Fetch existing skill/soul for update flow
+  useEffect(() => {
+    if (!updateSlug) return
+    const fetchExisting = isSoulMode ? soulsApi.getExisting : skillsApi.getExisting
+    fetchExisting(updateSlug).then((data: any) => setExisting(data)).catch(() => setExisting(null))
+  }, [updateSlug, isSoulMode])
+
   useEffect(() => {
     if (!existing?.latestVersion || (!existing?.skill && !existing?.soul)) return
     const name = existing.skill?.displayName ?? existing.soul?.displayName
@@ -146,10 +128,14 @@ export function Upload() {
     const requestId = ++changelogRequestRef.current
     setChangelogStatus('loading')
 
+    const generatePreview = isSoulMode
+      ? soulsApi.generateChangelogPreview
+      : skillsApi.generateChangelogPreview
+
     void readText(requiredFile)
       .then((text) => {
         if (changelogRequestRef.current !== requestId) return null
-        return generateChangelogPreview({
+        return generatePreview({
           slug: trimmedSlug,
           version,
           readmeText: text.slice(0, 20_000),
@@ -169,7 +155,6 @@ export function Upload() {
       })
   }, [
     files,
-    generateChangelogPreview,
     hasRequiredFile,
     isSoulMode,
     normalizedPaths,
@@ -271,24 +256,28 @@ export function Upload() {
     const uploaded = [] as Array<{
       path: string
       size: number
-      storageId: string
+      storageKey: string
       sha256: string
       contentType?: string
     }>
 
     for (const file of files) {
-      const uploadUrl = await generateUploadUrl()
       const rawPath = (file.webkitRelativePath || file.name).replace(/^\.\//, '')
       const path =
         stripRoot && rawPath.startsWith(`${stripRoot}/`)
           ? rawPath.slice(stripRoot.length + 1)
           : rawPath
       const sha256 = await hashFile(file)
-      const storageId = await uploadFile(uploadUrl, file)
+      const { url, storageKey } = await uploadApi.getUploadUrl(file.name, file.type || undefined)
+      await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      })
       uploaded.push({
         path,
         size: file.size,
-        storageId,
+        storageKey,
         sha256,
         contentType: file.type || undefined,
       })
@@ -296,25 +285,36 @@ export function Upload() {
 
     setStatus('Publishing…')
     try {
-      const result = await publishVersion({
-        slug: trimmedSlug,
-        displayName: trimmedName,
-        version,
-        changelog: trimmedChangelog,
-        tags: parsedTags,
-        files: uploaded,
-      })
+      let resultSlug: string
+      if (isSoulMode) {
+        const result = await soulsApi.publish({
+          slug: trimmedSlug,
+          displayName: trimmedName,
+          version,
+          changelog: trimmedChangelog,
+          tags: parsedTags,
+          files: uploaded,
+        })
+        resultSlug = result.slug
+      } else {
+        await skillsApi.publish(trimmedSlug, {
+          displayName: trimmedName,
+          version,
+          changelog: trimmedChangelog,
+          tags: parsedTags,
+          files: uploaded,
+        })
+        resultSlug = trimmedSlug
+      }
       setStatus(null)
       setError(null)
       setHasAttempted(false)
       setChangelogSource('user')
-      if (result) {
-        const ownerParam = me?.handle ?? (me?._id ? String(me._id) : 'unknown')
-        void navigate({
-          to: isSoulMode ? '/souls/$slug' : '/$owner/$slug',
-          params: isSoulMode ? { slug: trimmedSlug } : { owner: ownerParam, slug: trimmedSlug },
-        })
-      }
+      const ownerParam = me?.handle ?? (me?._id ? String(me._id) : 'unknown')
+      void navigate({
+        to: isSoulMode ? '/souls/$slug' : '/$owner/$slug',
+        params: isSoulMode ? { slug: resultSlug } : { owner: ownerParam, slug: resultSlug },
+      })
     } catch (error) {
       setStatus(null)
       setError(formatPublishError(error))

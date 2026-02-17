@@ -1,27 +1,31 @@
-import { useAction } from 'convex/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { skillsApi } from '../lib/api'
 import { formatBytes } from './skillDetailUtils'
 
-type SkillFile = Doc<'skillVersions'>['files'][number]
+type SkillFile = {
+  path: string
+  size: number
+  sha256: string
+  [key: string]: unknown
+}
 
 type SkillFilesPanelProps = {
-  versionId: Id<'skillVersions'> | null
+  slug: string
+  versionId: string | null
   readmeContent: string | null
   readmeError: string | null
   latestFiles: SkillFile[]
 }
 
 export function SkillFilesPanel({
+  slug,
   versionId,
   readmeContent,
   readmeError,
   latestFiles,
 }: SkillFilesPanelProps) {
-  const getFileText = useAction(api.skills.getFileText)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [fileMeta, setFileMeta] = useState<{ size: number; sha256: string } | null>(null)
@@ -71,7 +75,8 @@ export function SkillFilesPanel({
       setFileContent(null)
       setFileMeta(null)
       setIsLoading(true)
-      void getFileText({ versionId, path })
+      void skillsApi
+        .getFileText(slug, versionId, path)
         .then((data) => {
           if (!isMounted.current) return
           if (requestId.current !== current) return
@@ -87,7 +92,7 @@ export function SkillFilesPanel({
           setIsLoading(false)
         })
     },
-    [getFileText, versionId],
+    [slug, versionId],
   )
 
   return (

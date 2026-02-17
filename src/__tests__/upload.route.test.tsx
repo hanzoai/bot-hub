@@ -10,20 +10,26 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({ updateSlug: undefined }),
 }))
 
-const generateUploadUrl = vi.fn()
-const publishVersion = vi.fn()
-const generateChangelogPreview = vi.fn()
+const publishMock = vi.fn()
+const getUploadUrlMock = vi.fn()
+const getExistingMock = vi.fn()
+const generateChangelogPreviewMock = vi.fn()
 const fetchMock = vi.fn()
-const useQueryMock = vi.fn()
 const useAuthStatusMock = vi.fn()
-let useActionCallCount = 0
 
-vi.mock('convex/react', () => ({
-  useQuery: (...args: unknown[]) => useQueryMock(...args),
-  useMutation: () => generateUploadUrl,
-  useAction: () => {
-    useActionCallCount += 1
-    return useActionCallCount % 2 === 1 ? publishVersion : generateChangelogPreview
+vi.mock('../lib/api', () => ({
+  skillsApi: {
+    publish: (...args: unknown[]) => publishMock(...args),
+    getExisting: (...args: unknown[]) => getExistingMock(...args),
+    generateChangelogPreview: (...args: unknown[]) => generateChangelogPreviewMock(...args),
+  },
+  soulsApi: {
+    publish: vi.fn(),
+    getExisting: vi.fn(),
+    generateChangelogPreview: vi.fn(),
+  },
+  uploadApi: {
+    getUploadUrl: (...args: unknown[]) => getUploadUrlMock(...args),
   },
 }))
 
@@ -31,28 +37,28 @@ vi.mock('../lib/useAuthStatus', () => ({
   useAuthStatus: () => useAuthStatusMock(),
 }))
 
+vi.mock('../lib/site', () => ({
+  getSiteMode: () => 'skills',
+}))
+
 describe('Upload route', () => {
   beforeEach(() => {
-    generateUploadUrl.mockReset()
-    publishVersion.mockReset()
-    generateChangelogPreview.mockReset()
+    publishMock.mockReset()
+    getUploadUrlMock.mockReset()
+    getExistingMock.mockReset()
+    generateChangelogPreviewMock.mockReset()
     fetchMock.mockReset()
-    useQueryMock.mockReset()
     useAuthStatusMock.mockReset()
-    useActionCallCount = 0
+
     useAuthStatusMock.mockReturnValue({
       isAuthenticated: true,
       isLoading: false,
-      me: { _id: 'users:1' },
+      me: { _id: 'users:1', handle: 'testuser' },
     })
-    useQueryMock.mockImplementation((_fn: unknown, args: unknown) => {
-      if (args === 'skip') return undefined
-      return null
-    })
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ storageId: 'storage-id' }),
-    })
+    getExistingMock.mockResolvedValue(null)
+    generateChangelogPreviewMock.mockResolvedValue({ changelog: '' })
+    getUploadUrlMock.mockResolvedValue({ url: 'https://upload.local', storageKey: 'key-1' })
+    fetchMock.mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetchMock)
   })
 
@@ -77,7 +83,6 @@ describe('Upload route', () => {
   })
 
   it('enables publish when fields and files are valid', async () => {
-    generateUploadUrl.mockResolvedValue('https://upload.local')
     render(<Upload />)
     fireEvent.change(screen.getByPlaceholderText('skill-name'), {
       target: { value: 'cool-skill' },
@@ -131,8 +136,7 @@ describe('Upload route', () => {
   })
 
   it('unwraps folder uploads so SKILL.md can be at the top-level', async () => {
-    generateUploadUrl.mockResolvedValue('https://upload.local')
-    publishVersion.mockResolvedValue(undefined)
+    publishMock.mockResolvedValue({ slug: 'ynab' })
     render(<Upload />)
     fireEvent.change(screen.getByPlaceholderText('skill-name'), {
       target: { value: 'ynab' },
@@ -158,16 +162,13 @@ describe('Upload route', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /publish/i }))
     await waitFor(() => {
-      expect(
-        publishVersion.mock.calls.some((call) =>
-          Array.isArray((call[0] as { files?: unknown }).files),
-        ),
-      ).toBe(true)
+      expect(publishMock).toHaveBeenCalled()
     })
-    const args = publishVersion.mock.calls
-      .map((call) => call[0] as { files?: Array<{ path: string }> })
-      .find((call) => Array.isArray(call.files))
-    expect(args?.files?.[0]?.path).toBe('SKILL.md')
+    const args = publishMock.mock.calls[0]
+    // First arg is slug, second is the publish body
+    expect(args[0]).toBe('ynab')
+    const body = args[1] as { files?: Array<{ path: string }> }
+    expect(body?.files?.[0]?.path).toBe('SKILL.md')
   })
 
   it('blocks non-text folder uploads (png)', async () => {
@@ -199,8 +200,7 @@ describe('Upload route', () => {
   })
 
   it('surfaces publish errors and stays on page', async () => {
-    publishVersion.mockRejectedValueOnce(new Error('Changelog is required'))
-    generateUploadUrl.mockResolvedValue('https://upload.local')
+    publishMock.mockRejectedValueOnce(new Error('Changelog is required'))
     render(<Upload />)
     fireEvent.change(screen.getByPlaceholderText('skill-name'), {
       target: { value: 'cool-skill' },

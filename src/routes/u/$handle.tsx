@@ -1,37 +1,100 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useState } from 'react'
-import { api } from '../../../convex/_generated/api'
-import type { Doc } from '../../../convex/_generated/dataModel'
+import { skillsApi, telemetryApi, usersApi, type Skill } from '../../lib/api'
 import { SkillCard } from '../../components/SkillCard'
 import { SkillStatsTripletLine } from '../../components/SkillStats'
 import { getSkillBadges } from '../../lib/badges'
 import type { PublicSkill, PublicUser } from '../../lib/publicUser'
+import { useAuthStatus } from '../../lib/useAuthStatus'
 
 export const Route = createFileRoute('/u/$handle')({
   component: UserProfile,
 })
 
+/** Convert flat API Skill to PublicSkill shape expected by SkillCard */
+function apiSkillToPublic(s: Skill): PublicSkill {
+  return {
+    _id: s.id,
+    _creationTime: new Date(s.createdAt).getTime(),
+    slug: s.slug,
+    displayName: s.displayName,
+    summary: s.summary,
+    ownerUserId: s.ownerUserId,
+    canonicalSkillId: null,
+    forkOf: null,
+    latestVersionId: null,
+    tags: {},
+    badges: s.badges as any,
+    stats: {
+      downloads: s.statsDownloads,
+      stars: s.statsStars,
+      versions: s.statsVersions,
+      comments: s.statsComments,
+    },
+    createdAt: new Date(s.createdAt).getTime(),
+    updatedAt: new Date(s.updatedAt).getTime(),
+  } as any
+}
+
 function UserProfile() {
   const { handle } = Route.useParams()
-  const me = useQuery(api.users.me) as Doc<'users'> | null | undefined
-  const user = useQuery(api.users.getByHandle, { handle }) as PublicUser | null | undefined
-  const publishedSkills = useQuery(
-    api.skills.list,
-    user ? { ownerUserId: user._id, limit: 50 } : 'skip',
-  ) as PublicSkill[] | undefined
-  const starredSkills = useQuery(
-    api.stars.listByUser,
-    user ? { userId: user._id, limit: 50 } : 'skip',
-  ) as PublicSkill[] | undefined
+  const { me } = useAuthStatus()
 
-  const isSelf = Boolean(me && user && me._id === user._id)
+  const [user, setUser] = useState<PublicUser | null | undefined>(undefined)
+  const [publishedSkills, setPublishedSkills] = useState<PublicSkill[] | undefined>(undefined)
+  const [starredSkills, setStarredSkills] = useState<PublicSkill[] | undefined>(undefined)
   const [tab, setTab] = useState<'stars' | 'installed'>('stars')
   const [includeRemoved, setIncludeRemoved] = useState(false)
-  const installed = useQuery(
-    api.telemetry.getMyInstalled,
-    isSelf && tab === 'installed' ? { includeRemoved } : 'skip',
-  ) as TelemetryResponse | null | undefined
+  const [installed, setInstalled] = useState<TelemetryResponse | null | undefined>(undefined)
+
+  const isSelf = Boolean(me && user && me._id === (user as any)._id)
+
+  // Fetch user profile
+  useEffect(() => {
+    setUser(undefined)
+    usersApi
+      .get(handle)
+      .then((data) =>
+        setUser({
+          _id: data.id,
+          _creationTime: new Date(data.createdAt).getTime(),
+          handle: data.handle,
+          name: data.displayName,
+          displayName: data.displayName,
+          image: data.image,
+          bio: data.bio,
+        } as PublicUser),
+      )
+      .catch(() => setUser(null))
+  }, [handle])
+
+  // Fetch published skills
+  useEffect(() => {
+    if (user === undefined || user === null) return
+    usersApi
+      .skills(handle)
+      .then((r) => setPublishedSkills(r.items.map(apiSkillToPublic)))
+      .catch(() => setPublishedSkills([]))
+  }, [user, handle])
+
+  // Fetch starred skills
+  useEffect(() => {
+    if (user === undefined || user === null) return
+    usersApi
+      .starredSkills(handle, 50)
+      .then((r) => setStarredSkills(r.items.map(apiSkillToPublic)))
+      .catch(() => setStarredSkills([]))
+  }, [user, handle])
+
+  // Fetch installed telemetry (self only)
+  useEffect(() => {
+    if (!isSelf || tab !== 'installed') return
+    setInstalled(undefined)
+    telemetryApi
+      .getMyInstalled(includeRemoved)
+      .then((data: any) => setInstalled(data as TelemetryResponse))
+      .catch(() => setInstalled(null))
+  }, [isSelf, tab, includeRemoved])
 
   useEffect(() => {
     if (!isSelf && tab === 'installed') setTab('stars')
@@ -173,7 +236,6 @@ function InstalledSection(props: {
   onToggleRemoved: () => void
   data: TelemetryResponse | null | undefined
 }) {
-  const clearTelemetry = useMutation(api.telemetry.clearMyTelemetry)
   const [showRaw, setShowRaw] = useState(false)
   const data = props.data
   if (data === undefined) {
@@ -221,7 +283,7 @@ function InstalledSection(props: {
           type="button"
           onClick={() => {
             if (!window.confirm('Delete all telemetry data?')) return
-            void clearTelemetry()
+            void telemetryApi.clearMyTelemetry()
           }}
         >
           Delete telemetry

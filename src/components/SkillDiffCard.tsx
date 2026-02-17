@@ -1,9 +1,7 @@
 import type { DiffEditorProps } from '@monaco-editor/react'
 import { DiffEditor, useMonaco } from '@monaco-editor/react'
-import { useAction } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { skillsApi } from '../lib/api'
 import {
   buildFileDiffList,
   getDefaultDiffSelection,
@@ -15,14 +13,22 @@ import {
 } from '../lib/diffing'
 import { ClientOnly } from './ClientOnly'
 
+type SkillVersion = {
+  id: string
+  version: string
+  files?: Array<{ path: string; size: number; sha256: string; [key: string]: unknown }>
+  [key: string]: unknown
+}
+
 type SkillDiffCardProps = {
-  skill: Doc<'skills'>
-  versions: Doc<'skillVersions'>[]
+  slug: string
+  skill: { tags?: Record<string, string>; [key: string]: unknown }
+  versions: SkillVersion[]
   variant?: 'card' | 'embedded'
 }
 
 type VersionOption = {
-  value: Id<'skillVersions'>
+  value: string
   label: string
   group: 'Special' | 'Tags' | 'Versions'
   disabled?: boolean
@@ -37,12 +43,11 @@ type SizeWarning = {
 
 const EMPTY_DIFF_TEXT = ''
 
-export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCardProps) {
-  const getFileText = useAction(api.skills.getFileText)
+export function SkillDiffCard({ slug, skill, versions, variant = 'card' }: SkillDiffCardProps) {
   const monaco = useMonaco()
   const [viewMode, setViewMode] = useState<'split' | 'inline'>('split')
-  const [leftVersionId, setLeftVersionId] = useState<Id<'skillVersions'> | null>(null)
-  const [rightVersionId, setRightVersionId] = useState<Id<'skillVersions'> | null>(null)
+  const [leftVersionId, setLeftVersionId] = useState<string | null>(null)
+  const [rightVersionId, setRightVersionId] = useState<string | null>(null)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [leftText, setLeftText] = useState(EMPTY_DIFF_TEXT)
   const [rightText, setRightText] = useState(EMPTY_DIFF_TEXT)
@@ -52,12 +57,12 @@ export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCa
   const cacheRef = useRef(new Map<string, string>())
 
   const versionEntries = useMemo(
-    () => versions.map((entry) => ({ id: entry._id, version: entry.version })),
+    () => versions.map((entry) => ({ id: entry.id, version: entry.version })),
     [versions],
   )
   const orderedVersions = useMemo(() => sortVersionsBySemver(versionEntries), [versionEntries])
   const versionById = useMemo(
-    () => new Map(versions.map((entry) => [entry._id, entry])),
+    () => new Map(versions.map((entry) => [entry.id, entry])),
     [versions],
   )
 
@@ -125,11 +130,11 @@ export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCa
     const defaults = getDefaultDiffSelection(versionEntries, skill.tags)
     setLeftVersionId((current) => {
       if (current && versionById.has(current)) return current
-      return defaults.leftId ? (defaults.leftId as Id<'skillVersions'>) : null
+      return defaults.leftId ?? null
     })
     setRightVersionId((current) => {
       if (current && versionById.has(current)) return current
-      return defaults.rightId ? (defaults.rightId as Id<'skillVersions'>) : null
+      return defaults.rightId ?? null
     })
   }, [versionEntries, skill.tags, versionById, versions.length])
 
@@ -158,11 +163,11 @@ export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCa
 
   useEffect(() => {
     let cancelled = false
-    async function loadText(versionId: Id<'skillVersions'>, path: string) {
+    async function loadText(versionId: string, path: string) {
       const cacheKey = `${versionId}:${path}`
       const cached = cacheRef.current.get(cacheKey)
       if (cached !== undefined) return cached
-      const result = await getFileText({ versionId, path })
+      const result = await skillsApi.getFileText(slug, versionId, path)
       cacheRef.current.set(cacheKey, result.text)
       return result.text
     }
@@ -220,7 +225,7 @@ export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCa
     return () => {
       cancelled = true
     }
-  }, [getFileText, leftVersionId, rightVersionId, selectedItem])
+  }, [slug, leftVersionId, rightVersionId, selectedItem])
 
   useEffect(() => {
     if (!monaco || typeof document === 'undefined') return
@@ -280,7 +285,7 @@ export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCa
             id="diff-left"
             className="search-input"
             value={leftVersionId ?? ''}
-            onChange={(event) => setLeftVersionId(event.target.value as Id<'skillVersions'>)}
+            onChange={(event) => setLeftVersionId(event.target.value)}
           >
             <option value="" disabled>
               Select version
@@ -305,7 +310,7 @@ export function SkillDiffCard({ skill, versions, variant = 'card' }: SkillDiffCa
             id="diff-right"
             className="search-input"
             value={rightVersionId ?? ''}
-            onChange={(event) => setRightVersionId(event.target.value as Id<'skillVersions'>)}
+            onChange={(event) => setRightVersionId(event.target.value)}
           >
             <option value="" disabled>
               Select version

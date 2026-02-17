@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useState } from 'react'
-import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { managementApi, usersApi } from '../lib/api'
+import type { Doc, Id } from '../lib/types'
 import {
   getSkillBadges,
   isSkillDeprecated,
@@ -78,30 +77,11 @@ function Management() {
   const admin = isAdmin(me)
 
   const selectedSlug = search.skill?.trim()
-  const selectedSkill = useQuery(
-    api.skills.getBySlugForStaff,
-    staff && selectedSlug ? { slug: selectedSlug } : 'skip',
-  ) as SkillBySlugResult | undefined
-  const recentVersions = useQuery(api.skills.listRecentVersions, staff ? { limit: 20 } : 'skip') as
-    | RecentVersionEntry[]
-    | undefined
-  const reportedSkills = useQuery(api.skills.listReportedSkills, staff ? { limit: 25 } : 'skip') as
-    | ReportedSkillEntry[]
-    | undefined
-  const duplicateCandidates = useQuery(
-    api.skills.listDuplicateCandidates,
-    staff ? { limit: 20 } : 'skip',
-  ) as DuplicateCandidateEntry[] | undefined
 
-  const setRole = useMutation(api.users.setRole)
-  const banUser = useMutation(api.users.banUser)
-  const setBatch = useMutation(api.skills.setBatch)
-  const setSoftDeleted = useMutation(api.skills.setSoftDeleted)
-  const hardDelete = useMutation(api.skills.hardDelete)
-  const changeOwner = useMutation(api.skills.changeOwner)
-  const setDuplicate = useMutation(api.skills.setDuplicate)
-  const setOfficialBadge = useMutation(api.skills.setOfficialBadge)
-  const setDeprecatedBadge = useMutation(api.skills.setDeprecatedBadge)
+  const [selectedSkill, setSelectedSkill] = useState<SkillBySlugResult | undefined>(undefined)
+  const [recentVersions, setRecentVersions] = useState<RecentVersionEntry[] | undefined>(undefined)
+  const [reportedSkills, setReportedSkills] = useState<ReportedSkillEntry[] | undefined>(undefined)
+  const [duplicateCandidates, setDuplicateCandidates] = useState<DuplicateCandidateEntry[] | undefined>(undefined)
 
   const [selectedDuplicate, setSelectedDuplicate] = useState('')
   const [selectedOwner, setSelectedOwner] = useState('')
@@ -110,11 +90,30 @@ function Management() {
   const [userSearch, setUserSearch] = useState('')
   const [userSearchDebounced, setUserSearchDebounced] = useState('')
 
-  const userQuery = userSearchDebounced.trim()
-  const userResult = useQuery(
-    api.users.list,
-    admin ? { limit: 200, search: userQuery || undefined } : 'skip',
-  ) as { items: Doc<'users'>[]; total: number } | undefined
+  const [userResult, setUserResult] = useState<{ items: Doc<'users'>[]; total: number } | undefined>(undefined)
+
+  // Fetch selected skill
+  useEffect(() => {
+    if (!staff || !selectedSlug) { setSelectedSkill(undefined); return }
+    managementApi
+      .getBySlugForStaff(selectedSlug)
+      .then((data: any) => setSelectedSkill(data as SkillBySlugResult))
+      .catch(() => setSelectedSkill(null))
+  }, [staff, selectedSlug])
+
+  // Fetch management lists
+  useEffect(() => {
+    if (!staff) return
+    managementApi.listRecentVersions(20).then((r) => setRecentVersions(r.items as any)).catch(() => setRecentVersions([]))
+    managementApi.listReportedSkills(25).then((r) => setReportedSkills(r.items as any)).catch(() => setReportedSkills([]))
+    managementApi.listDuplicateCandidates(20).then((r) => setDuplicateCandidates(r.items as any)).catch(() => setDuplicateCandidates([]))
+  }, [staff])
+
+  // Fetch user list (admin only)
+  useEffect(() => {
+    if (!admin) return
+    usersApi.list({ limit: 200, search: userSearchDebounced.trim() || undefined }).then((r) => setUserResult(r as any)).catch(() => {})
+  }, [admin, userSearchDebounced])
 
   const selectedSkillId = selectedSkill?.skill?._id ?? null
   const selectedOwnerUserId = selectedSkill?.skill?.ownerUserId ?? null
@@ -187,7 +186,7 @@ function Management() {
     : 'Loading users…'
   const userEmptyLabel = userResult
     ? filteredUsers.length === 0
-      ? userQuery
+      ? userSearchDebounced.trim()
         ? 'No matching users.'
         : 'No users yet.'
       : ''
@@ -264,7 +263,7 @@ function Management() {
                       className="btn"
                       type="button"
                       onClick={() =>
-                        void setSoftDeleted({ skillId: skill._id, deleted: !skill.softDeletedAt })
+                        void managementApi.setSoftDeleted(skill._id, !skill.softDeletedAt)
                       }
                     >
                       {skill.softDeletedAt ? 'Restore' : 'Hide'}
@@ -275,7 +274,7 @@ function Management() {
                         type="button"
                         onClick={() => {
                           if (!window.confirm(`Hard delete ${skill.displayName}?`)) return
-                          void hardDelete({ skillId: skill._id })
+                          void managementApi.hardDelete(skill._id)
                         }}
                       >
                         Hard delete
@@ -361,10 +360,10 @@ function Management() {
                         className="btn"
                         type="button"
                         onClick={() =>
-                          void setDuplicate({
-                            skillId: skill._id,
-                            canonicalSlug: selectedDuplicate.trim() || undefined,
-                          })
+                          void managementApi.setDuplicate(
+                            skill._id,
+                            selectedDuplicate.trim() || undefined,
+                          )
                         }
                       >
                         Set duplicate
@@ -386,10 +385,7 @@ function Management() {
                             className="btn"
                             type="button"
                             onClick={() =>
-                              void changeOwner({
-                                skillId: skill._id,
-                                ownerUserId: selectedOwner as Doc<'users'>['_id'],
-                              })
+                              void managementApi.changeOwner(skill._id, selectedOwner)
                             }
                           >
                             Change owner
@@ -410,7 +406,7 @@ function Management() {
                       className="btn"
                       type="button"
                       onClick={() =>
-                        void setSoftDeleted({ skillId: skill._id, deleted: !skill.softDeletedAt })
+                        void managementApi.setSoftDeleted(skill._id, !skill.softDeletedAt)
                       }
                     >
                       {skill.softDeletedAt ? 'Restore' : 'Hide'}
@@ -419,10 +415,10 @@ function Management() {
                       className="btn"
                       type="button"
                       onClick={() =>
-                        void setBatch({
-                          skillId: skill._id,
-                          batch: isHighlighted ? undefined : 'highlighted',
-                        })
+                        void managementApi.setBatch(
+                          skill._id,
+                          isHighlighted ? undefined : 'highlighted',
+                        )
                       }
                     >
                       {isHighlighted ? 'Unhighlight' : 'Highlight'}
@@ -433,7 +429,7 @@ function Management() {
                         type="button"
                         onClick={() => {
                           if (!window.confirm(`Hard delete ${skill.displayName}?`)) return
-                          void hardDelete({ skillId: skill._id })
+                          void managementApi.hardDelete(skill._id)
                         }}
                       >
                         Hard delete
@@ -451,7 +447,7 @@ function Management() {
                           }
                           const reason = promptBanReason(`@${ownerHandle}`)
                           if (reason === null) return
-                          void banUser({ userId: ownerUserId, reason })
+                          void usersApi.banUser(ownerUserId, reason)
                         }}
                       >
                         Ban user
@@ -463,10 +459,7 @@ function Management() {
                           className="btn"
                           type="button"
                           onClick={() =>
-                            void setOfficialBadge({
-                              skillId: skill._id,
-                              official: !isOfficial,
-                            })
+                            void managementApi.setOfficialBadge(skill._id, !isOfficial)
                           }
                         >
                           {isOfficial ? 'Remove official' : 'Mark official'}
@@ -475,10 +468,7 @@ function Management() {
                           className="btn"
                           type="button"
                           onClick={() =>
-                            void setDeprecatedBadge({
-                              skillId: skill._id,
-                              deprecated: !isDeprecated,
-                            })
+                            void managementApi.setDeprecatedBadge(skill._id, !isDeprecated)
                           }
                         >
                           {isDeprecated ? 'Remove deprecated' : 'Mark deprecated'}
@@ -549,10 +539,10 @@ function Management() {
                             className="btn"
                             type="button"
                             onClick={() =>
-                              void setDuplicate({
-                                skillId: entry.skill._id,
-                                canonicalSlug: match.skill.slug,
-                              })
+                              void managementApi.setDuplicate(
+                                entry.skill._id,
+                                match.skill.slug,
+                              )
                             }
                           >
                             Mark duplicate
@@ -661,7 +651,7 @@ function Management() {
                       onChange={(event) => {
                         const value = event.target.value
                         if (value === 'admin' || value === 'moderator' || value === 'user') {
-                          void setRole({ userId: user._id, role: value })
+                          void usersApi.setRole(user._id, value)
                         }
                       }}
                     >
@@ -685,7 +675,7 @@ function Management() {
                         const label = `@${user.handle ?? user.name ?? 'user'}`
                         const reason = promptBanReason(label)
                         if (reason === null) return
-                        void banUser({ userId: user._id, reason })
+                        void usersApi.banUser(user._id, reason)
                       }}
                     >
                       Ban user
@@ -701,6 +691,6 @@ function Management() {
   )
 }
 
-function formatTimestamp(value: number) {
+function formatTimestamp(value: number | string) {
   return new Date(value).toLocaleString()
 }

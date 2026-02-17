@@ -1,7 +1,6 @@
-import { useAction, usePaginatedQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { api } from '../../../convex/_generated/api'
-import { parseDir, parseSort, toListSort, type SortDir, type SortKey } from './-params'
+import { searchApi, skillsApi, type Skill } from '../../lib/api'
+import { parseDir, parseSort, type SortDir, type SortKey } from './-params'
 import type { SkillListEntry, SkillSearchEntry } from './-types'
 
 const pageSize = 25
@@ -40,10 +39,16 @@ export function useSkillsBrowseModel({
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const loadMoreInFlightRef = useRef(false)
 
+  // Paginated list state
+  const [listItems, setListItems] = useState<Array<SkillListEntry>>([])
+  const [listCursor, setListCursor] = useState<string | undefined>(undefined)
+  const [listHasMore, setListHasMore] = useState(false)
+  const [isLoadingList, setIsLoadingList] = useState(true)
+  const [isLoadingMoreList, setIsLoadingMoreList] = useState(false)
+
   const view: SkillsView = search.view ?? 'list'
   const highlightedOnly = search.highlighted ?? false
   const nonSuspiciousOnly = search.nonSuspicious ?? false
-  const searchSkills = useAction(api.search.searchSkills)
 
   const trimmedQuery = useMemo(() => query.trim(), [query])
   const hasQuery = trimmedQuery.length > 0
@@ -51,27 +56,34 @@ export function useSkillsBrowseModel({
     search.sort === 'relevance' && !hasQuery
       ? 'downloads'
       : (search.sort ?? (hasQuery ? 'relevance' : 'downloads'))
-  const listSort = toListSort(sort)
   const dir = parseDir(search.dir, sort)
   const searchKey = trimmedQuery
     ? `${trimmedQuery}::${highlightedOnly ? '1' : '0'}::${nonSuspiciousOnly ? '1' : '0'}`
     : ''
 
-  const {
-    results: paginatedResults,
-    status: paginationStatus,
-    loadMore: loadMorePaginated,
-  } = usePaginatedQuery(
-    api.skills.listPublicPageV2,
-    hasQuery ? 'skip' : { sort: listSort, dir, highlightedOnly, nonSuspiciousOnly },
-    {
-      initialNumItems: pageSize,
-    },
-  )
-
-  const isLoadingList = paginationStatus === 'LoadingFirstPage'
-  const canLoadMoreList = paginationStatus === 'CanLoadMore'
-  const isLoadingMoreList = paginationStatus === 'LoadingMore'
+  // Load initial list page
+  useEffect(() => {
+    if (hasQuery) return
+    setIsLoadingList(true)
+    setListItems([])
+    setListCursor(undefined)
+    skillsApi
+      .list({ sort: sort === 'relevance' ? 'downloads' : sort, limit: pageSize })
+      .then((r) => {
+        setListItems(
+          r.items.map((s) => ({
+            skill: skillToPublic(s),
+            latestVersion: null,
+            ownerHandle: s.ownerHandle ?? null,
+            owner: null,
+          })),
+        )
+        setListHasMore(r.hasMore)
+        setListCursor(r.nextCursor)
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingList(false))
+  }, [hasQuery, sort, dir, highlightedOnly, nonSuspiciousOnly])
 
   useEffect(() => {
     setQuery(search.q ?? '')
@@ -113,14 +125,17 @@ export function useSkillsBrowseModel({
     const handle = window.setTimeout(() => {
       void (async () => {
         try {
-          const data = (await searchSkills({
-            query: trimmedQuery,
-            highlightedOnly,
-            nonSuspiciousOnly,
-            limit: searchLimit,
-          })) as Array<SkillSearchEntry>
+          const data = await searchApi.skills(trimmedQuery, searchLimit)
           if (requestId === searchRequest.current) {
-            setSearchResults(data)
+            setSearchResults(
+              data.items.map((item) => ({
+                skill: skillToPublic(item),
+                version: null,
+                ownerHandle: item.ownerHandle ?? null,
+                owner: null,
+                score: item.score,
+              })) as unknown as SkillSearchEntry[],
+            )
           }
         } finally {
           if (requestId === searchRequest.current) {
@@ -130,7 +145,7 @@ export function useSkillsBrowseModel({
       })()
     }, 220)
     return () => window.clearTimeout(handle)
-  }, [hasQuery, highlightedOnly, nonSuspiciousOnly, searchLimit, searchSkills, trimmedQuery])
+  }, [hasQuery, highlightedOnly, nonSuspiciousOnly, searchLimit, trimmedQuery])
 
   const baseItems = useMemo(() => {
     if (hasQuery) {
@@ -142,8 +157,8 @@ export function useSkillsBrowseModel({
         searchScore: entry.score,
       }))
     }
-    return paginatedResults as Array<SkillListEntry>
-  }, [hasQuery, paginatedResults, searchResults])
+    return listItems
+  }, [hasQuery, listItems, searchResults])
 
   const sorted = useMemo(() => {
     if (!hasQuery) {
@@ -153,8 +168,6 @@ export function useSkillsBrowseModel({
     const results = [...baseItems]
     results.sort((a, b) => {
       const tieBreak = () => {
-        const updated = (a.skill.updatedAt - b.skill.updatedAt) * multiplier
-        if (updated !== 0) return updated
         return a.skill.slug.localeCompare(b.skill.slug)
       }
       switch (sort) {
@@ -162,35 +175,32 @@ export function useSkillsBrowseModel({
           return ((a.searchScore ?? 0) - (b.searchScore ?? 0)) * multiplier
         case 'downloads':
           return (a.skill.stats.downloads - b.skill.stats.downloads) * multiplier || tieBreak()
-        case 'installs':
-          return (
-            ((a.skill.stats.installsAllTime ?? 0) - (b.skill.stats.installsAllTime ?? 0)) * multiplier ||
-            tieBreak()
-          )
         case 'stars':
           return (a.skill.stats.stars - b.skill.stats.stars) * multiplier || tieBreak()
-        case 'updated':
-          return (
-            (a.skill.updatedAt - b.skill.updatedAt) * multiplier || a.skill.slug.localeCompare(b.skill.slug)
-          )
         case 'name':
           return (
             (a.skill.displayName.localeCompare(b.skill.displayName) ||
               a.skill.slug.localeCompare(b.skill.slug)) * multiplier
           )
         default:
-          return (
-            (a.skill.createdAt - b.skill.createdAt) * multiplier || a.skill.slug.localeCompare(b.skill.slug)
-          )
+          return a.skill.slug.localeCompare(b.skill.slug)
       }
     })
     return results
   }, [baseItems, dir, hasQuery, sort])
 
+  const paginationStatus = isLoadingList
+    ? 'LoadingFirstPage'
+    : isLoadingMoreList
+      ? 'LoadingMore'
+      : listHasMore
+        ? 'CanLoadMore'
+        : 'Exhausted'
+
   const isLoadingSkills = hasQuery ? isSearching && searchResults.length === 0 : isLoadingList
   const canLoadMore = hasQuery
     ? !isSearching && searchResults.length === searchLimit && searchResults.length > 0
-    : canLoadMoreList
+    : listHasMore
   const isLoadingMore = hasQuery ? isSearching && searchResults.length > 0 : isLoadingMoreList
   const canAutoLoad = typeof IntersectionObserver !== 'undefined'
 
@@ -200,9 +210,26 @@ export function useSkillsBrowseModel({
     if (hasQuery) {
       setSearchLimit((value) => value + pageSize)
     } else {
-      loadMorePaginated(pageSize)
+      setIsLoadingMoreList(true)
+      skillsApi
+        .list({ sort: sort === 'relevance' ? 'downloads' : sort, limit: pageSize, cursor: listCursor })
+        .then((r) => {
+          setListItems((prev) => [
+            ...prev,
+            ...r.items.map((s) => ({
+              skill: skillToPublic(s),
+              latestVersion: null,
+              ownerHandle: s.ownerHandle ?? null,
+              owner: null,
+            })),
+          ])
+          setListHasMore(r.hasMore)
+          setListCursor(r.nextCursor)
+        })
+        .catch(() => {})
+        .finally(() => setIsLoadingMoreList(false))
     }
-  }, [canLoadMore, hasQuery, isLoadingMore, loadMorePaginated])
+  }, [canLoadMore, hasQuery, isLoadingMore, sort, listCursor])
 
   useEffect(() => {
     if (!isLoadingMore) {
@@ -321,5 +348,27 @@ export function useSkillsBrowseModel({
     sort,
     sorted,
     view,
+  }
+}
+
+/** Convert API Skill to the shape expected by components */
+function skillToPublic(s: Skill): any {
+  return {
+    _id: s.id,
+    _creationTime: new Date(s.createdAt).getTime(),
+    slug: s.slug,
+    displayName: s.displayName,
+    summary: s.summary,
+    ownerUserId: s.ownerUserId,
+    stats: {
+      downloads: s.statsDownloads,
+      stars: s.statsStars,
+      versions: s.statsVersions,
+      comments: s.statsComments,
+    },
+    badges: s.badges,
+    tags: {},
+    createdAt: new Date(s.createdAt).getTime(),
+    updatedAt: new Date(s.updatedAt).getTime(),
   }
 }

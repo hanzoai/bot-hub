@@ -1,24 +1,49 @@
-import { useMutation, useQuery } from 'convex/react'
-import { useState } from 'react'
-import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { useCallback, useEffect, useState } from 'react'
+import { skillsApi } from '../lib/api'
 import { isModerator } from '../lib/roles'
 
-type SkillCommentsPanelProps = {
-  skillId: Id<'skills'>
-  isAuthenticated: boolean
-  me: Doc<'users'> | null
+type User = {
+  id: string
+  handle: string | null
+  displayName: string | null
+  role: string | null
+  [key: string]: unknown
 }
 
-export function SkillCommentsPanel({ skillId, isAuthenticated, me }: SkillCommentsPanelProps) {
-  const addComment = useMutation(api.comments.add)
-  const removeComment = useMutation(api.comments.remove)
+type CommentEntry = {
+  id: string
+  body: string
+  userId: string
+  createdAt: string
+  userHandle: string | null
+  userImage: string | null
+  userDisplayName: string | null
+}
+
+type SkillCommentsPanelProps = {
+  slug: string
+  isAuthenticated: boolean
+  me: User | null
+}
+
+export function SkillCommentsPanel({ slug, isAuthenticated, me }: SkillCommentsPanelProps) {
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [deletingCommentId, setDeletingCommentId] = useState<Id<'comments'> | null>(null)
-  const comments = useQuery(api.comments.listBySkill, { skillId, limit: 50 })
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+  const [comments, setComments] = useState<CommentEntry[] | null>(null)
+
+  const refresh = useCallback(() => {
+    skillsApi
+      .comments(slug)
+      .then((r) => setComments(r.items))
+      .catch(() => {})
+  }, [slug])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
   const submitComment = async () => {
     const body = comment.trim()
@@ -26,8 +51,9 @@ export function SkillCommentsPanel({ skillId, isAuthenticated, me }: SkillCommen
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      await addComment({ skillId, body })
+      await skillsApi.addComment(slug, body)
       setComment('')
+      refresh()
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Failed to post comment')
     } finally {
@@ -35,12 +61,13 @@ export function SkillCommentsPanel({ skillId, isAuthenticated, me }: SkillCommen
     }
   }
 
-  const deleteComment = async (commentId: Id<'comments'>) => {
+  const deleteComment = async (commentId: string) => {
     if (deletingCommentId) return
     setDeleteError(null)
     setDeletingCommentId(commentId)
     try {
-      await removeComment({ commentId })
+      await skillsApi.deleteComment(slug, commentId)
+      refresh()
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete comment')
     } finally {
@@ -83,19 +110,19 @@ export function SkillCommentsPanel({ skillId, isAuthenticated, me }: SkillCommen
           <div className="stat">No comments yet.</div>
         ) : (
           (comments ?? []).map((entry) => (
-            <div key={entry.comment._id} className="comment-item">
+            <div key={entry.id} className="comment-item">
               <div className="comment-body">
-                <strong>@{entry.user?.handle ?? entry.user?.name ?? 'user'}</strong>
-                <div className="comment-body-text">{entry.comment.body}</div>
+                <strong>@{entry.userHandle ?? entry.userDisplayName ?? 'user'}</strong>
+                <div className="comment-body-text">{entry.body}</div>
               </div>
-              {isAuthenticated && me && (me._id === entry.comment.userId || isModerator(me)) ? (
+              {isAuthenticated && me && (me.id === entry.userId || isModerator(me)) ? (
                 <button
                   className="btn comment-delete"
                   type="button"
-                  onClick={() => void deleteComment(entry.comment._id)}
+                  onClick={() => void deleteComment(entry.id)}
                   disabled={Boolean(deletingCommentId) || isSubmitting}
                 >
-                  {deletingCommentId === entry.comment._id ? 'Deleting…' : 'Delete'}
+                  {deletingCommentId === entry.id ? 'Deleting…' : 'Delete'}
                 </button>
               ) : null}
             </div>

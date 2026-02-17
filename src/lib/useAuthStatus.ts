@@ -1,12 +1,11 @@
-import { useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import type { Doc } from '../../convex/_generated/dataModel'
+import { useAuthContext } from './AuthContext'
 
+/** Drop-in replacement for the old Convex-based useAuthStatus */
 export function useAuthStatus() {
-  const me = useQuery(api.users.me) as Doc<'users'> | null | undefined
+  const { user, loading, isAuthenticated } = useAuthContext()
   return {
-    me,
-    isLoading: me === undefined,
-    isAuthenticated: Boolean(me),
+    me: user,
+    isLoading: loading,
+    isAuthenticated,
   }
 }

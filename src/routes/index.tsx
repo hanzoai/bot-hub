@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useAction, useQuery } from 'convex/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { api } from '../../convex/_generated/api'
+import { useEffect, useMemo, useState } from 'react'
+import { skillsApi, searchApi, type Skill } from '../lib/api'
 import { InstallSwitcher } from '../components/InstallSwitcher'
 import { SkillCard } from '../components/SkillCard'
 import { SkillStatsTripletLine } from '../components/SkillStats'
@@ -9,7 +8,7 @@ import { SoulCard } from '../components/SoulCard'
 import { SoulStatsTripletLine } from '../components/SoulStats'
 import { UserBadge } from '../components/UserBadge'
 import { getSkillBadges } from '../lib/badges'
-import type { PublicSkill, PublicSoul, PublicUser } from '../lib/publicUser'
+import type { PublicSoul } from '../lib/publicUser'
 import { getSiteMode } from '../lib/site'
 
 export const Route = createFileRoute('/')({
@@ -22,22 +21,19 @@ function Home() {
 }
 
 function SkillsHome() {
-  type SkillPageEntry = {
-    skill: PublicSkill
-    ownerHandle?: string | null
-    owner?: PublicUser | null
-    latestVersion?: unknown
-  }
+  const [highlighted, setHighlighted] = useState<Skill[]>([])
+  const [popular, setPopular] = useState<Skill[]>([])
 
-  const highlighted =
-    (useQuery(api.skills.listHighlightedPublic, { limit: 6 }) as SkillPageEntry[]) ?? []
-  const popularResult = useQuery(api.skills.listPublicPageV2, {
-    paginationOpts: { cursor: null, numItems: 12 },
-    sort: 'downloads',
-    dir: 'desc',
-    nonSuspiciousOnly: true,
-  }) as { page: SkillPageEntry[] } | undefined
-  const popular = popularResult?.page ?? []
+  useEffect(() => {
+    skillsApi
+      .list({ sort: 'stars', limit: 6 })
+      .then((r) => setHighlighted(r.items))
+      .catch(() => {})
+    skillsApi
+      .list({ sort: 'downloads', limit: 12 })
+      .then((r) => setPopular(r.items))
+      .catch(() => {})
+  }, [])
 
   return (
     <main>
@@ -87,22 +83,22 @@ function SkillsHome() {
           {highlighted.length === 0 ? (
             <div className="card">No highlighted skills yet.</div>
           ) : (
-            highlighted.map((entry) => (
+            highlighted.map((skill) => (
               <SkillCard
-                key={entry.skill._id}
-                skill={entry.skill}
-                badge={getSkillBadges(entry.skill)}
+                key={skill.id}
+                skill={{ ...skill, _id: skill.id, stats: { downloads: skill.statsDownloads, stars: skill.statsStars, versions: skill.statsVersions, comments: skill.statsComments } } as any}
+                badge={getSkillBadges({ badges: skill.badges as any })}
                 summaryFallback="A fresh skill bundle."
                 meta={
                   <div className="skill-card-footer-rows">
                     <UserBadge
-                      user={entry.owner}
-                      fallbackHandle={entry.ownerHandle ?? null}
+                      user={null}
+                      fallbackHandle={skill.ownerHandle ?? null}
                       prefix="by"
                       link={false}
                     />
                     <div className="stat">
-                      <SkillStatsTripletLine stats={entry.skill.stats} />
+                      <SkillStatsTripletLine stats={{ downloads: skill.statsDownloads, stars: skill.statsStars, versions: skill.statsVersions, comments: skill.statsComments }} />
                     </div>
                   </div>
                 }
@@ -119,21 +115,21 @@ function SkillsHome() {
           {popular.length === 0 ? (
             <div className="card">No skills yet. Be the first.</div>
           ) : (
-            popular.map((entry) => (
+            popular.map((skill) => (
               <SkillCard
-                key={entry.skill._id}
-                skill={entry.skill}
+                key={skill.id}
+                skill={{ ...skill, _id: skill.id, stats: { downloads: skill.statsDownloads, stars: skill.statsStars, versions: skill.statsVersions, comments: skill.statsComments } } as any}
                 summaryFallback="Agent-ready skill pack."
                 meta={
                   <div className="skill-card-footer-rows">
                     <UserBadge
-                      user={entry.owner}
-                      fallbackHandle={entry.ownerHandle ?? null}
+                      user={null}
+                      fallbackHandle={skill.ownerHandle ?? null}
                       prefix="by"
                       link={false}
                     />
                     <div className="stat">
-                      <SkillStatsTripletLine stats={entry.skill.stats} />
+                      <SkillStatsTripletLine stats={{ downloads: skill.statsDownloads, stars: skill.statsStars, versions: skill.statsVersions, comments: skill.statsComments }} />
                     </div>
                   </div>
                 }
@@ -165,17 +161,16 @@ function SkillsHome() {
 
 function OnlyCrabsHome() {
   const navigate = Route.useNavigate()
-  const ensureSoulSeeds = useAction(api.seed.ensureSoulSeeds)
-  const latest = (useQuery(api.souls.list, { limit: 12 }) as PublicSoul[]) ?? []
+  const [latest, setLatest] = useState<PublicSoul[]>([])
   const [query, setQuery] = useState('')
-  const seedEnsuredRef = useRef(false)
   const trimmedQuery = useMemo(() => query.trim(), [query])
 
   useEffect(() => {
-    if (seedEnsuredRef.current) return
-    seedEnsuredRef.current = true
-    void ensureSoulSeeds({})
-  }, [ensureSoulSeeds])
+    searchApi
+      .souls('', 12)
+      .then((r) => setLatest(r.items as unknown as PublicSoul[]))
+      .catch(() => {})
+  }, [])
 
   return (
     <main>

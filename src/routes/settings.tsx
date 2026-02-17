@@ -1,30 +1,24 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useMutation, useQuery } from 'convex/react'
 import { useEffect, useState } from 'react'
-import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
+import { tokensApi, usersApi } from '../lib/api'
 import { gravatarUrl } from '../lib/gravatar'
+import { useAuthStatus } from '../lib/useAuthStatus'
 
 export const Route = createFileRoute('/settings')({
   component: Settings,
 })
 
 function Settings() {
-  const me = useQuery(api.users.me)
-  const updateProfile = useMutation(api.users.updateProfile)
-  const deleteAccount = useMutation(api.users.deleteAccount)
-  const tokens = useQuery(api.tokens.listMine) as
-    | Array<{
-        _id: Id<'apiTokens'>
-        label: string
-        prefix: string
-        createdAt: number
-        lastUsedAt?: number
-        revokedAt?: number
-      }>
-    | undefined
-  const createToken = useMutation(api.tokens.create)
-  const revokeToken = useMutation(api.tokens.revoke)
+  const { me } = useAuthStatus()
+  const [tokens, setTokens] = useState<
+    Array<{
+      id: string
+      label: string
+      prefix: string
+      createdAt: string
+      lastUsedAt: string | null
+    }>
+  >([])
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [status, setStatus] = useState<string | null>(null)
@@ -37,6 +31,14 @@ function Settings() {
     setBio(me.bio ?? '')
   }, [me])
 
+  useEffect(() => {
+    if (!me) return
+    tokensApi
+      .list()
+      .then((r) => setTokens(r.items))
+      .catch(() => {})
+  }, [me])
+
   if (!me) {
     return (
       <main className="section">
@@ -46,12 +48,12 @@ function Settings() {
   }
 
   const avatar = me.image ?? (me.email ? gravatarUrl(me.email, 160) : undefined)
-  const identityName = me.displayName ?? me.name ?? me.handle ?? 'Profile'
+  const identityName = me.displayName ?? me.handle ?? 'Profile'
   const handle = me.handle ?? (me.email ? me.email.split('@')[0] : undefined)
 
   async function onSave(event: React.FormEvent) {
     event.preventDefault()
-    await updateProfile({ displayName, bio })
+    await usersApi.updateProfile({ displayName, bio })
     setStatus('Saved.')
   }
 
@@ -61,13 +63,26 @@ function Settings() {
         'Published skills will remain public.',
     )
     if (!ok) return
-    await deleteAccount()
+    // TODO: implement deleteAccount API
+    window.alert('Account deletion not yet available in self-hosted mode.')
   }
 
   async function onCreateToken() {
     const label = tokenLabel.trim() || 'CLI token'
-    const result = await createToken({ label })
+    const result = await tokensApi.create(label)
     setNewToken(result.token)
+    tokensApi
+      .list()
+      .then((r) => setTokens(r.items))
+      .catch(() => {})
+  }
+
+  async function onRevokeToken(id: string) {
+    await tokensApi.revoke(id)
+    tokensApi
+      .list()
+      .then((r) => setTokens(r.items))
+      .catch(() => {})
   }
 
   return (
@@ -147,11 +162,11 @@ function Settings() {
           ) : null}
         </div>
 
-        {(tokens ?? []).length ? (
+        {tokens.length ? (
           <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-            {(tokens ?? []).map((token) => (
+            {tokens.map((token) => (
               <div
-                key={token._id}
+                key={token.id}
                 className="stat"
                 style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}
               >
@@ -163,17 +178,15 @@ function Settings() {
                   <div style={{ opacity: 0.7 }}>
                     Created {formatDate(token.createdAt)}
                     {token.lastUsedAt ? ` · Used ${formatDate(token.lastUsedAt)}` : ''}
-                    {token.revokedAt ? ` · Revoked ${formatDate(token.revokedAt)}` : ''}
                   </div>
                 </div>
                 <div>
                   <button
                     className="btn"
                     type="button"
-                    disabled={Boolean(token.revokedAt)}
-                    onClick={() => void revokeToken({ tokenId: token._id })}
+                    onClick={() => void onRevokeToken(token.id)}
                   >
-                    {token.revokedAt ? 'Revoked' : 'Revoke'}
+                    Revoke
                   </button>
                 </div>
               </div>
@@ -199,7 +212,7 @@ function Settings() {
   )
 }
 
-function formatDate(value: number) {
+function formatDate(value: string | number) {
   try {
     return new Date(value).toLocaleString()
   } catch {

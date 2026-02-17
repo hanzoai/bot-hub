@@ -47,7 +47,7 @@ export function getSoulSiteUrl() {
 }
 
 export function getApiBase() {
-  const explicit = import.meta.env.VITE_CONVEX_SITE_URL?.trim()
+  const explicit = (import.meta.env.VITE_API_URL ?? '').trim()
   return explicit || getSiteUrl()
 }
 

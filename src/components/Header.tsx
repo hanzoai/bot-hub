@@ -1,13 +1,12 @@
-import { useAuthActions } from '@convex-dev/auth/react'
 import { Link } from '@tanstack/react-router'
 import { Menu, Monitor, Moon, Sun } from 'lucide-react'
 import { useMemo, useRef } from 'react'
+import { useAuthContext } from '../lib/AuthContext'
 import { gravatarUrl } from '../lib/gravatar'
 import { isModerator } from '../lib/roles'
 import { getBotHubSiteUrl, getSiteMode, getSiteName } from '../lib/site'
 import { applyTheme, useThemeMode } from '../lib/theme'
 import { startThemeTransition } from '../lib/theme-transition'
-import { useAuthStatus } from '../lib/useAuthStatus'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,8 +17,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group'
 
 export default function Header() {
-  const { isAuthenticated, isLoading, me } = useAuthStatus()
-  const { signIn, signOut } = useAuthActions()
+  const { user: me, isAuthenticated, loading: isLoading, signIn, signOut } = useAuthContext()
   const { mode, setMode } = useThemeMode()
   const toggleRef = useRef<HTMLDivElement | null>(null)
   const siteMode = getSiteMode()
@@ -29,7 +27,7 @@ export default function Header() {
 
   const avatar = me?.image ?? (me?.email ? gravatarUrl(me.email) : undefined)
   const handle = me?.handle ?? me?.displayName ?? 'user'
-  const initial = (me?.displayName ?? me?.name ?? handle).charAt(0).toUpperCase()
+  const initial = (me?.displayName ?? handle).charAt(0).toUpperCase()
   const isStaff = isModerator(me)
   const signInRedirectTo = getCurrentRelativeUrl()
 
@@ -263,7 +261,7 @@ export default function Header() {
               <DropdownMenuTrigger asChild>
                 <button className="user-trigger" type="button">
                   {avatar ? (
-                    <img src={avatar} alt={me.displayName ?? me.name ?? 'User avatar'} />
+                    <img src={avatar} alt={me.displayName ?? 'User avatar'} />
                   ) : (
                     <span className="user-menu-fallback">{initial}</span>
                   )}
@@ -287,15 +285,10 @@ export default function Header() {
               className="btn btn-primary"
               type="button"
               disabled={isLoading}
-              onClick={() =>
-                void signIn(
-                  'github',
-                  signInRedirectTo ? { redirectTo: signInRedirectTo } : undefined,
-                )
-              }
+              onClick={() => signIn()}
             >
               <span className="sign-in-label">Sign in</span>
-              <span className="sign-in-provider">with GitHub</span>
+              <span className="sign-in-provider">with Hanzo</span>
             </button>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../lib/types'
 import { SkillVersionsPanel } from './SkillVersionsPanel'
 
 const SkillDiffCard = lazy(() =>
