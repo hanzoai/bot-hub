@@ -126,15 +126,15 @@ export function toOptionalNumber(value: string | null) {
 }
 
 /**
- * Batch resolve soul version tags to version strings.
+ * Batch resolve persona version tags to version strings.
  * Collects all version IDs, fetches them in a single query, then maps back.
  * Reduces N sequential queries to 1 batch query.
  */
-export async function resolveSoulTagsBatch(
+export async function resolvePersonaTagsBatch(
   ctx: ActionCtx,
-  tagsList: Array<Record<string, Id<'soulVersions'>>>,
+  tagsList: Array<Record<string, Id<'personaVersions'>>>,
 ): Promise<Array<Record<string, string>>> {
-  return resolveVersionTagsBatch(ctx, tagsList, internal.souls.getVersionsByIdsInternal)
+  return resolveVersionTagsBatch(ctx, tagsList, internal.personas.getVersionsByIdsInternal)
 }
 
 export async function resolveTagsBatch(
@@ -152,7 +152,7 @@ export async function resolveTagsBatch(
  * - Uses `internal.*` queries to avoid expanding the public Convex API surface.
  * - Sorts ids for stable query args (helps caching/log diffs).
  */
-export async function resolveVersionTagsBatch<TTable extends 'skillVersions' | 'soulVersions'>(
+export async function resolveVersionTagsBatch<TTable extends 'skillVersions' | 'personaVersions'>(
   ctx: ActionCtx,
   tagsList: Array<Record<string, Id<TTable>>>,
   getVersionsByIdsQuery: unknown,
@@ -307,7 +307,7 @@ export function parsePublishBody(body: unknown) {
 }
 
 export function softDeleteErrorToResponse(
-  entity: 'skill' | 'soul',
+  entity: 'skill' | 'persona',
   error: unknown,
   headers: HeadersInit,
 ) {

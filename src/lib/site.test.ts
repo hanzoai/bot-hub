@@ -6,8 +6,8 @@ import {
   detectSiteMode,
   detectSiteModeFromUrl,
   getBotHubSiteUrl,
-  getOnlyCrabsHost,
-  getOnlyCrabsSiteUrl,
+  getPersonaHubHost,
+  getPersonaHubSiteUrl,
   getSiteDescription,
   getSiteMode,
   getSiteName,
@@ -54,83 +54,83 @@ describe('site helpers', () => {
     })
   })
 
-  it('picks SoulHub URL from explicit env', () => {
-    withMetaEnv({ VITE_SOULHUB_SITE_URL: 'https://souls.example.com' }, () => {
-      expect(getOnlyCrabsSiteUrl()).toBe('https://souls.example.com')
+  it('picks PersonaHub URL from explicit env', () => {
+    withMetaEnv({ VITE_PERSONAHUB_SITE_URL: 'https://personas.example.com' }, () => {
+      expect(getPersonaHubSiteUrl()).toBe('https://personas.example.com')
     })
   })
 
-  it('derives SoulHub URL from local VITE_SITE_URL', () => {
+  it('derives PersonaHub URL from local VITE_SITE_URL', () => {
     withMetaEnv({ VITE_SITE_URL: 'http://localhost:3000' }, () => {
-      expect(getOnlyCrabsSiteUrl()).toBe('http://localhost:3000')
+      expect(getPersonaHubSiteUrl()).toBe('http://localhost:3000')
     })
     withMetaEnv({ VITE_SITE_URL: 'http://127.0.0.1:3000' }, () => {
-      expect(getOnlyCrabsSiteUrl()).toBe('http://127.0.0.1:3000')
+      expect(getPersonaHubSiteUrl()).toBe('http://127.0.0.1:3000')
     })
     withMetaEnv({ VITE_SITE_URL: 'http://0.0.0.0:3000' }, () => {
-      expect(getOnlyCrabsSiteUrl()).toBe('http://0.0.0.0:3000')
+      expect(getPersonaHubSiteUrl()).toBe('http://0.0.0.0:3000')
     })
   })
 
-  it('falls back to default SoulHub URL for invalid VITE_SITE_URL', () => {
+  it('falls back to default PersonaHub URL for invalid VITE_SITE_URL', () => {
     withMetaEnv({ VITE_SITE_URL: 'not a url' }, () => {
-      expect(getOnlyCrabsSiteUrl()).toBe('https://onlycrabs.ai')
+      expect(getPersonaHubSiteUrl()).toBe('https://personas.hanzo.ai')
     })
   })
 
   it('detects site mode from host and URLs', () => {
     expect(detectSiteMode(null)).toBe('skills')
 
-    withMetaEnv({ VITE_SOULHUB_HOST: 'souls.example.com' }, () => {
-      expect(getOnlyCrabsHost()).toBe('souls.example.com')
-      expect(detectSiteMode('souls.example.com')).toBe('souls')
-      expect(detectSiteMode('sub.souls.example.com')).toBe('souls')
+    withMetaEnv({ VITE_PERSONAHUB_HOST: 'personas.example.com' }, () => {
+      expect(getPersonaHubHost()).toBe('personas.example.com')
+      expect(detectSiteMode('personas.example.com')).toBe('personas')
+      expect(detectSiteMode('sub.personas.example.com')).toBe('personas')
       expect(detectSiteMode('hub.hanzo.bot')).toBe('skills')
 
-      expect(detectSiteModeFromUrl('https://souls.example.com/x')).toBe('souls')
-      expect(detectSiteModeFromUrl('souls.example.com')).toBe('souls')
+      expect(detectSiteModeFromUrl('https://personas.example.com/x')).toBe('personas')
+      expect(detectSiteModeFromUrl('personas.example.com')).toBe('personas')
       expect(detectSiteModeFromUrl('https://hub.hanzo.bot')).toBe('skills')
     })
   })
 
   it('detects site mode from window when available', () => {
-    withMetaEnv({ VITE_SOULHUB_HOST: 'onlycrabs.ai' }, () => {
-      vi.stubGlobal('window', { location: { hostname: 'onlycrabs.ai' } } as unknown as Window)
-      expect(getSiteMode()).toBe('souls')
+    withMetaEnv({ VITE_PERSONAHUB_HOST: 'personas.hanzo.ai' }, () => {
+      vi.stubGlobal('window', { location: { hostname: 'personas.hanzo.ai' } } as unknown as Window)
+      expect(getSiteMode()).toBe('personas')
     })
   })
 
   it('detects site mode from env on the server', () => {
-    withMetaEnv({ VITE_SITE_MODE: 'souls', VITE_SOULHUB_HOST: 'onlycrabs.ai' }, () => {
-      expect(getSiteMode()).toBe('souls')
+    withMetaEnv({ VITE_SITE_MODE: 'personas', VITE_PERSONAHUB_HOST: 'personas.hanzo.ai' }, () => {
+      expect(getSiteMode()).toBe('personas')
     })
-    withMetaEnv({ VITE_SITE_MODE: 'skills', VITE_SOULHUB_HOST: 'onlycrabs.ai' }, () => {
+    withMetaEnv({ VITE_SITE_MODE: 'skills', VITE_PERSONAHUB_HOST: 'personas.hanzo.ai' }, () => {
       expect(getSiteMode()).toBe('skills')
     })
   })
 
-  it('detects site mode from VITE_SOULHUB_SITE_URL and SITE_URL fallback', () => {
+  it('detects site mode from VITE_PERSONAHUB_SITE_URL and SITE_URL fallback', () => {
     withMetaEnv(
-      { VITE_SITE_MODE: undefined, VITE_SOULHUB_SITE_URL: 'https://onlycrabs.ai' },
+      { VITE_SITE_MODE: undefined, VITE_PERSONAHUB_SITE_URL: 'https://personas.hanzo.ai' },
       () => {
-        expect(getSiteMode()).toBe('souls')
+        expect(getSiteMode()).toBe('personas')
       },
     )
 
-    withMetaEnv({ VITE_SOULHUB_SITE_URL: undefined, VITE_SITE_URL: undefined }, () => {
-      vi.stubEnv('SITE_URL', 'https://onlycrabs.ai')
-      expect(getSiteMode()).toBe('souls')
+    withMetaEnv({ VITE_PERSONAHUB_SITE_URL: undefined, VITE_SITE_URL: undefined }, () => {
+      vi.stubEnv('SITE_URL', 'https://personas.hanzo.ai')
+      expect(getSiteMode()).toBe('personas')
     })
   })
 
   it('derives site metadata from mode', () => {
     expect(getSiteName('skills')).toBe('Bot Hub')
-    expect(getSiteName('souls')).toBe('SoulHub')
+    expect(getSiteName('personas')).toBe('PersonaHub')
 
     expect(getSiteDescription('skills')).toContain('Bot Hub')
-    expect(getSiteDescription('souls')).toContain('SoulHub')
+    expect(getSiteDescription('personas')).toContain('PersonaHub')
 
     expect(getSiteUrlForMode('skills')).toBe('https://hub.hanzo.bot')
-    expect(getSiteUrlForMode('souls')).toBe('https://onlycrabs.ai')
+    expect(getSiteUrlForMode('personas')).toBe('https://personas.hanzo.ai')
   })
 })

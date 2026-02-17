@@ -170,9 +170,9 @@ export const skillVersions = pgTable(
   ],
 )
 
-// ─── Souls ──────────────────────────────────────────────────────────────────
-export const souls = pgTable(
-  'souls',
+// ─── Personas ──────────────────────────────────────────────────────────────────
+export const personas = pgTable(
+  'personas',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     slug: varchar('slug', { length: 128 }).notNull(),
@@ -192,20 +192,20 @@ export const souls = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex('souls_slug_idx').on(t.slug),
-    index('souls_owner_idx').on(t.ownerUserId),
-    index('souls_updated_idx').on(t.updatedAt),
+    uniqueIndex('personas_slug_idx').on(t.slug),
+    index('personas_owner_idx').on(t.ownerUserId),
+    index('personas_updated_idx').on(t.updatedAt),
   ],
 )
 
-// ─── Soul Versions ──────────────────────────────────────────────────────────
-export const soulVersions = pgTable(
-  'soul_versions',
+// ─── Persona Versions ──────────────────────────────────────────────────────────
+export const personaVersions = pgTable(
+  'persona_versions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    soulId: uuid('soul_id')
+    personaId: uuid('persona_id')
       .notNull()
-      .references(() => souls.id, { onDelete: 'cascade' }),
+      .references(() => personas.id, { onDelete: 'cascade' }),
     version: varchar('version', { length: 64 }).notNull(),
     fingerprint: text('fingerprint'),
     changelog: text('changelog').notNull(),
@@ -219,8 +219,8 @@ export const soulVersions = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => [
-    index('souv_soul_idx').on(t.soulId),
-    uniqueIndex('souv_soul_version_idx').on(t.soulId, t.version),
+    index('souv_persona_idx').on(t.personaId),
+    uniqueIndex('souv_persona_version_idx').on(t.personaId, t.version),
   ],
 )
 
@@ -250,17 +250,17 @@ export const skillEmbeddings = pgTable(
   ],
 )
 
-// ─── Soul Embeddings (pgvector) ─────────────────────────────────────────────
-export const soulEmbeddings = pgTable(
-  'soul_embeddings',
+// ─── Persona Embeddings (pgvector) ─────────────────────────────────────────────
+export const personaEmbeddings = pgTable(
+  'persona_embeddings',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    soulId: uuid('soul_id')
+    personaId: uuid('persona_id')
       .notNull()
-      .references(() => souls.id, { onDelete: 'cascade' }),
+      .references(() => personas.id, { onDelete: 'cascade' }),
     versionId: uuid('version_id')
       .notNull()
-      .references(() => soulVersions.id, { onDelete: 'cascade' }),
+      .references(() => personaVersions.id, { onDelete: 'cascade' }),
     ownerId: uuid('owner_id')
       .notNull()
       .references(() => users.id),
@@ -271,7 +271,7 @@ export const soulEmbeddings = pgTable(
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (t) => [
-    index('soue_soul_idx').on(t.soulId),
+    index('soue_persona_idx').on(t.personaId),
     index('soue_version_idx').on(t.versionId),
   ],
 )
@@ -297,24 +297,24 @@ export const skillVersionFingerprints = pgTable(
   ],
 )
 
-// ─── Soul Version Fingerprints ──────────────────────────────────────────────
-export const soulVersionFingerprints = pgTable(
-  'soul_version_fingerprints',
+// ─── Persona Version Fingerprints ──────────────────────────────────────────────
+export const personaVersionFingerprints = pgTable(
+  'persona_version_fingerprints',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    soulId: uuid('soul_id')
+    personaId: uuid('persona_id')
       .notNull()
-      .references(() => souls.id, { onDelete: 'cascade' }),
+      .references(() => personas.id, { onDelete: 'cascade' }),
     versionId: uuid('version_id')
       .notNull()
-      .references(() => soulVersions.id, { onDelete: 'cascade' }),
+      .references(() => personaVersions.id, { onDelete: 'cascade' }),
     fingerprint: text('fingerprint').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => [
     index('souvf_version_idx').on(t.versionId),
     index('souvf_fingerprint_idx').on(t.fingerprint),
-    index('souvf_soul_fingerprint_idx').on(t.soulId, t.fingerprint),
+    index('souvf_persona_fingerprint_idx').on(t.personaId, t.fingerprint),
   ],
 )
 
@@ -358,14 +358,14 @@ export const comments = pgTable(
   (t) => [index('comments_skill_idx').on(t.skillId), index('comments_user_idx').on(t.userId)],
 )
 
-// ─── Soul Comments ──────────────────────────────────────────────────────────
-export const soulComments = pgTable(
-  'soul_comments',
+// ─── Persona Comments ──────────────────────────────────────────────────────────
+export const personaComments = pgTable(
+  'persona_comments',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    soulId: uuid('soul_id')
+    personaId: uuid('persona_id')
       .notNull()
-      .references(() => souls.id, { onDelete: 'cascade' }),
+      .references(() => personas.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
@@ -375,8 +375,8 @@ export const soulComments = pgTable(
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => [
-    index('soul_comments_soul_idx').on(t.soulId),
-    index('soul_comments_user_idx').on(t.userId),
+    index('persona_comments_persona_idx').on(t.personaId),
+    index('persona_comments_user_idx').on(t.userId),
   ],
 )
 
@@ -400,23 +400,23 @@ export const stars = pgTable(
   ],
 )
 
-// ─── Soul Stars ─────────────────────────────────────────────────────────────
-export const soulStars = pgTable(
-  'soul_stars',
+// ─── Persona Stars ─────────────────────────────────────────────────────────────
+export const personaStars = pgTable(
+  'persona_stars',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    soulId: uuid('soul_id')
+    personaId: uuid('persona_id')
       .notNull()
-      .references(() => souls.id, { onDelete: 'cascade' }),
+      .references(() => personas.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
     createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (t) => [
-    index('soul_stars_soul_idx').on(t.soulId),
-    index('soul_stars_user_idx').on(t.userId),
-    uniqueIndex('soul_stars_soul_user_idx').on(t.soulId, t.userId),
+    index('persona_stars_persona_idx').on(t.personaId),
+    index('persona_stars_user_idx').on(t.userId),
+    uniqueIndex('persona_stars_persona_user_idx').on(t.personaId, t.userId),
   ],
 )
 

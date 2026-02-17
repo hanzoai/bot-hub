@@ -22,7 +22,7 @@ export default function Header() {
   const toggleRef = useRef<HTMLDivElement | null>(null)
   const siteMode = getSiteMode()
   const siteName = useMemo(() => getSiteName(siteMode), [siteMode])
-  const isSoulMode = siteMode === 'souls'
+  const isPersonaMode = siteMode === 'personas'
   const botHubUrl = getBotHubSiteUrl()
 
   const avatar = me?.image ?? (me?.email ? gravatarUrl(me.email) : undefined)
@@ -58,10 +58,10 @@ export default function Header() {
           <span className="brand-name">{siteName}</span>
         </Link>
         <nav className="nav-links">
-          {isSoulMode ? <a href={botHubUrl}>Bot Hub</a> : null}
-          {isSoulMode ? (
+          {isPersonaMode ? <a href={botHubUrl}>Bot Hub</a> : null}
+          {isPersonaMode ? (
             <Link
-              to="/souls"
+              to="/personas"
               search={{
                 q: undefined,
                 sort: undefined,
@@ -70,7 +70,7 @@ export default function Header() {
                 focus: undefined,
               }}
             >
-              Souls
+              Personas
             </Link>
           ) : (
             <Link
@@ -91,11 +91,11 @@ export default function Header() {
           <Link to="/upload" search={{ updateSlug: undefined }}>
             Upload
           </Link>
-          {isSoulMode ? null : <Link to="/import">Import</Link>}
+          {isPersonaMode ? null : <Link to="/import">Import</Link>}
           <Link
-            to={isSoulMode ? '/souls' : '/skills'}
+            to={isPersonaMode ? '/souls' : '/skills'}
             search={
-              isSoulMode
+              isPersonaMode
                 ? {
                     q: undefined,
                     sort: undefined,
@@ -132,15 +132,15 @@ export default function Header() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {isSoulMode ? (
+                {isPersonaMode ? (
                   <DropdownMenuItem asChild>
                     <a href={botHubUrl}>Bot Hub</a>
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem asChild>
-                  {isSoulMode ? (
+                  {isPersonaMode ? (
                     <Link
-                      to="/souls"
+                      to="/personas"
                       search={{
                         q: undefined,
                         sort: undefined,
@@ -149,7 +149,7 @@ export default function Header() {
                         focus: undefined,
                       }}
                     >
-                      Souls
+                      Personas
                     </Link>
                   ) : (
                     <Link
@@ -173,16 +173,16 @@ export default function Header() {
                     Upload
                   </Link>
                 </DropdownMenuItem>
-                {isSoulMode ? null : (
+                {isPersonaMode ? null : (
                   <DropdownMenuItem asChild>
                     <Link to="/import">Import</Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
                   <Link
-                    to={isSoulMode ? '/souls' : '/skills'}
+                    to={isPersonaMode ? '/souls' : '/skills'}
                     search={
-                      isSoulMode
+                      isPersonaMode
                         ? {
                             q: undefined,
                             sort: undefined,

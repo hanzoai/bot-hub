@@ -36,7 +36,7 @@ function getApiBase(eventHost: string | null) {
   if (site) return site
 
   if (eventHost) return `https://${eventHost}`
-  return 'https://onlycrabs.ai'
+  return 'https://personas.hanzo.ai'
 }
 
 async function ensureWasm() {

@@ -10,7 +10,7 @@ read_when:
 
 ## Roles + permissions
 
-- user: upload skills/souls (subject to GitHub age gate), report skills.
+- user: upload skills/personas (subject to GitHub age gate), report skills.
 - moderator: hide/restore skills, view hidden skills, unhide, soft-delete, ban users (except admins).
 - admin: all moderator actions + hard delete skills, change owners, change roles.
 
@@ -58,7 +58,7 @@ read_when:
 
 ## Upload gate (GitHub account age)
 
-- Skill + soul publish actions require GitHub account age ≥ 7 days.
+- Skill + persona publish actions require GitHub account age ≥ 7 days.
 - Lookup uses GitHub `created_at` fetched by the immutable GitHub numeric ID (`providerAccountId`)
   and caches on the user:
   - `githubCreatedAt` (source of truth)

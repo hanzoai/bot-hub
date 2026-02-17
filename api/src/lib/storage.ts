@@ -74,7 +74,7 @@ export function skillFileKey(skillId: string, versionId: string, path: string): 
   return `skills/${skillId}/${versionId}/${path}`
 }
 
-/** Generate a storage key for a soul version file */
-export function soulFileKey(soulId: string, versionId: string, path: string): string {
-  return `souls/${soulId}/${versionId}/${path}`
+/** Generate a storage key for a persona version file */
+export function personaFileKey(personaId: string, versionId: string, path: string): string {
+  return `personas/${personaId}/${versionId}/${path}`
 }

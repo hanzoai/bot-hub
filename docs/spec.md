@@ -9,7 +9,7 @@ read_when:
 # Bot Hub — product + implementation spec (v1)
 
 ## Goals
-- onlycrabs.ai mode for sharing `SOUL.md` bundles (host-based entry point).
+- personas.hanzo.ai mode for sharing `PERSONA.md` bundles (host-based entry point).
 - Minimal, fast SPA for browsing and publishing agent skills.
 - Skills stored in Convex (files + metadata + versions + stats).
 - GitHub OAuth login; GitHub App backs up skills to `clawdbot/skills`.
@@ -74,36 +74,36 @@ From SKILL.md frontmatter + AgentSkills + Clawdis extensions:
 
 
 
-### Soul
+### Persona
 - `slug` (unique)
 - `displayName`
 - `ownerUserId`
-- `summary` (from SOUL.md frontmatter `description`)
+- `summary` (from PERSONA.md frontmatter `description`)
 - `latestVersionId`
 - `tags` map: `{ tag -> versionId }`
 - `stats`: `{ downloads, stars, versions, comments }`
 - `status`: `active` only (soft-delete on version/comment only)
 - `createdAt`, `updatedAt`
 
-### SoulVersion
-- `soulId`
+### PersonaVersion
+- `personaId`
 - `version` (semver string)
 - `tag` (string, optional; `latest` always maintained separately)
 - `changelog` (required)
-- `files`: list of file metadata (SOUL.md only)
+- `files`: list of file metadata (PERSONA.md only)
   - `path`, `size`, `storageId`, `sha256`
-- `parsed` (metadata extracted from SOUL.md)
+- `parsed` (metadata extracted from PERSONA.md)
 - `vectorDocId` (if using RAG component) OR `embeddingId`
 - `createdBy`, `createdAt`
 - `softDeletedAt` (nullable)
 
-### SoulComment
-- `soulId`, `userId`, `body`
+### PersonaComment
+- `personaId`, `userId`, `body`
 - `softDeletedAt`, `deletedBy`
 - `createdAt`
 
-### SoulStar
-- `soulId`, `userId`, `createdAt`
+### PersonaStar
+- `personaId`, `userId`, `createdAt`
 
 ### Comment
 - `skillId`, `userId`, `body`
@@ -139,7 +139,7 @@ From SKILL.md frontmatter + AgentSkills + Clawdis extensions:
    - GitHub account age ≥ 7 days
 5) Server stores files + metadata, sets `latest` tag, updates stats.
 
-Soul upload flow: same as skills (including GitHub account age checks), but only `SOUL.md` is allowed.
+Persona upload flow: same as skills (including GitHub account age checks), but only `PERSONA.md` is allowed.
 Seed data lives in `convex/seed.ts` for local dev.
 
 ## Versioning + tags
@@ -149,7 +149,7 @@ Seed data lives in `convex/seed.ts` for local dev.
 - Changelog is optional.
 
 ## Search
-- Vector search over: SKILL.md + other text files + metadata summary (souls index SOUL.md).
+- Vector search over: SKILL.md + other text files + metadata summary (personas index PERSONA.md).
 - Convex embeddings + vector index.
 - Filters: tag, owner, `redactionApproved` only, min stars, updatedAt.
 

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCompactStat,
   formatSkillStatsTriplet,
-  formatSoulStatsTriplet,
+  formatPersonaStatsTriplet,
   type SkillStatsTriplet,
-  type SoulStatsTriplet,
+  type PersonaStatsTriplet,
 } from './numberFormat'
 
 describe('formatCompactStat', () => {
@@ -52,10 +52,10 @@ describe('stats triplet formatters', () => {
     })
   })
 
-  it('formats soul triplet consistently', () => {
-    const stats: SoulStatsTriplet = { stars: 3_540, downloads: 78_010, versions: 4 }
+  it('formats persona triplet consistently', () => {
+    const stats: PersonaStatsTriplet = { stars: 3_540, downloads: 78_010, versions: 4 }
 
-    expect(formatSoulStatsTriplet(stats)).toEqual({
+    expect(formatPersonaStatsTriplet(stats)).toEqual({
       stars: '3.5k',
       downloads: '78k',
       versions: 4,

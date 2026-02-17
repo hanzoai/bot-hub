@@ -1,8 +1,8 @@
-export type SiteMode = 'skills' | 'souls'
+export type SiteMode = 'skills' | 'personas'
 
 const DEFAULT_BOTHUB_SITE_URL = 'https://hub.hanzo.bot'
-const DEFAULT_ONLYCRABS_SITE_URL = 'https://onlycrabs.ai'
-const DEFAULT_ONLYCRABS_HOST = 'onlycrabs.ai'
+const DEFAULT_PERSONAHUB_SITE_URL = 'https://personas.hanzo.ai'
+const DEFAULT_PERSONAHUB_HOST = 'personas.hanzo.ai'
 const LEGACY_HOSTS = new Set(['clawhub.ai', 'www.clawhub.ai', 'auth.clawhub.com', 'clawdhub.ai'])
 
 export function normalizeBotHubSiteOrigin(value?: string | null) {
@@ -22,8 +22,8 @@ export function getBotHubSiteUrl() {
   return normalizeBotHubSiteOrigin(import.meta.env.VITE_SITE_URL) ?? DEFAULT_BOTHUB_SITE_URL
 }
 
-export function getOnlyCrabsSiteUrl() {
-  const explicit = import.meta.env.VITE_SOULHUB_SITE_URL
+export function getPersonaHubSiteUrl() {
+  const explicit = import.meta.env.VITE_PERSONAHUB_SITE_URL
   if (explicit) return explicit
 
   const siteUrl = import.meta.env.VITE_SITE_URL
@@ -42,18 +42,18 @@ export function getOnlyCrabsSiteUrl() {
     }
   }
 
-  return DEFAULT_ONLYCRABS_SITE_URL
+  return DEFAULT_PERSONAHUB_SITE_URL
 }
 
-export function getOnlyCrabsHost() {
-  return import.meta.env.VITE_SOULHUB_HOST ?? DEFAULT_ONLYCRABS_HOST
+export function getPersonaHubHost() {
+  return import.meta.env.VITE_PERSONAHUB_HOST ?? DEFAULT_PERSONAHUB_HOST
 }
 
 export function detectSiteMode(host?: string | null): SiteMode {
   if (!host) return 'skills'
-  const onlyCrabsHost = getOnlyCrabsHost().toLowerCase()
+  const personaHubHost = getPersonaHubHost().toLowerCase()
   const lower = host.toLowerCase()
-  if (lower === onlyCrabsHost || lower.endsWith(`.${onlyCrabsHost}`)) return 'souls'
+  if (lower === personaHubHost || lower.endsWith(`.${personaHubHost}`)) return 'personas'
   return 'skills'
 }
 
@@ -72,10 +72,10 @@ export function getSiteMode(): SiteMode {
     return detectSiteMode(window.location.hostname)
   }
   const forced = import.meta.env.VITE_SITE_MODE
-  if (forced === 'souls' || forced === 'skills') return forced
+  if (forced === 'personas' || forced === 'skills') return forced
 
-  const onlyCrabsSite = import.meta.env.VITE_SOULHUB_SITE_URL
-  if (onlyCrabsSite) return detectSiteModeFromUrl(onlyCrabsSite)
+  const personaHubSite = import.meta.env.VITE_PERSONAHUB_SITE_URL
+  if (personaHubSite) return detectSiteModeFromUrl(personaHubSite)
 
   const siteUrl = import.meta.env.VITE_SITE_URL ?? process.env.SITE_URL
   if (siteUrl) return detectSiteModeFromUrl(siteUrl)
@@ -84,15 +84,15 @@ export function getSiteMode(): SiteMode {
 }
 
 export function getSiteName(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? 'SoulHub' : 'Bot Hub'
+  return mode === 'personas' ? 'PersonaHub' : 'Bot Hub'
 }
 
 export function getSiteDescription(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls'
-    ? 'SoulHub — the home for SOUL.md bundles and personal system lore.'
+  return mode === 'personas'
+    ? 'PersonaHub — the home for SOUL.md bundles and personal system lore.'
     : 'Bot Hub — a fast skill registry for agents, with vector search.'
 }
 
 export function getSiteUrlForMode(mode: SiteMode = getSiteMode()) {
-  return mode === 'souls' ? getOnlyCrabsSiteUrl() : getBotHubSiteUrl()
+  return mode === 'personas' ? getPersonaHubSiteUrl() : getBotHubSiteUrl()
 }

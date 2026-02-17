@@ -23,8 +23,8 @@ export type PublicSkill = Pick<
   | 'updatedAt'
 >
 
-export type PublicSoul = Pick<
-  Doc<'souls'>,
+export type PublicPersona = Pick<
+  Doc<'personas'>,
   | '_id'
   | '_creationTime'
   | 'slug'
@@ -90,19 +90,19 @@ export function toPublicSkill(skill: Doc<'skills'> | null | undefined): PublicSk
   }
 }
 
-export function toPublicSoul(soul: Doc<'souls'> | null | undefined): PublicSoul | null {
-  if (!soul || soul.softDeletedAt) return null
+export function toPublicPersona(persona: Doc<'personas'> | null | undefined): PublicPersona | null {
+  if (!persona || persona.softDeletedAt) return null
   return {
-    _id: soul._id,
-    _creationTime: soul._creationTime,
-    slug: soul.slug,
-    displayName: soul.displayName,
-    summary: soul.summary,
-    ownerUserId: soul.ownerUserId,
-    latestVersionId: soul.latestVersionId,
-    tags: soul.tags,
-    stats: soul.stats,
-    createdAt: soul.createdAt,
-    updatedAt: soul.updatedAt,
+    _id: persona._id,
+    _creationTime: persona._creationTime,
+    slug: persona.slug,
+    displayName: persona.displayName,
+    summary: persona.summary,
+    ownerUserId: persona.ownerUserId,
+    latestVersionId: persona.latestVersionId,
+    tags: persona.tags,
+    stats: persona.stats,
+    createdAt: persona.createdAt,
+    updatedAt: persona.updatedAt,
   }
 }

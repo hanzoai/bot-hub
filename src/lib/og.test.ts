@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { buildSkillMeta, buildSoulMeta, fetchSkillMeta, fetchSoulMeta } from './og'
+import { buildSkillMeta, buildPersonaMeta, fetchSkillMeta, fetchPersonaMeta } from './og'
 
 describe('og helpers', () => {
   afterEach(() => {
@@ -27,19 +27,19 @@ describe('og helpers', () => {
     expect(meta.image).not.toContain('description=')
   })
 
-  it('builds soul metadata with summary', () => {
-    const meta = buildSoulMeta({
+  it('builds persona metadata with summary', () => {
+    const meta = buildPersonaMeta({
       slug: 'north-star',
       owner: 'someone',
       displayName: 'North Star',
       summary: 'Personal north star notes.',
       version: '0.1.0',
     })
-    expect(meta.title).toBe('North Star — SoulHub')
+    expect(meta.title).toBe('North Star — PersonaHub')
     expect(meta.description).toBe('Personal north star notes.')
-    expect(meta.url).toContain('/souls/north-star')
+    expect(meta.url).toContain('/personas/north-star')
     expect(meta.owner).toBe('someone')
-    expect(meta.image).toContain('/og/soul.png?')
+    expect(meta.image).toContain('/og/persona.png?')
     expect(meta.image).toContain('v=1')
     expect(meta.image).toContain('slug=north-star')
     expect(meta.image).toContain('owner=someone')
@@ -55,11 +55,11 @@ describe('og helpers', () => {
     expect(meta.image).toContain('slug=parser')
   })
 
-  it('uses soul defaults when owner and summary are missing', () => {
-    const meta = buildSoulMeta({ slug: 'signal' })
-    expect(meta.title).toBe('signal — SoulHub')
-    expect(meta.description).toMatch(/SoulHub — the home for SOUL.md/i)
-    expect(meta.url).toContain('/souls/signal')
+  it('uses persona defaults when owner and summary are missing', () => {
+    const meta = buildPersonaMeta({ slug: 'signal' })
+    expect(meta.title).toBe('signal — PersonaHub')
+    expect(meta.description).toMatch(/PersonaHub — the home for PERSONA.md/i)
+    expect(meta.url).toContain('/personas/signal')
     expect(meta.owner).toBeNull()
     expect(meta.image).toContain('slug=signal')
   })
@@ -92,18 +92,18 @@ describe('og helpers', () => {
     })
   })
 
-  it('fetches soul metadata when response is ok', async () => {
+  it('fetches persona metadata when response is ok', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       json: async () => ({
-        soul: { displayName: 'North Star', summary: 'Signal' },
+        persona: { displayName: 'North Star', summary: 'Signal' },
         owner: { handle: 'steipete' },
         latestVersion: { version: '0.1.0' },
       }),
     }))
     vi.stubGlobal('fetch', fetchMock)
 
-    const meta = await fetchSoulMeta('north-star')
+    const meta = await fetchPersonaMeta('north-star')
     expect(meta).toEqual({
       displayName: 'North Star',
       summary: 'Signal',
@@ -130,13 +130,13 @@ describe('og helpers', () => {
     expect(meta).toBeNull()
   })
 
-  it('returns null when soul fetch throws', async () => {
+  it('returns null when persona fetch throws', async () => {
     const fetchMock = vi.fn(async () => {
       throw new Error('network')
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const meta = await fetchSoulMeta('north-star')
+    const meta = await fetchPersonaMeta('north-star')
     expect(meta).toBeNull()
   })
 })

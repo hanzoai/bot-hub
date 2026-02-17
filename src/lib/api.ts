@@ -215,9 +215,9 @@ export const searchApi = {
       `/v1/search/skills?q=${encodeURIComponent(query)}&limit=${limit}`,
     ),
 
-  souls: (query: string, limit = 20) =>
+  personas: (query: string, limit = 20) =>
     apiFetch<{ items: Array<{ id: string; slug: string; displayName: string; summary: string | null; score?: number }> }>(
-      `/v1/search/souls?q=${encodeURIComponent(query)}&limit=${limit}`,
+      `/v1/search/personas?q=${encodeURIComponent(query)}&limit=${limit}`,
     ),
 }
 
@@ -287,38 +287,38 @@ export const tokensApi = {
     apiFetch<{ ok: boolean }>(`/v1/tokens/${id}`, { method: 'DELETE' }),
 }
 
-// ─── Souls API ──────────────────────────────────────────────────────────────
-export const soulsApi = {
+// ─── Personas API ──────────────────────────────────────────────────────────────
+export const personasApi = {
   list: (params?: { limit?: number }) => {
     const qs = new URLSearchParams()
     if (params?.limit) qs.set('limit', String(params.limit))
-    return apiFetch<{ items: any[] }>(`/v1/souls?${qs}`)
+    return apiFetch<{ items: any[] }>(`/v1/personas?${qs}`)
   },
 
-  getDetail: (slug: string) => apiFetch<any>(`/v1/souls/${slug}/detail`),
+  getDetail: (slug: string) => apiFetch<any>(`/v1/personas/${slug}/detail`),
 
-  getExisting: (slug: string) => apiFetch<any>(`/v1/souls/${slug}/detail`).catch(() => null),
+  getExisting: (slug: string) => apiFetch<any>(`/v1/personas/${slug}/detail`).catch(() => null),
 
   versions: (slug: string, limit = 50) =>
-    apiFetch<{ items: any[] }>(`/v1/souls/${slug}/versions?limit=${limit}`),
+    apiFetch<{ items: any[] }>(`/v1/personas/${slug}/versions?limit=${limit}`),
 
   comments: (slug: string) =>
-    apiFetch<{ items: any[] }>(`/v1/souls/${slug}/comments`),
+    apiFetch<{ items: any[] }>(`/v1/personas/${slug}/comments`),
 
   addComment: (slug: string, body: string) =>
-    apiFetch<{ id: string }>(`/v1/souls/${slug}/comments`, { method: 'POST', body: { body } }),
+    apiFetch<{ id: string }>(`/v1/personas/${slug}/comments`, { method: 'POST', body: { body } }),
 
   deleteComment: (slug: string, commentId: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/souls/${slug}/comments/${commentId}`, { method: 'DELETE' }),
+    apiFetch<{ ok: boolean }>(`/v1/personas/${slug}/comments/${commentId}`, { method: 'DELETE' }),
 
   toggleStar: (slug: string) =>
-    apiFetch<{ starred: boolean }>(`/v1/souls/${slug}/stars`, { method: 'POST' }),
+    apiFetch<{ starred: boolean }>(`/v1/personas/${slug}/stars`, { method: 'POST' }),
 
   isStarred: (slug: string) =>
-    apiFetch<{ starred: boolean }>(`/v1/souls/${slug}/stars/me`),
+    apiFetch<{ starred: boolean }>(`/v1/personas/${slug}/stars/me`),
 
   getReadme: (slug: string, versionId: string) =>
-    apiFetch<{ text: string }>(`/v1/souls/${slug}/versions/${versionId}/readme`),
+    apiFetch<{ text: string }>(`/v1/personas/${slug}/versions/${versionId}/readme`),
 
   publish: (data: {
     slug: string
@@ -327,8 +327,8 @@ export const soulsApi = {
     changelog: string
     tags: string[]
     files: Array<{ path: string; size: number; storageKey: string; sha256: string; contentType?: string }>
-  }) => apiFetch<{ soulId: string; versionId: string; version: string; slug: string }>(
-    `/v1/souls/publish`,
+  }) => apiFetch<{ personaId: string; versionId: string; version: string; slug: string }>(
+    `/v1/personas/publish`,
     { method: 'POST', body: data },
   ),
 
@@ -337,7 +337,7 @@ export const soulsApi = {
     version: string
     readmeText: string
     filePaths: string[]
-  }) => apiFetch<{ changelog: string }>(`/v1/souls/changelog-preview`, {
+  }) => apiFetch<{ changelog: string }>(`/v1/personas/changelog-preview`, {
     method: 'POST',
     body: data,
   }),

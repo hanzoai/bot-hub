@@ -4,7 +4,7 @@ export type SkillStatsTriplet = {
   installsAllTime?: number | null
 }
 
-export type SoulStatsTriplet = {
+export type PersonaStatsTriplet = {
   stars: number
   downloads: number
   versions: number
@@ -41,7 +41,7 @@ export function formatSkillStatsTriplet(stats: SkillStatsTriplet) {
   }
 }
 
-export function formatSoulStatsTriplet(stats: SoulStatsTriplet) {
+export function formatPersonaStatsTriplet(stats: PersonaStatsTriplet) {
   return {
     stars: formatCompactStat(stats.stars),
     downloads: formatCompactStat(stats.downloads),

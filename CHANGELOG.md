@@ -13,7 +13,7 @@
 ### Changed
 - Quality gate: language-aware word counting (`Intl.Segmenter`) and new `cjkChars` signal to reduce false rejects for non-Latin docs.
 - Jobs: run skill stat event processing every 5 minutes (was 15).
-- API performance: batch resolve skill/soul tags in v1 list/get endpoints (fewer action->query round-trips) (#112) (thanks @mkrokosz).
+- API performance: batch resolve skill/persona tags in v1 list/get endpoints (fewer action->query round-trips) (#112) (thanks @mkrokosz).
 - Skills: reserve deleted slugs for prior owners (90-day cooldown) to prevent squatting; add admin reclaim flow (#298) (thanks @autogame-17).
 - Moderation: ban flow soft-deletes owned skills (reversible) and removes them from vector search (#298) (thanks @autogame-17).
 
@@ -75,7 +75,7 @@
 ### Added
 - Admin: ban users and delete owned skills from management console.
 - Moderation: auto-hide skills after 4 unique reports; per-user report cap; moderators can ban users.
-- Uploads: require GitHub accounts to be at least 7 days old for skill + soul publish/import.
+- Uploads: require GitHub accounts to be at least 7 days old for skill + persona publish/import.
 - CLI: add `inspect` to fetch skill metadata/files without installing.
 - CLI: add moderation commands for hide/unhide/delete and ban users.
 - Management: add filters for reported skills and users.
@@ -122,12 +122,12 @@
 - Web: dynamic OG image cards for skills (name, description, version).
 - CLI: auto-scan Clawdbot skill roots (per-agent workspaces, shared skills, extraDirs).
 - Web: import skills from public GitHub URLs (auto-detect `SKILL.md`, smart file selection, provenance).
-- Web/API: SoulHub (SOUL.md registry) with v1 endpoints and first-run auto-seed.
+- Web/API: PersonaHub (PERSONA.md registry) with v1 endpoints and first-run auto-seed.
 
 ### Fixed
 - Web: stabilize skill OG image generation on server runtimes.
 - Web: prevent skill OG text overflow outside the card.
-- Registry: make SoulHub auto-seed idempotent and non-user-owned.
+- Registry: make PersonaHub auto-seed idempotent and non-user-owned.
 - Registry: keep GitHub backup state + publish backups intact (thanks @joshp123, #1).
 - CLI/Registry: restore fork lineage on sync + clamp bulk list queries (thanks @joshp123, #1).
 - CLI: default workdir falls back to Clawdbot workspace (override with `--workdir` / `BOTHUB_WORKDIR`).

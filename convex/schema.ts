@@ -147,13 +147,13 @@ const skills = defineTable({
   .index('by_canonical', ['canonicalSkillId'])
   .index('by_fork_of', ['forkOf.skillId'])
 
-const souls = defineTable({
+const personas = defineTable({
   slug: v.string(),
   displayName: v.string(),
   summary: v.optional(v.string()),
   ownerUserId: v.id('users'),
-  latestVersionId: v.optional(v.id('soulVersions')),
-  tags: v.record(v.string(), v.id('soulVersions')),
+  latestVersionId: v.optional(v.id('personaVersions')),
+  tags: v.record(v.string(), v.id('personaVersions')),
   softDeletedAt: v.optional(v.number()),
   stats: v.object({
     downloads: v.number(),
@@ -229,8 +229,8 @@ const skillVersions = defineTable({
   .index('by_skill_version', ['skillId', 'version'])
   .index('by_sha256hash', ['sha256hash'])
 
-const soulVersions = defineTable({
-  soulId: v.id('souls'),
+const personaVersions = defineTable({
+  personaId: v.id('personas'),
   version: v.string(),
   fingerprint: v.optional(v.string()),
   changelog: v.string(),
@@ -254,8 +254,8 @@ const soulVersions = defineTable({
   createdAt: v.number(),
   softDeletedAt: v.optional(v.number()),
 })
-  .index('by_soul', ['soulId'])
-  .index('by_soul_version', ['soulId', 'version'])
+  .index('by_persona', ['personaId'])
+  .index('by_persona_version', ['personaId', 'version'])
 
 const skillVersionFingerprints = defineTable({
   skillId: v.id('skills'),
@@ -282,15 +282,15 @@ const skillBadges = defineTable({
   .index('by_skill_kind', ['skillId', 'kind'])
   .index('by_kind_at', ['kind', 'at'])
 
-const soulVersionFingerprints = defineTable({
-  soulId: v.id('souls'),
-  versionId: v.id('soulVersions'),
+const personaVersionFingerprints = defineTable({
+  personaId: v.id('personas'),
+  versionId: v.id('personaVersions'),
   fingerprint: v.string(),
   createdAt: v.number(),
 })
   .index('by_version', ['versionId'])
   .index('by_fingerprint', ['fingerprint'])
-  .index('by_soul_fingerprint', ['soulId', 'fingerprint'])
+  .index('by_persona_fingerprint', ['personaId', 'fingerprint'])
 
 const skillEmbeddings = defineTable({
   skillId: v.id('skills'),
@@ -373,9 +373,9 @@ const skillStatUpdateCursors = defineTable({
   updatedAt: v.number(),
 }).index('by_key', ['key'])
 
-const soulEmbeddings = defineTable({
-  soulId: v.id('souls'),
-  versionId: v.id('soulVersions'),
+const personaEmbeddings = defineTable({
+  personaId: v.id('personas'),
+  versionId: v.id('personaVersions'),
   ownerId: v.id('users'),
   embedding: v.array(v.number()),
   isLatest: v.boolean(),
@@ -383,7 +383,7 @@ const soulEmbeddings = defineTable({
   visibility: v.string(),
   updatedAt: v.number(),
 })
-  .index('by_soul', ['soulId'])
+  .index('by_persona', ['personaId'])
   .index('by_version', ['versionId'])
   .vectorIndex('by_embedding', {
     vectorField: 'embedding',
@@ -413,15 +413,15 @@ const skillReports = defineTable({
   .index('by_user', ['userId'])
   .index('by_skill_user', ['skillId', 'userId'])
 
-const soulComments = defineTable({
-  soulId: v.id('souls'),
+const personaComments = defineTable({
+  personaId: v.id('personas'),
   userId: v.id('users'),
   body: v.string(),
   createdAt: v.number(),
   softDeletedAt: v.optional(v.number()),
   deletedBy: v.optional(v.id('users')),
 })
-  .index('by_soul', ['soulId'])
+  .index('by_persona', ['personaId'])
   .index('by_user', ['userId'])
 
 const stars = defineTable({
@@ -433,14 +433,14 @@ const stars = defineTable({
   .index('by_user', ['userId'])
   .index('by_skill_user', ['skillId', 'userId'])
 
-const soulStars = defineTable({
-  soulId: v.id('souls'),
+const personaStars = defineTable({
+  personaId: v.id('personas'),
   userId: v.id('users'),
   createdAt: v.number(),
 })
-  .index('by_soul', ['soulId'])
+  .index('by_persona', ['personaId'])
   .index('by_user', ['userId'])
-  .index('by_soul_user', ['soulId', 'userId'])
+  .index('by_persona_user', ['personaId', 'userId'])
 
 const auditLogs = defineTable({
   actorUserId: v.id('users'),
@@ -563,14 +563,14 @@ export default defineSchema({
   ...authTables,
   users,
   skills,
-  souls,
+  personas,
   skillVersions,
-  soulVersions,
+  personaVersions,
   skillVersionFingerprints,
   skillBadges,
-  soulVersionFingerprints,
+  personaVersionFingerprints,
   skillEmbeddings,
-  soulEmbeddings,
+  personaEmbeddings,
   skillDailyStats,
   skillLeaderboards,
   skillStatBackfillState,
@@ -578,9 +578,9 @@ export default defineSchema({
   skillStatUpdateCursors,
   comments,
   skillReports,
-  soulComments,
+  personaComments,
   stars,
-  soulStars,
+  personaStars,
   auditLogs,
   vtScanLogs,
   apiTokens,

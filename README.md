@@ -9,26 +9,26 @@
 Bot Hub is the **public skill registry for Clawdbot**: publish, version, and search text-based agent skills (a `SKILL.md` plus supporting files).
 It’s designed for fast browsing + a CLI-friendly API, with moderation hooks and vector search.
 
-onlycrabs.ai is the **SOUL.md registry**: publish and share system lore the same way you publish skills.
+personas.hanzo.ai is the **PERSONA.md registry**: publish and share system lore the same way you publish skills.
 
 Live: `https://hub.hanzo.bot`
-onlycrabs.ai: `https://onlycrabs.ai`
+personas.hanzo.ai: `https://personas.hanzo.ai`
 
 ## What you can do with it
 
 - Browse skills + render their `SKILL.md`.
 - Publish new skill versions with changelogs + tags (including `latest`).
-- Browse souls + render their `SOUL.md`.
-- Publish new soul versions with changelogs + tags.
+- Browse personas + render their `PERSONA.md`.
+- Publish new persona versions with changelogs + tags.
 - Search via embeddings (vector index) instead of brittle keywords.
 - Star + comment; admins/mods can curate and approve skills.
 
-## onlycrabs.ai (SOUL.md registry)
+## personas.hanzo.ai (PERSONA.md registry)
 
-- Entry point is host-based: `onlycrabs.ai`.
-- On the onlycrabs.ai host, the home page and nav default to souls.
-- On Bot Hub, souls live under `/souls`.
-- Soul bundles only accept `SOUL.md` for now (no extra files).
+- Entry point is host-based: `personas.hanzo.ai`.
+- On the personas.hanzo.ai host, the home page and nav default to personas.
+- On Bot Hub, personas live under `/personas`.
+- Persona bundles only accept `PERSONA.md` for now (no extra files).
 
 ## How it works (high level)
 
@@ -97,9 +97,9 @@ This writes `JWT_PRIVATE_KEY` + `JWKS` to the deployment and prints values for y
 
 - `VITE_CONVEX_URL`: Convex deployment URL (`https://<deployment>.convex.cloud`).
 - `VITE_CONVEX_SITE_URL`: Convex site URL (`https://<deployment>.convex.site`).
-- `VITE_SOULHUB_SITE_URL`: onlycrabs.ai site URL (`https://onlycrabs.ai`).
-- `VITE_SOULHUB_HOST`: onlycrabs.ai host match (`onlycrabs.ai`).
-- `VITE_SITE_MODE`: Optional override (`skills` or `souls`) for SSR builds.
+- `VITE_PERSONAHUB_SITE_URL`: personas.hanzo.ai site URL (`https://personas.hanzo.ai`).
+- `VITE_PERSONAHUB_HOST`: personas.hanzo.ai host match (`personas.hanzo.ai`).
+- `VITE_SITE_MODE`: Optional override (`skills` or `personas`) for SSR builds.
 - `CONVEX_SITE_URL`: same as `VITE_CONVEX_SITE_URL` (auth + cookies).
 - `SITE_URL`: App URL (local: `http://localhost:3000`).
 - `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`: GitHub OAuth App.

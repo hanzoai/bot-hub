@@ -3,8 +3,8 @@ import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import type { ActionCtx, DatabaseReader, DatabaseWriter } from './_generated/server'
 import { action, internalMutation, internalQuery } from './_generated/server'
-import { publishSoulVersionForUser } from './lib/soulPublish'
-import { SOUL_SEED_DISPLAY_NAME, SOUL_SEED_HANDLE, SOUL_SEED_KEY, SOUL_SEEDS } from './seedSouls'
+import { publishPersonaVersionForUser } from './lib/personaPublish'
+import { PERSONA_SEED_DISPLAY_NAME, PERSONA_SEED_HANDLE, PERSONA_SEED_KEY, PERSONA_SEEDS } from './seedPersonas'
 
 const SEED_LOCK_STALE_MS = 10 * 60 * 1000
 
@@ -18,7 +18,7 @@ type SeedStartDecision = {
 async function getSeedState(ctx: { db: DatabaseReader }): Promise<SeedStateDoc | null> {
   const entries = (await ctx.db
     .query('githubBackupSyncState')
-    .withIndex('by_key', (q) => q.eq('key', SOUL_SEED_KEY))
+    .withIndex('by_key', (q) => q.eq('key', PERSONA_SEED_KEY))
     .order('desc')
     .take(2)) as SeedStateDoc[]
   return entries[0] ?? null
@@ -27,7 +27,7 @@ async function getSeedState(ctx: { db: DatabaseReader }): Promise<SeedStateDoc |
 async function cleanupSeedState(ctx: { db: DatabaseWriter }, keepId: Id<'githubBackupSyncState'>) {
   const entries = (await ctx.db
     .query('githubBackupSyncState')
-    .withIndex('by_key', (q) => q.eq('key', SOUL_SEED_KEY))
+    .withIndex('by_key', (q) => q.eq('key', PERSONA_SEED_KEY))
     .order('desc')
     .take(50)) as SeedStateDoc[]
 
@@ -46,12 +46,12 @@ export function decideSeedStart(existing: SeedStateDoc | null, now: number): See
   return existing ? { started: true, reason: 'patched' } : { started: true, reason: 'inserted' }
 }
 
-export const getSoulSeedStateInternal = internalQuery({
+export const getPersonaSeedStateInternal = internalQuery({
   args: {},
   handler: async (ctx) => getSeedState(ctx),
 })
 
-export const setSoulSeedStateInternal = internalMutation({
+export const setPersonaSeedStateInternal = internalMutation({
   args: { status: v.string() },
   handler: async (ctx, args) => {
     const existing = await getSeedState(ctx)
@@ -62,7 +62,7 @@ export const setSoulSeedStateInternal = internalMutation({
       return existing._id
     }
     const id = await ctx.db.insert('githubBackupSyncState', {
-      key: SOUL_SEED_KEY,
+      key: PERSONA_SEED_KEY,
       cursor: args.status,
       updatedAt: now,
     })
@@ -71,7 +71,7 @@ export const setSoulSeedStateInternal = internalMutation({
   },
 })
 
-export const tryStartSoulSeedInternal = internalMutation({
+export const tryStartPersonaSeedInternal = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now()
@@ -87,7 +87,7 @@ export const tryStartSoulSeedInternal = internalMutation({
     }
 
     const id = await ctx.db.insert('githubBackupSyncState', {
-      key: SOUL_SEED_KEY,
+      key: PERSONA_SEED_KEY,
       cursor: 'running',
       updatedAt: now,
     })
@@ -96,18 +96,18 @@ export const tryStartSoulSeedInternal = internalMutation({
   },
 })
 
-export const hasAnySoulsInternal = internalQuery({
+export const hasAnyPersonasInternal = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const entry = await ctx.db.query('souls').take(1)
+    const entry = await ctx.db.query('personas').take(1)
     return entry.length > 0
   },
 })
 
-export const ensureSoulSeeds = action({
+export const ensurePersonaSeeds = action({
   args: {},
   handler: async (ctx) => {
-    const started = (await ctx.runMutation(internal.seed.tryStartSoulSeedInternal, {})) as {
+    const started = (await ctx.runMutation(internal.seed.tryStartPersonaSeedInternal, {})) as {
       started: boolean
       reason: 'done' | 'running' | 'patched' | 'inserted'
     }
@@ -116,18 +116,18 @@ export const ensureSoulSeeds = action({
       return { seeded: false, reason: 'in-progress' as const }
     }
 
-    const hasSouls = (await ctx.runQuery(internal.seed.hasAnySoulsInternal, {})) as boolean
-    if (hasSouls) {
-      await ctx.runMutation(internal.seed.setSoulSeedStateInternal, { status: 'done' })
-      return { seeded: false, reason: 'souls-exist' as const }
+    const hasPersonas = (await ctx.runQuery(internal.seed.hasAnyPersonasInternal, {})) as boolean
+    if (hasPersonas) {
+      await ctx.runMutation(internal.seed.setPersonaSeedStateInternal, { status: 'done' })
+      return { seeded: false, reason: 'personas-exist' as const }
     }
 
     try {
       const result = await runSeed(ctx)
-      await ctx.runMutation(internal.seed.setSoulSeedStateInternal, { status: 'done' })
+      await ctx.runMutation(internal.seed.setPersonaSeedStateInternal, { status: 'done' })
       return { seeded: true, reason: 'seeded' as const, ...result }
     } catch (error) {
-      await ctx.runMutation(internal.seed.setSoulSeedStateInternal, { status: 'error' })
+      await ctx.runMutation(internal.seed.setPersonaSeedStateInternal, { status: 'error' })
       throw error
     }
   },
@@ -140,20 +140,20 @@ export const seed = action({
 
 async function runSeed(ctx: ActionCtx) {
   const userId = (await ctx.runMutation(internal.seed.ensureSeedUserInternal, {
-    handle: SOUL_SEED_HANDLE,
-    displayName: SOUL_SEED_DISPLAY_NAME,
+    handle: PERSONA_SEED_HANDLE,
+    displayName: PERSONA_SEED_DISPLAY_NAME,
   })) as Id<'users'>
 
   const created: string[] = []
   const skipped: string[] = []
 
-  for (const seedEntry of SOUL_SEEDS) {
-    const existing = (await ctx.runQuery(internal.souls.getSoulBySlugInternal, {
+  for (const seedEntry of PERSONA_SEEDS) {
+    const existing = (await ctx.runQuery(internal.personas.getPersonaBySlugInternal, {
       slug: seedEntry.slug,
-    })) as Doc<'souls'> | null
+    })) as Doc<'personas'> | null
     if (existing) {
       if (existing.softDeletedAt && existing.ownerUserId === userId) {
-        await ctx.runMutation(internal.souls.setSoulSoftDeletedInternal, {
+        await ctx.runMutation(internal.personas.setPersonaSoftDeletedInternal, {
           userId,
           slug: seedEntry.slug,
           deleted: false,
@@ -174,7 +174,7 @@ async function runSeed(ctx: ActionCtx) {
     const storageId = await ctx.storage.store(new Blob([bytes], { type: 'text/markdown' }))
 
     try {
-      await publishSoulVersionForUser(ctx, userId, {
+      await publishPersonaVersionForUser(ctx, userId, {
         slug: seedEntry.slug,
         displayName: seedEntry.displayName,
         version: seedEntry.version,
@@ -182,7 +182,7 @@ async function runSeed(ctx: ActionCtx) {
         tags: seedEntry.tags,
         files: [
           {
-            path: 'SOUL.md',
+            path: 'PERSONA.md',
             size: bytes.byteLength,
             storageId,
             sha256,

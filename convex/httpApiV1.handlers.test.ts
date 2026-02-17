@@ -379,18 +379,18 @@ describe('httpApiV1 handlers', () => {
     expect(batchCalls).toHaveLength(1)
   })
 
-  it('lists souls with resolved tags using batch query', async () => {
+  it('lists personas with resolved tags using batch query', async () => {
     const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
       if ('cursor' in args || 'limit' in args) {
         return {
           items: [
             {
-              soul: {
-                _id: 'souls:1',
-                slug: 'demo-soul',
-                displayName: 'Demo Soul',
+              persona: {
+                _id: 'personas:1',
+                slug: 'demo-persona',
+                displayName: 'Demo Persona',
                 summary: 's',
-                tags: { latest: 'soulVersions:1' },
+                tags: { latest: 'personaVersions:1' },
                 stats: { downloads: 0, stars: 0, versions: 1, comments: 0 },
                 createdAt: 1,
                 updatedAt: 2,
@@ -402,32 +402,32 @@ describe('httpApiV1 handlers', () => {
         }
       }
       if ('versionIds' in args) {
-        return [{ _id: 'soulVersions:1', version: '1.0.0', softDeletedAt: undefined }]
+        return [{ _id: 'personaVersions:1', version: '1.0.0', softDeletedAt: undefined }]
       }
       return null
     })
     const runMutation = vi.fn().mockResolvedValue(okRate())
-    const response = await __handlers.listSoulsV1Handler(
+    const response = await __handlers.listPersonasV1Handler(
       makeCtx({ runQuery, runMutation }),
-      new Request('https://example.com/api/v1/souls?limit=1'),
+      new Request('https://example.com/api/v1/personas?limit=1'),
     )
     expect(response.status).toBe(200)
     const json = await response.json()
     expect(json.items[0].tags.latest).toBe('1.0.0')
   })
 
-  it('batches tag resolution across multiple souls into single query', async () => {
+  it('batches tag resolution across multiple personas into single query', async () => {
     const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
       if ('cursor' in args || 'limit' in args) {
         return {
           items: [
             {
-              soul: {
-                _id: 'souls:1',
-                slug: 'soul-a',
-                displayName: 'Soul A',
+              persona: {
+                _id: 'personas:1',
+                slug: 'persona-a',
+                displayName: 'Persona A',
                 summary: 's',
-                tags: { latest: 'soulVersions:1', stable: 'soulVersions:2' },
+                tags: { latest: 'personaVersions:1', stable: 'personaVersions:2' },
                 stats: { downloads: 0, stars: 0, versions: 2, comments: 0 },
                 createdAt: 1,
                 updatedAt: 2,
@@ -435,12 +435,12 @@ describe('httpApiV1 handlers', () => {
               latestVersion: { version: '2.0.0', createdAt: 3, changelog: 'c' },
             },
             {
-              soul: {
-                _id: 'souls:2',
-                slug: 'soul-b',
-                displayName: 'Soul B',
+              persona: {
+                _id: 'personas:2',
+                slug: 'persona-b',
+                displayName: 'Persona B',
                 summary: 's',
-                tags: { latest: 'soulVersions:3' },
+                tags: { latest: 'personaVersions:3' },
                 stats: { downloads: 0, stars: 0, versions: 1, comments: 0 },
                 createdAt: 1,
                 updatedAt: 2,
@@ -454,21 +454,21 @@ describe('httpApiV1 handlers', () => {
       if ('versionIds' in args) {
         const ids = args.versionIds as string[]
         expect(ids).toHaveLength(3)
-        expect(ids).toContain('soulVersions:1')
-        expect(ids).toContain('soulVersions:2')
-        expect(ids).toContain('soulVersions:3')
+        expect(ids).toContain('personaVersions:1')
+        expect(ids).toContain('personaVersions:2')
+        expect(ids).toContain('personaVersions:3')
         return [
-          { _id: 'soulVersions:1', version: '2.0.0', softDeletedAt: undefined },
-          { _id: 'soulVersions:2', version: '1.0.0', softDeletedAt: undefined },
-          { _id: 'soulVersions:3', version: '1.0.0', softDeletedAt: undefined },
+          { _id: 'personaVersions:1', version: '2.0.0', softDeletedAt: undefined },
+          { _id: 'personaVersions:2', version: '1.0.0', softDeletedAt: undefined },
+          { _id: 'personaVersions:3', version: '1.0.0', softDeletedAt: undefined },
         ]
       }
       return null
     })
     const runMutation = vi.fn().mockResolvedValue(okRate())
-    const response = await __handlers.listSoulsV1Handler(
+    const response = await __handlers.listPersonasV1Handler(
       makeCtx({ runQuery, runMutation }),
-      new Request('https://example.com/api/v1/souls'),
+      new Request('https://example.com/api/v1/personas'),
     )
     expect(response.status).toBe(200)
     const json = await response.json()
@@ -481,16 +481,16 @@ describe('httpApiV1 handlers', () => {
     expect(batchCalls).toHaveLength(1)
   })
 
-  it('souls get resolves tags using batch query', async () => {
+  it('personas get resolves tags using batch query', async () => {
     const runQuery = vi.fn(async (_query: unknown, args: Record<string, unknown>) => {
       if ('slug' in args) {
         return {
-          soul: {
-            _id: 'souls:1',
-            slug: 'demo-soul',
-            displayName: 'Demo Soul',
+          persona: {
+            _id: 'personas:1',
+            slug: 'demo-persona',
+            displayName: 'Demo Persona',
             summary: 's',
-            tags: { latest: 'soulVersions:1' },
+            tags: { latest: 'personaVersions:1' },
             stats: { downloads: 0, stars: 0, versions: 1, comments: 0 },
             createdAt: 1,
             updatedAt: 2,
@@ -500,18 +500,18 @@ describe('httpApiV1 handlers', () => {
         }
       }
       if ('versionIds' in args) {
-        return [{ _id: 'soulVersions:1', version: '1.0.0', softDeletedAt: undefined }]
+        return [{ _id: 'personaVersions:1', version: '1.0.0', softDeletedAt: undefined }]
       }
       return null
     })
     const runMutation = vi.fn().mockResolvedValue(okRate())
-    const response = await __handlers.soulsGetRouterV1Handler(
+    const response = await __handlers.personasGetRouterV1Handler(
       makeCtx({ runQuery, runMutation }),
-      new Request('https://example.com/api/v1/souls/demo-soul'),
+      new Request('https://example.com/api/v1/personas/demo-persona'),
     )
     expect(response.status).toBe(200)
     const json = await response.json()
-    expect(json.soul.tags.latest).toBe('1.0.0')
+    expect(json.persona.tags.latest).toBe('1.0.0')
   })
 
   it('lists skills supports sort aliases', async () => {
@@ -1135,9 +1135,9 @@ describe('httpApiV1 handlers', () => {
       if ('key' in args) return okRate()
       throw new Error('boom')
     })
-    const unknown = await __handlers.soulsDeleteRouterV1Handler(
+    const unknown = await __handlers.personasDeleteRouterV1Handler(
       makeCtx({ runMutation: runMutationUnknown }),
-      new Request('https://example.com/api/v1/souls/demo-soul', {
+      new Request('https://example.com/api/v1/personas/demo-persona', {
         method: 'DELETE',
         headers: { Authorization: 'Bearer clh_test' },
       }),

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import semver from 'semver'
-import { skillsApi, soulsApi, uploadApi } from '../lib/api'
+import { skillsApi, personasApi, uploadApi } from '../lib/api'
 import { getSiteMode } from '../lib/site'
 import { expandDroppedItems, expandFiles } from '../lib/uploadFiles'
 import { useAuthStatus } from '../lib/useAuthStatus'
@@ -26,9 +26,9 @@ export function Upload() {
   const { isAuthenticated, me } = useAuthStatus()
   const { updateSlug } = useSearch({ from: '/upload' })
   const siteMode = getSiteMode()
-  const isSoulMode = siteMode === 'souls'
-  const requiredFileLabel = isSoulMode ? 'SOUL.md' : 'SKILL.md'
-  const contentLabel = isSoulMode ? 'soul' : 'skill'
+  const isPersonaMode = siteMode === 'personas'
+  const requiredFileLabel = isPersonaMode ? 'PERSONA.md' : 'SKILL.md'
+  const contentLabel = isPersonaMode ? 'persona' : 'skill'
 
   const [existing, setExisting] = useState<any>(undefined)
   const [hasAttempted, setHasAttempted] = useState(false)
@@ -78,26 +78,26 @@ export function Upload() {
     () =>
       normalizedPaths.some((path) => {
         const lower = path.trim().toLowerCase()
-        return isSoulMode ? lower === 'soul.md' : lower === 'skill.md' || lower === 'skills.md'
+        return isPersonaMode ? lower === 'persona.md' : lower === 'skill.md' || lower === 'skills.md'
       }),
-    [isSoulMode, normalizedPaths],
+    [isPersonaMode, normalizedPaths],
   )
   const sizeLabel = totalBytes ? formatBytes(totalBytes) : '0 B'
   const trimmedSlug = slug.trim()
   const trimmedName = displayName.trim()
   const trimmedChangelog = changelog.trim()
 
-  // Fetch existing skill/soul for update flow
+  // Fetch existing skill/persona for update flow
   useEffect(() => {
     if (!updateSlug) return
-    const fetchExisting = isSoulMode ? soulsApi.getExisting : skillsApi.getExisting
+    const fetchExisting = isPersonaMode ? personasApi.getExisting : skillsApi.getExisting
     fetchExisting(updateSlug).then((data: any) => setExisting(data)).catch(() => setExisting(null))
-  }, [updateSlug, isSoulMode])
+  }, [updateSlug, isPersonaMode])
 
   useEffect(() => {
-    if (!existing?.latestVersion || (!existing?.skill && !existing?.soul)) return
-    const name = existing.skill?.displayName ?? existing.soul?.displayName
-    const nextSlug = existing.skill?.slug ?? existing.soul?.slug
+    if (!existing?.latestVersion || (!existing?.skill && !existing?.persona)) return
+    const name = existing.skill?.displayName ?? existing.persona?.displayName
+    const nextSlug = existing.skill?.slug ?? existing.persona?.slug
     if (nextSlug) setSlug(nextSlug)
     if (name) setDisplayName(name)
     const nextVersion = semver.inc(existing.latestVersion.version, 'patch')
@@ -114,7 +114,7 @@ export function Upload() {
 
     const requiredIndex = normalizedPaths.findIndex((path) => {
       const lower = path.trim().toLowerCase()
-      return isSoulMode ? lower === 'soul.md' : lower === 'skill.md' || lower === 'skills.md'
+      return isPersonaMode ? lower === 'persona.md' : lower === 'skill.md' || lower === 'skills.md'
     })
     if (requiredIndex < 0) return
 
@@ -128,8 +128,8 @@ export function Upload() {
     const requestId = ++changelogRequestRef.current
     setChangelogStatus('loading')
 
-    const generatePreview = isSoulMode
-      ? soulsApi.generateChangelogPreview
+    const generatePreview = isPersonaMode
+      ? personasApi.generateChangelogPreview
       : skillsApi.generateChangelogPreview
 
     void readText(requiredFile)
@@ -156,7 +156,7 @@ export function Upload() {
   }, [
     files,
     hasRequiredFile,
-    isSoulMode,
+    isPersonaMode,
     normalizedPaths,
     trimmedChangelog,
     trimmedSlug,
@@ -286,8 +286,8 @@ export function Upload() {
     setStatus('Publishing…')
     try {
       let resultSlug: string
-      if (isSoulMode) {
-        const result = await soulsApi.publish({
+      if (isPersonaMode) {
+        const result = await personasApi.publish({
           slug: trimmedSlug,
           displayName: trimmedName,
           version,
@@ -312,8 +312,8 @@ export function Upload() {
       setChangelogSource('user')
       const ownerParam = me?.handle ?? (me?._id ? String(me._id) : 'unknown')
       void navigate({
-        to: isSoulMode ? '/souls/$slug' : '/$owner/$slug',
-        params: isSoulMode ? { slug: resultSlug } : { owner: ownerParam, slug: resultSlug },
+        to: isPersonaMode ? '/personas/$slug' : '/$owner/$slug',
+        params: isPersonaMode ? { slug: resultSlug } : { owner: ownerParam, slug: resultSlug },
       })
     } catch (error) {
       setStatus(null)
