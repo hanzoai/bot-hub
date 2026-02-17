@@ -81,8 +81,8 @@ export type SkillVersion = {
   createdAt: string
 }
 
-// ─── Soul ──────────────────────────────────────────────────────────────────
-export type Soul = {
+// ─── Persona ──────────────────────────────────────────────────────────────────
+export type Persona = {
   _id: string
   _creationTime: number
   slug: string
@@ -101,11 +101,11 @@ export type Soul = {
   updatedAt: string
 }
 
-// ─── SoulVersion ───────────────────────────────────────────────────────────
-export type SoulVersion = {
+// ─── PersonaVersion ───────────────────────────────────────────────────────────
+export type PersonaVersion = {
   _id: string
   _creationTime: number
-  soulId: string
+  personaId: string
   version: string
   changelog: string
   changelogSource: string | null
@@ -133,10 +133,10 @@ export type Comment = {
   deletedBy: string | null
 }
 
-export type SoulComment = {
+export type PersonaComment = {
   _id: string
   _creationTime: number
-  soulId: string
+  personaId: string
   userId: string
   body: string
   createdAt: string
@@ -195,14 +195,14 @@ export type Doc<T extends string> = T extends 'users'
     ? Skill
     : T extends 'skillVersions'
       ? SkillVersion
-      : T extends 'souls'
-        ? Soul
-        : T extends 'soulVersions'
-          ? SoulVersion
+      : T extends 'personas'
+        ? Persona
+        : T extends 'personaVersions'
+          ? PersonaVersion
           : T extends 'comments'
             ? Comment
-            : T extends 'soulComments'
-              ? SoulComment
+            : T extends 'personaComments'
+              ? PersonaComment
               : T extends 'stars'
                 ? Star
                 : T extends 'apiTokens'

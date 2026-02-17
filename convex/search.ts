@@ -5,7 +5,7 @@ import type { QueryCtx } from './_generated/server'
 import { action, internalQuery } from './_generated/server'
 import { getSkillBadgeMaps, isSkillHighlighted, type SkillBadgeMap } from './lib/badges'
 import { generateEmbedding } from './lib/embeddings'
-import { toPublicSkill, toPublicSoul, toPublicUser } from './lib/public'
+import { toPublicSkill, toPublicPersona, toPublicUser } from './lib/public'
 import { matchesExactTokens, tokenize } from './lib/searchText'
 import { isSkillSuspicious } from './lib/skillSafety'
 
@@ -345,20 +345,20 @@ export const lexicalFallbackSkills = internalQuery({
   },
 })
 
-type HydratedSoulEntry = {
-  embeddingId: Id<'soulEmbeddings'>
-  soul: NonNullable<ReturnType<typeof toPublicSoul>>
-  version: Doc<'soulVersions'> | null
+type HydratedPersonaEntry = {
+  embeddingId: Id<'personaEmbeddings'>
+  persona: NonNullable<ReturnType<typeof toPublicPersona>>
+  version: Doc<'personaVersions'> | null
 }
 
-type SoulSearchResult = HydratedSoulEntry & { score: number }
+type PersonaSearchResult = HydratedPersonaEntry & { score: number }
 
-export const searchSouls: ReturnType<typeof action> = action({
+export const searchPersonas: ReturnType<typeof action> = action({
   args: {
     query: v.string(),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<SoulSearchResult[]> => {
+  handler: async (ctx, args): Promise<PersonaSearchResult[]> => {
     const query = args.query.trim()
     if (!query) return []
     const queryTokens = tokenize(query)
@@ -374,30 +374,30 @@ export const searchSouls: ReturnType<typeof action> = action({
     // Convex vectorSearch max limit is 256; clamp candidate sizes accordingly.
     const maxCandidate = Math.min(Math.max(limit * 10, 200), 256)
     let candidateLimit = Math.min(Math.max(limit * 3, 50), 256)
-    let hydrated: HydratedSoulEntry[] = []
-    let scoreById = new Map<Id<'soulEmbeddings'>, number>()
-    let exactMatches: HydratedSoulEntry[] = []
+    let hydrated: HydratedPersonaEntry[] = []
+    let scoreById = new Map<Id<'personaEmbeddings'>, number>()
+    let exactMatches: HydratedPersonaEntry[] = []
 
     while (candidateLimit <= maxCandidate) {
-      const results = await ctx.vectorSearch('soulEmbeddings', 'by_embedding', {
+      const results = await ctx.vectorSearch('personaEmbeddings', 'by_embedding', {
         vector,
         limit: candidateLimit,
         filter: (q) => q.or(q.eq('visibility', 'latest'), q.eq('visibility', 'latest-approved')),
       })
 
-      hydrated = (await ctx.runQuery(internal.search.hydrateSoulResults, {
+      hydrated = (await ctx.runQuery(internal.search.hydratePersonaResults, {
         embeddingIds: results.map((result) => result._id),
-      })) as HydratedSoulEntry[]
+      })) as HydratedPersonaEntry[]
 
-      scoreById = new Map<Id<'soulEmbeddings'>, number>(
+      scoreById = new Map<Id<'personaEmbeddings'>, number>(
         results.map((result) => [result._id, result._score]),
       )
 
       exactMatches = hydrated.filter((entry) =>
         matchesExactTokens(queryTokens, [
-          entry.soul.displayName,
-          entry.soul.slug,
-          entry.soul.summary,
+          entry.persona.displayName,
+          entry.persona.slug,
+          entry.persona.summary,
         ]),
       )
 
@@ -415,25 +415,25 @@ export const searchSouls: ReturnType<typeof action> = action({
         ...entry,
         score: scoreById.get(entry.embeddingId) ?? 0,
       }))
-      .filter((entry) => entry.soul)
+      .filter((entry) => entry.persona)
       .slice(0, limit)
   },
 })
 
-export const hydrateSoulResults = internalQuery({
-  args: { embeddingIds: v.array(v.id('soulEmbeddings')) },
-  handler: async (ctx, args): Promise<HydratedSoulEntry[]> => {
-    const entries: HydratedSoulEntry[] = []
+export const hydratePersonaResults = internalQuery({
+  args: { embeddingIds: v.array(v.id('personaEmbeddings')) },
+  handler: async (ctx, args): Promise<HydratedPersonaEntry[]> => {
+    const entries: HydratedPersonaEntry[] = []
 
     for (const embeddingId of args.embeddingIds) {
       const embedding = await ctx.db.get(embeddingId)
       if (!embedding) continue
-      const soul = await ctx.db.get(embedding.soulId)
-      if (soul?.softDeletedAt) continue
+      const persona = await ctx.db.get(embedding.personaId)
+      if (persona?.softDeletedAt) continue
       const version = await ctx.db.get(embedding.versionId)
-      const publicSoul = toPublicSoul(soul)
-      if (!publicSoul) continue
-      entries.push({ embeddingId, soul: publicSoul, version })
+      const publicPersona = toPublicPersona(persona)
+      if (!publicPersona) continue
+      entries.push({ embeddingId, persona: publicPersona, version })
     }
 
     return entries

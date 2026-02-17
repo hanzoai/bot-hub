@@ -15,17 +15,17 @@ import {
 } from './httpApi'
 import {
   listSkillsV1Http,
-  listSoulsV1Http,
+  listPersonasV1Http,
   publishSkillV1Http,
-  publishSoulV1Http,
+  publishPersonaV1Http,
   resolveSkillVersionV1Http,
   searchSkillsV1Http,
   skillsDeleteRouterV1Http,
   skillsGetRouterV1Http,
   skillsPostRouterV1Http,
-  soulsDeleteRouterV1Http,
-  soulsGetRouterV1Http,
-  soulsPostRouterV1Http,
+  personasDeleteRouterV1Http,
+  personasGetRouterV1Http,
+  personasPostRouterV1Http,
   starsDeleteRouterV1Http,
   starsPostRouterV1Http,
   usersListV1Http,
@@ -117,33 +117,33 @@ http.route({
 })
 
 http.route({
-  path: ApiRoutes.souls,
+  path: ApiRoutes.personas,
   method: 'GET',
-  handler: listSoulsV1Http,
+  handler: listPersonasV1Http,
 })
 
 http.route({
-  pathPrefix: `${ApiRoutes.souls}/`,
+  pathPrefix: `${ApiRoutes.personas}/`,
   method: 'GET',
-  handler: soulsGetRouterV1Http,
+  handler: personasGetRouterV1Http,
 })
 
 http.route({
-  path: ApiRoutes.souls,
+  path: ApiRoutes.personas,
   method: 'POST',
-  handler: publishSoulV1Http,
+  handler: publishPersonaV1Http,
 })
 
 http.route({
-  pathPrefix: `${ApiRoutes.souls}/`,
+  pathPrefix: `${ApiRoutes.personas}/`,
   method: 'POST',
-  handler: soulsPostRouterV1Http,
+  handler: personasPostRouterV1Http,
 })
 
 http.route({
-  pathPrefix: `${ApiRoutes.souls}/`,
+  pathPrefix: `${ApiRoutes.personas}/`,
   method: 'DELETE',
-  handler: soulsDeleteRouterV1Http,
+  handler: personasDeleteRouterV1Http,
 })
 
 http.route({

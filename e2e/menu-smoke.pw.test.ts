@@ -8,10 +8,10 @@ test('skills loads without error', async ({ page }) => {
   await expect(page.locator('h1', { hasText: 'Skills' })).toBeVisible()
 })
 
-test('souls loads without error', async ({ page }) => {
-  await page.goto('/souls', { waitUntil: 'domcontentloaded' })
+test('personas loads without error', async ({ page }) => {
+  await page.goto('/personas', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('text=Something went wrong!')).toHaveCount(0)
-  await expect(page.locator('h1', { hasText: 'Souls' })).toBeVisible()
+  await expect(page.locator('h1', { hasText: 'Personas' })).toBeVisible()
 })
 
 test('header menu routes render', async ({ page }) => {

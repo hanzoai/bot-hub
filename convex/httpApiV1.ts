@@ -10,12 +10,12 @@ import {
   skillsPostRouterV1Handler,
 } from './httpApiV1/skillsV1'
 import {
-  listSoulsV1Handler,
-  publishSoulV1Handler,
-  soulsDeleteRouterV1Handler,
-  soulsGetRouterV1Handler,
-  soulsPostRouterV1Handler,
-} from './httpApiV1/soulsV1'
+  listPersonasV1Handler,
+  publishPersonaV1Handler,
+  personasDeleteRouterV1Handler,
+  personasGetRouterV1Handler,
+  personasPostRouterV1Handler,
+} from './httpApiV1/personasV1'
 import { starsDeleteRouterV1Handler, starsPostRouterV1Handler } from './httpApiV1/starsV1'
 import { usersListV1Handler, usersPostRouterV1Handler } from './httpApiV1/usersV1'
 import { whoamiV1Handler } from './httpApiV1/whoamiV1'
@@ -28,11 +28,11 @@ export const publishSkillV1Http = httpAction(publishSkillV1Handler)
 export const skillsPostRouterV1Http = httpAction(skillsPostRouterV1Handler)
 export const skillsDeleteRouterV1Http = httpAction(skillsDeleteRouterV1Handler)
 
-export const listSoulsV1Http = httpAction(listSoulsV1Handler)
-export const soulsGetRouterV1Http = httpAction(soulsGetRouterV1Handler)
-export const publishSoulV1Http = httpAction(publishSoulV1Handler)
-export const soulsPostRouterV1Http = httpAction(soulsPostRouterV1Handler)
-export const soulsDeleteRouterV1Http = httpAction(soulsDeleteRouterV1Handler)
+export const listPersonasV1Http = httpAction(listPersonasV1Handler)
+export const personasGetRouterV1Http = httpAction(personasGetRouterV1Handler)
+export const publishPersonaV1Http = httpAction(publishPersonaV1Handler)
+export const personasPostRouterV1Http = httpAction(personasPostRouterV1Handler)
+export const personasDeleteRouterV1Http = httpAction(personasDeleteRouterV1Handler)
 
 export const starsPostRouterV1Http = httpAction(starsPostRouterV1Handler)
 export const starsDeleteRouterV1Http = httpAction(starsDeleteRouterV1Handler)
@@ -49,11 +49,11 @@ export const __handlers = {
   publishSkillV1Handler,
   skillsPostRouterV1Handler,
   skillsDeleteRouterV1Handler,
-  listSoulsV1Handler,
-  soulsGetRouterV1Handler,
-  publishSoulV1Handler,
-  soulsPostRouterV1Handler,
-  soulsDeleteRouterV1Handler,
+  listPersonasV1Handler,
+  personasGetRouterV1Handler,
+  publishPersonaV1Handler,
+  personasPostRouterV1Handler,
+  personasDeleteRouterV1Handler,
   starsPostRouterV1Handler,
   starsDeleteRouterV1Handler,
   whoamiV1Handler,

@@ -23,7 +23,7 @@ vi.mock('../lib/api', () => ({
     getExisting: (...args: unknown[]) => getExistingMock(...args),
     generateChangelogPreview: (...args: unknown[]) => generateChangelogPreviewMock(...args),
   },
-  soulsApi: {
+  personasApi: {
     publish: vi.fn(),
     getExisting: vi.fn(),
     generateChangelogPreview: vi.fn(),

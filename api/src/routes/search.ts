@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '../db/index.js'
-import { skillEmbeddings, skills, soulEmbeddings, souls, users } from '../db/schema.js'
+import { skillEmbeddings, skills, personaEmbeddings, personas, users } from '../db/schema.js'
 import { generateEmbedding } from '../lib/embeddings.js'
 
 export const searchRouter = new Hono()
@@ -103,8 +103,8 @@ searchRouter.get('/skills', async (c) => {
   return c.json({ items: merged.slice(0, limit) })
 })
 
-// ─── Search souls ───────────────────────────────────────────────────────────
-searchRouter.get('/souls', async (c) => {
+// ─── Search personas ───────────────────────────────────────────────────────────
+searchRouter.get('/personas', async (c) => {
   const query = c.req.query('q')?.trim()
   const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
 
@@ -112,28 +112,28 @@ searchRouter.get('/souls', async (c) => {
 
   const results = await db
     .select({
-      id: souls.id,
-      slug: souls.slug,
-      displayName: souls.displayName,
-      summary: souls.summary,
+      id: personas.id,
+      slug: personas.slug,
+      displayName: personas.displayName,
+      summary: personas.summary,
       ownerHandle: users.handle,
       ownerImage: users.image,
-      statsDownloads: souls.statsDownloads,
-      statsStars: souls.statsStars,
+      statsDownloads: personas.statsDownloads,
+      statsStars: personas.statsStars,
     })
-    .from(souls)
-    .leftJoin(users, eq(souls.ownerUserId, users.id))
+    .from(personas)
+    .leftJoin(users, eq(personas.ownerUserId, users.id))
     .where(
       and(
-        isNull(souls.softDeletedAt),
+        isNull(personas.softDeletedAt),
         or(
-          ilike(souls.slug, `%${query}%`),
-          ilike(souls.displayName, `%${query}%`),
-          ilike(souls.summary, `%${query}%`),
+          ilike(personas.slug, `%${query}%`),
+          ilike(personas.displayName, `%${query}%`),
+          ilike(personas.summary, `%${query}%`),
         ),
       ),
     )
-    .orderBy(desc(souls.statsDownloads))
+    .orderBy(desc(personas.statsDownloads))
     .limit(limit)
 
   return c.json({ items: results })

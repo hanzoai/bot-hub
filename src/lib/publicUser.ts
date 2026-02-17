@@ -23,8 +23,8 @@ export type PublicSkill = Pick<
   | 'updatedAt'
 >
 
-export type PublicSoul = Pick<
-  Doc<'souls'>,
+export type PublicPersona = Pick<
+  Doc<'personas'>,
   | '_id'
   | '_creationTime'
   | 'slug'

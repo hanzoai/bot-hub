@@ -69,8 +69,8 @@ describe('search route', () => {
     })
   })
 
-  it('redirects souls host with query to home search', () => {
-    expect(runBeforeLoad({ q: 'crab', highlighted: true }, 'onlycrabs.ai')).toEqual({
+  it('redirects personas host with query to home search', () => {
+    expect(runBeforeLoad({ q: 'crab', highlighted: true }, 'personas.hanzo.ai')).toEqual({
       redirect: {
         to: '/',
         search: {
@@ -83,8 +83,8 @@ describe('search route', () => {
     })
   })
 
-  it('redirects souls host without query to home with search mode', () => {
-    expect(runBeforeLoad({}, 'onlycrabs.ai')).toEqual({
+  it('redirects personas host without query to home with search mode', () => {
+    expect(runBeforeLoad({}, 'personas.hanzo.ai')).toEqual({
       redirect: {
         to: '/',
         search: {
