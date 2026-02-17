@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import type { ClawdisSkillMetadata } from 'clawhub-schema'
+import type { ClawdisSkillMetadata } from 'bothub-schema'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { getSkillBadges } from '../lib/badges'
 import { formatCompactStat, formatSkillStatsTriplet } from '../lib/numberFormat'
@@ -126,7 +126,7 @@ export function SkillHeader({
           <div className="pending-banner-content">
             <strong>Skill blocked — malicious content detected</strong>
             <p>
-              ClawHub Security flagged this skill as malicious. Downloads are disabled. Review the
+              Bot Hub Security flagged this skill as malicious. Downloads are disabled. Review the
               scan results below.
             </p>
           </div>
@@ -135,12 +135,12 @@ export function SkillHeader({
         <div className="pending-banner pending-banner-warning">
           <div className="pending-banner-content">
             <strong>Skill flagged — suspicious patterns detected</strong>
-            <p>ClawHub Security flagged this skill as suspicious. Review the scan results before using.</p>
+            <p>Bot Hub Security flagged this skill as suspicious. Review the scan results before using.</p>
             {canManage ? (
               <p className="pending-banner-appeal">
                 If you believe this skill has been incorrectly flagged, please{' '}
                 <a
-                  href="https://github.com/openclaw/clawhub/issues"
+                  href="https://github.com/hanzo-bot/bothub/issues"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

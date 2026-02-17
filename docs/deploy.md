@@ -7,7 +7,7 @@ read_when:
 
 # Deploy
 
-ClawHub is two deployables:
+Bot Hub is two deployables:
 
 - Web app (TanStack Start) → typically Vercel.
 - Convex backend → Convex deployment (serves `/api/...` routes).
@@ -56,13 +56,13 @@ For self-host:
 
 The CLI can discover the API base from:
 
-- `/.well-known/clawhub.json` (preferred)
-- `/.well-known/clawdhub.json` (legacy)
+- `/.well-known/bothub.json` (preferred)
+- `/.well-known/bothub.json` (legacy)
 
 If you don’t serve that file, users must set:
 
 ```bash
-export CLAWHUB_REGISTRY=https://your-site.example
+export BOTHUB_REGISTRY=https://your-site.example
 ```
 
 ## 5) Post-deploy checks
@@ -75,6 +75,6 @@ curl -i "https://<site>/api/v1/skills/gifgrep"
 Then:
 
 ```bash
-clawhub login --site https://<site>
-clawhub whoami
+bothub login --site https://<site>
+bothub whoami
 ```

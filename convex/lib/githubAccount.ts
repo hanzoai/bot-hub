@@ -21,7 +21,7 @@ function assertGitHubNumericId(providerAccountId: string) {
 }
 
 function buildGitHubHeaders() {
-  const headers: Record<string, string> = { 'User-Agent': 'clawhub' }
+  const headers: Record<string, string> = { 'User-Agent': 'bothub' }
   const token = process.env.GITHUB_TOKEN
   if (token) {
     headers.Authorization = `Bearer ${token}`

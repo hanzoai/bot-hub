@@ -23,7 +23,7 @@
 - Upload gate: fetch GitHub account age by immutable account ID (prevents username swaps) (#116) (thanks @mkrokosz).
 - API: return proper status codes for delete/undelete errors (#35) (thanks @sergical).
 - API: for owners, return clearer status/messages for hidden/soft-deleted skills instead of a generic 404.
-- Web: allow copying OpenClaw scan summary text (thanks @borisolver, #322).
+- Web: allow copying Hanzo Bot scan summary text (thanks @borisolver, #322).
 - HTTP/CORS: add preflight handler + include CORS headers on API/download errors; CLI: include auth token for owner-visible installs/updates (#146) (thanks @Grenghis-Khan).
 - CLI: clarify `logout` only removes the local token; token remains valid until revoked in the web UI (#166) (thanks @aronchick).
 - CLI: validate skill slugs used for filesystem operations (prevents path traversal) (#241) (thanks @superlowburn).
@@ -35,12 +35,12 @@
 
 ### Added
 - Security: add LLM-based security evaluation during skill publish.
-- Parsing: recognize `metadata.openclaw` frontmatter and evaluate all skill files for requirements.
+- Parsing: recognize `metadata.hanzo-bot` frontmatter and evaluate all skill files for requirements.
 
 ### Changed
 - Performance: lazy-load Monaco diff viewer on demand (thanks @alexjcm, #212).
 - Search: improve recall/ranking with lexical fallback and relevance prioritization.
-- Moderation UX: collapse OpenClaw analysis by default; update spacing and default reasoning model.
+- Moderation UX: collapse Hanzo Bot analysis by default; update spacing and default reasoning model.
 
 ### Fixed
 - Skills: fix initial `/skills` sort wiring so first page respects selected sort/direction (thanks @bpk9, #92).
@@ -67,7 +67,7 @@
 ### Fixed
 - Web: show pending-scan skills to owners without 404 (thanks @orlyjamie, #136).
 - Users: backfill empty handles from name/email in ensure (thanks @adlai88, #158).
-- Web: update footer branding to OpenClaw (thanks @jontsai, #122).
+- Web: update footer branding to Hanzo Bot (thanks @jontsai, #122).
 - Auth: restore soft-deleted users on reauth, block banned users (thanks @mkrokosz, #106).
 
 ## 0.5.0 - 2026-02-02
@@ -91,13 +91,13 @@
 
 ### Added
 - Web: show published skills on user profiles (thanks @njoylab, #20).
-- CLI: include ClawHub + Moltbot fallback skill roots for sync scans.
-- CLI: support OpenClaw configuration files (`OPENCLAW_CONFIG_PATH` / `OPENCLAW_STATE_DIR`).
+- CLI: include Bot Hub + Moltbot fallback skill roots for sync scans.
+- CLI: support Hanzo Bot configuration files (`HANZO_BOT_CONFIG_PATH` / `HANZO_BOT_STATE_DIR`).
 
 ### Changed
-- Brand: rebrand to ClawHub and publish CLI as `clawhub` (legacy `clawdhub` supported).
-- Domain: default site/registry now `https://clawhub.ai`; `.well-known/clawhub.json` preferred.
-- Theme: persist theme under `clawhub-theme` (legacy key still read).
+- Brand: rebrand to Bot Hub and publish CLI as `bothub` (legacy `bothub` supported).
+- Domain: default site/registry now `https://hub.hanzo.bot`; `.well-known/bothub.json` preferred.
+- Theme: persist theme under `bothub-theme` (legacy key still read).
 
 ### Fixed
 - Registry: drop missing skills during search hydration (thanks @aaronn, #28).
@@ -130,7 +130,7 @@
 - Registry: make SoulHub auto-seed idempotent and non-user-owned.
 - Registry: keep GitHub backup state + publish backups intact (thanks @joshp123, #1).
 - CLI/Registry: restore fork lineage on sync + clamp bulk list queries (thanks @joshp123, #1).
-- CLI: default workdir falls back to Clawdbot workspace (override with `--workdir` / `CLAWHUB_WORKDIR`).
+- CLI: default workdir falls back to Clawdbot workspace (override with `--workdir` / `BOTHUB_WORKDIR`).
 
 ## 0.0.6 - 2026-01-07
 
@@ -146,7 +146,7 @@
 ## 0.0.5 - 2026-01-06
 
 ### Added
-- Telemetry: track installs via `clawhub sync` (logged-in only), per root, with 120-day staleness.
+- Telemetry: track installs via `bothub sync` (logged-in only), per root, with 120-day staleness.
 - Skills: show current + all-time installs; sort by installs.
 - Profile: private "Installed" tab with JSON export + delete telemetry controls.
 - Docs: add `docs/telemetry.md` (what we track + how to opt out).
@@ -154,7 +154,7 @@
 - Web: dashboard for managing your published skills (thanks @dbhurley!).
 
 ### Changed
-- CLI: telemetry opt-out via `CLAWHUB_DISABLE_TELEMETRY=1`.
+- CLI: telemetry opt-out via `BOTHUB_DISABLE_TELEMETRY=1`.
 - Web: move theme picker into mobile menu.
 
 ### Fixed
@@ -183,7 +183,7 @@
 - Web: improved mobile responsiveness (nav menu, skill detail layout, install command overflow).
 - Web: upload now unwraps folder picks so `SKILL.md` can be at the bundle root.
 - Registry: cap embedding payload size to avoid model context errors.
-- CLI: ignore legacy `auth.clawdhub.com` registry and prefer site discovery.
+- CLI: ignore legacy `auth.hub.hanzo.bot` registry and prefer site discovery.
 
 ### Changed
 - Web: homepage search now expands into full search mode with live results + highlighted toggle.
@@ -202,8 +202,8 @@
 ### Fixed
 - CLI sync: wrap note output to avoid terminal overflow; cap list lengths.
 - CLI sync: label fallback scans as fallback locations.
-- CLI package: bundle schema internally (no external `clawhub-schema` publish).
-- Repo: mark `clawhub-schema` as private to prevent publishing.
+- CLI package: bundle schema internally (no external `bothub-schema` publish).
+- Repo: mark `bothub-schema` as private to prevent publishing.
 
 ## 0.0.2 - 2026-01-04
 

@@ -18,16 +18,16 @@ Required:
 Optional:
 
 - any supporting *text-based* files (see “Allowed files”)
-- `.clawhubignore` (ignore patterns for publish/sync, legacy `.clawdhubignore`)
+- `.bothubignore` (ignore patterns for publish/sync, legacy `.bothubignore`)
 - `.gitignore` (also honored)
 
 Local install metadata (written by the CLI):
 
-- `<skill>/.clawhub/origin.json` (legacy `.clawdhub`)
+- `<skill>/.bothub/origin.json` (legacy `.bothub`)
 
 Workdir install state (written by the CLI):
 
-- `<workdir>/.clawhub/lock.json` (legacy `.clawdhub`)
+- `<workdir>/.bothub/lock.json` (legacy `.bothub`)
 
 ## `SKILL.md`
 
@@ -49,16 +49,16 @@ version: 1.0.0
 ---
 ```
 
-### Runtime metadata (`metadata.openclaw`)
+### Runtime metadata (`metadata.hanzo-bot`)
 
-Declare your skill's runtime requirements under `metadata.openclaw` (aliases: `metadata.clawdbot`, `metadata.clawdis`).
+Declare your skill's runtime requirements under `metadata.hanzo-bot` (aliases: `metadata.clawdbot`, `metadata.clawdis`).
 
 ```yaml
 ---
 name: my-skill
 description: Manage tasks via the Todoist API.
 metadata:
-  openclaw:
+  hanzo-bot:
     requires:
       env:
         - TODOIST_API_KEY
@@ -92,7 +92,7 @@ If your skill needs dependencies installed, declare them in the `install` array:
 
 ```yaml
 metadata:
-  openclaw:
+  hanzo-bot:
     install:
       - kind: brew
         formula: jq
@@ -106,7 +106,7 @@ Supported install kinds: `brew`, `node`, `go`, `uv`.
 
 ### Why this matters
 
-ClawHub's security analysis checks that what your skill declares matches what it actually does. If your code references `TODOIST_API_KEY` but your frontmatter doesn't declare it under `requires.env`, the analysis will flag a metadata mismatch. Keeping declarations accurate helps your skill pass review and helps users understand what they're installing.
+Bot Hub's security analysis checks that what your skill declares matches what it actually does. If your code references `TODOIST_API_KEY` but your frontmatter doesn't declare it under `requires.env`, the analysis will flag a metadata mismatch. Keeping declarations accurate helps your skill pass review and helps users understand what they're installing.
 
 ### Example: complete frontmatter
 
@@ -116,7 +116,7 @@ name: todoist-cli
 description: Manage Todoist tasks, projects, and labels from the command line.
 version: 1.2.0
 metadata:
-  openclaw:
+  hanzo-bot:
     requires:
       env:
         - TODOIST_API_KEY

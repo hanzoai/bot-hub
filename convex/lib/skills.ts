@@ -7,7 +7,7 @@ import {
   parseArk,
   type SkillInstallSpec,
   TEXT_FILE_EXTENSION_SET,
-} from 'clawhub-schema'
+} from 'bothub-schema'
 import { parse as parseYaml } from 'yaml'
 
 export type ParsedSkillFrontmatter = Record<string, unknown>
@@ -69,14 +69,14 @@ export function parseClawdisMetadata(frontmatter: ParsedSkillFrontmatter) {
       : undefined
   const clawdbotMeta = metadataRecord?.clawdbot
   const clawdisMeta = metadataRecord?.clawdis
-  const openclawMeta = metadataRecord?.openclaw
+  const hanzo-botMeta = metadataRecord?.hanzo-bot
   const metadataSource =
     clawdbotMeta && typeof clawdbotMeta === 'object' && !Array.isArray(clawdbotMeta)
       ? (clawdbotMeta as Record<string, unknown>)
       : clawdisMeta && typeof clawdisMeta === 'object' && !Array.isArray(clawdisMeta)
         ? (clawdisMeta as Record<string, unknown>)
-        : openclawMeta && typeof openclawMeta === 'object' && !Array.isArray(openclawMeta)
-          ? (openclawMeta as Record<string, unknown>)
+        : hanzo-botMeta && typeof hanzo-botMeta === 'object' && !Array.isArray(hanzo-botMeta)
+          ? (hanzo-botMeta as Record<string, unknown>)
           : undefined
   const clawdisRaw = metadataSource ?? frontmatter.clawdis
   if (!clawdisRaw || typeof clawdisRaw !== 'object' || Array.isArray(clawdisRaw)) return undefined

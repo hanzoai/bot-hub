@@ -16,7 +16,7 @@ export type WebhookConfig = {
   siteUrl: string
 }
 
-const DEFAULT_SITE_URL = 'https://clawhub.ai'
+const DEFAULT_SITE_URL = 'https://hub.hanzo.bot'
 
 export function getWebhookConfig(env: NodeJS.ProcessEnv = process.env): WebhookConfig {
   const url = env.DISCORD_WEBHOOK_URL?.trim() || null
@@ -72,7 +72,7 @@ export function buildDiscordPayload(
           },
         ],
         footer: {
-          text: 'ClawHub',
+          text: 'Bot Hub',
         },
         timestamp: new Date().toISOString(),
       },
@@ -89,9 +89,9 @@ export function buildSkillUrl(skill: WebhookSkillPayload, siteUrl: string) {
 function buildDescription(event: WebhookEvent, skill: WebhookSkillPayload) {
   const summary = (skill.summary ?? '').trim()
   if (summary) return truncate(summary, 200)
-  if (event === 'skill.highlighted') return 'Newly highlighted skill on ClawHub.'
-  if (skill.version) return `New version v${skill.version} published on ClawHub.`
-  return 'New skill published on ClawHub.'
+  if (event === 'skill.highlighted') return 'Newly highlighted skill on Bot Hub.'
+  if (skill.version) return `New version v${skill.version} published on Bot Hub.`
+  return 'New skill published on Bot Hub.'
 }
 
 function parseBoolean(value?: string) {

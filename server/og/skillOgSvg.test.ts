@@ -9,14 +9,14 @@ describe('skill OG SVG', () => {
       description: 'Quick diagnosis and repair for Discord bot.',
       ownerLabel: '@jhillock',
       versionLabel: 'v1.2.3',
-      footer: 'clawhub.ai/jhillock/discord-doctor',
+      footer: 'hub.hanzo.bot/jhillock/discord-doctor',
     })
 
     expect(svg).toContain('Discord Doctor')
     expect(svg).toContain('Quick diagnosis and repair')
     expect(svg).toContain('@jhillock')
     expect(svg).toContain('v1.2.3')
-    expect(svg).toContain('clawhub.ai/jhillock/discord-doctor')
+    expect(svg).toContain('hub.hanzo.bot/jhillock/discord-doctor')
   })
 
   it('wraps long titles to avoid clipping', () => {
@@ -26,7 +26,7 @@ describe('skill OG SVG', () => {
       description: 'Create Excalidraw flowcharts from descriptions.',
       ownerLabel: '@swiftlysisngh',
       versionLabel: 'v1.0.2',
-      footer: 'clawhub.ai/swiftlysisngh/excalidraw-flowchart',
+      footer: 'hub.hanzo.bot/swiftlysisngh/excalidraw-flowchart',
     })
 
     const titleBlock = svg.match(/<text[^>]*font-weight="800"[\s\S]*?<\/text>/)?.[0] ?? ''
@@ -44,7 +44,7 @@ describe('skill OG SVG', () => {
       description: `Prefix ${longWord} suffix`,
       ownerLabel: '@pasogott',
       versionLabel: 'v0.1.0',
-      footer: 'clawhub.ai/pasogott/gurkerlcli',
+      footer: 'hub.hanzo.bot/pasogott/gurkerlcli',
     })
 
     expect(svg).toContain('<clipPath id="cardClip">')

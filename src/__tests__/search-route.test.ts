@@ -9,7 +9,7 @@ import { Route } from '../routes/search'
 
 function runBeforeLoad(
   search: { q?: string; highlighted?: boolean; nonSuspicious?: boolean },
-  hostname = 'clawdhub.com',
+  hostname = 'hub.hanzo.bot',
 ) {
   const route = Route as unknown as {
     __config: {
@@ -36,7 +36,7 @@ function runBeforeLoad(
 
 describe('search route', () => {
   it('redirects skills host to the skills index', () => {
-    expect(runBeforeLoad({ q: 'crab', highlighted: true }, 'clawdhub.com')).toEqual({
+    expect(runBeforeLoad({ q: 'crab', highlighted: true }, 'hub.hanzo.bot')).toEqual({
       redirect: {
         to: '/skills',
         search: {
@@ -53,7 +53,7 @@ describe('search route', () => {
   })
 
   it('forwards nonSuspicious filter to skills index', () => {
-    expect(runBeforeLoad({ q: 'crab', nonSuspicious: true }, 'clawdhub.com')).toEqual({
+    expect(runBeforeLoad({ q: 'crab', nonSuspicious: true }, 'hub.hanzo.bot')).toEqual({
       redirect: {
         to: '/skills',
         search: {

@@ -592,7 +592,7 @@ describe('httpApiV1 handlers', () => {
       new Request('https://example.com/api/v1/skills/demo'),
     )
     expect(response.status).toBe(410)
-    expect(await response.text()).toContain('clawhub undelete demo')
+    expect(await response.text()).toContain('bothub undelete demo')
   })
 
   it('get skill returns payload', async () => {

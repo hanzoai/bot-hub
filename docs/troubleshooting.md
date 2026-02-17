@@ -6,16 +6,16 @@ read_when:
 
 # Troubleshooting
 
-## `clawhub login` opens browser but never completes
+## `bothub login` opens browser but never completes
 
 - Ensure your browser can reach `http://127.0.0.1:<port>/callback` (local firewalls/VPNs can interfere).
 - Use headless mode:
   - create a token in the web UI (Settings → API tokens)
-  - `clawhub login --token clh_...`
+  - `bothub login --token clh_...`
 
 ## `whoami` / `publish` returns `Unauthorized` (401)
 
-- Token missing or revoked: check your config file (`CLAWHUB_CONFIG_PATH` override?).
+- Token missing or revoked: check your config file (`BOTHUB_CONFIG_PATH` override?).
 - Ensure requests include `Authorization: Bearer ...` (CLI does this automatically).
 
 ## `publish` fails with `OPENAI_API_KEY is not configured`
@@ -38,7 +38,7 @@ read_when:
 - Provide explicit roots:
 
 ```bash
-clawhub sync --root /path/to/skills
+bothub sync --root /path/to/skills
 ```
 
 ## `update` refuses due to “local changes (no match)”
@@ -46,8 +46,8 @@ clawhub sync --root /path/to/skills
 - Your local files don’t match any published fingerprint.
 - Options:
   - keep local edits; skip updating
-  - overwrite: `clawhub update <slug> --force`
-  - publish as fork: copy to new folder/slug then `clawhub publish ... --fork-of upstream@version`
+  - overwrite: `bothub update <slug> --force`
+  - publish as fork: copy to new folder/slug then `bothub publish ... --fork-of upstream@version`
 
 ## `GET /api/*` works locally but not on Vercel
 

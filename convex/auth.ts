@@ -7,7 +7,7 @@ import type { DataModel, Id } from './_generated/dataModel'
 import { shouldScheduleGitHubProfileSync } from './lib/githubProfileSync'
 
 export const BANNED_REAUTH_MESSAGE =
-  'Your account has been banned for uploading malicious skills. If you believe this is a mistake, please contact security@openclaw.ai and we will work with you to restore access.'
+  'Your account has been banned for uploading malicious skills. If you believe this is a mistake, please contact security@hanzo-bot.ai and we will work with you to restore access.'
 export const DELETED_ACCOUNT_REAUTH_MESSAGE =
   'This account has been permanently deleted and cannot be restored.'
 

@@ -54,7 +54,7 @@ function VirusTotalIcon({ className }: { className?: string }) {
   )
 }
 
-function OpenClawIcon({ className }: { className?: string }) {
+function Hanzo BotIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -62,9 +62,9 @@ function OpenClawIcon({ className }: { className?: string }) {
       height="1em"
       viewBox="0 0 24 24"
       fill="none"
-      aria-label="OpenClaw"
+      aria-label="Hanzo Bot"
     >
-      <title>OpenClaw</title>
+      <title>Hanzo Bot</title>
       <path
         d="M12 2C8.5 2 5.5 4 4 7c-2 4-1 8 2 11 1.5 1.5 3.5 2.5 6 2.5s4.5-1 6-2.5c3-3 4-7 2-11-1.5-3-4.5-5-8-5z"
         fill="currentColor"
@@ -232,7 +232,7 @@ export function SecurityScanResults({
         ) : null}
         {llmStatusInfo ? (
           <div className="version-scan-badge">
-            <OpenClawIcon className="version-scan-icon version-scan-icon-oc" />
+            <Hanzo BotIcon className="version-scan-icon version-scan-icon-oc" />
             <span className={llmStatusInfo.className}>{llmStatusInfo.label}</span>
           </div>
         ) : null}
@@ -272,8 +272,8 @@ export function SecurityScanResults({
         {llmStatusInfo && llmAnalysis ? (
           <div className="scan-result-row">
             <div className="scan-result-scanner">
-              <OpenClawIcon className="scan-result-icon scan-result-icon-oc" />
-              <span className="scan-result-scanner-name">OpenClaw</span>
+              <Hanzo BotIcon className="scan-result-icon scan-result-icon-oc" />
+              <span className="scan-result-scanner-name">Hanzo Bot</span>
             </div>
             <div className={`scan-result-status ${llmStatusInfo.className}`}>{llmStatusInfo.label}</div>
             {llmAnalysis.confidence ? (
