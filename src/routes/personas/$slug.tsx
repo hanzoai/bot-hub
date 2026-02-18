@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { SoulDetailPage } from '../../components/SoulDetailPage'
-import { buildSoulMeta, fetchSoulMeta } from '../../lib/og'
+import { PersonaDetailPage } from '../../components/PersonaDetailPage'
+import { buildPersonaMeta, fetchPersonaMeta } from '../../lib/og'
 
-export const Route = createFileRoute('/souls/$slug')({
+export const Route = createFileRoute('/personas/$slug')({
   loader: async ({ params }) => {
-    const data = await fetchSoulMeta(params.slug)
+    const data = await fetchPersonaMeta(params.slug)
     return {
       owner: data?.owner ?? null,
       displayName: data?.displayName ?? null,
@@ -13,7 +13,7 @@ export const Route = createFileRoute('/souls/$slug')({
     }
   },
   head: ({ params, loaderData }) => {
-    const meta = buildSoulMeta({
+    const meta = buildPersonaMeta({
       slug: params.slug,
       owner: loaderData?.owner ?? null,
       displayName: loaderData?.displayName,
@@ -46,10 +46,10 @@ export const Route = createFileRoute('/souls/$slug')({
       ],
     }
   },
-  component: SoulDetail,
+  component: PersonaDetail,
 })
 
-function SoulDetail() {
+function PersonaDetail() {
   const { slug } = Route.useParams()
-  return <SoulDetailPage slug={slug} />
+  return <PersonaDetailPage slug={slug} />
 }

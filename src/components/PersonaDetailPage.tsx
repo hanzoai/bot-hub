@@ -1,71 +1,71 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { soulsApi } from '../lib/api'
+import { personasApi } from '../lib/api'
 import type { Doc } from '../lib/types'
-import { SoulStatsTripletLine } from './SoulStats'
-import type { PublicSoul, PublicUser } from '../lib/publicUser'
+import { PersonaStatsTripletLine } from './PersonaStats'
+import type { PublicPersona, PublicUser } from '../lib/publicUser'
 import { isModerator } from '../lib/roles'
 import { useAuthStatus } from '../lib/useAuthStatus'
 import { stripFrontmatter } from './skillDetailUtils'
 
-type SoulDetailPageProps = {
+type PersonaDetailPageProps = {
   slug: string
 }
 
-type SoulBySlugResult = {
-  soul: PublicSoul
-  latestVersion: Doc<'soulVersions'> | null
+type PersonaBySlugResult = {
+  persona: PublicPersona
+  latestVersion: Doc<'personaVersions'> | null
   owner: PublicUser | null
 } | null
 
-export function SoulDetailPage({ slug }: SoulDetailPageProps) {
+export function PersonaDetailPage({ slug }: PersonaDetailPageProps) {
   const { isAuthenticated, me } = useAuthStatus()
 
-  const [result, setResult] = useState<SoulBySlugResult | undefined>(undefined)
-  const [versions, setVersions] = useState<Doc<'soulVersions'>[] | undefined>(undefined)
+  const [result, setResult] = useState<PersonaBySlugResult | undefined>(undefined)
+  const [versions, setVersions] = useState<Doc<'personaVersions'>[] | undefined>(undefined)
   const [isStarred, setIsStarred] = useState<boolean | undefined>(undefined)
   const [comments, setComments] = useState<Array<{ comment: any; user: PublicUser | null }> | undefined>(undefined)
   const [readme, setReadme] = useState<string | null>(null)
   const [readmeError, setReadmeError] = useState<string | null>(null)
   const [comment, setComment] = useState('')
 
-  // Fetch soul detail
+  // Fetch persona detail
   useEffect(() => {
     setResult(undefined)
-    soulsApi
+    personasApi
       .getDetail(slug)
-      .then((data: any) => setResult(data as SoulBySlugResult))
+      .then((data: any) => setResult(data as PersonaBySlugResult))
       .catch(() => setResult(null))
   }, [slug])
 
-  const isLoadingSoul = result === undefined
-  const soul = result?.soul
+  const isLoadingPersona = result === undefined
+  const persona = result?.persona
   const owner = result?.owner
   const latestVersion = result?.latestVersion
 
   // Fetch versions
   useEffect(() => {
-    if (!soul) return
-    soulsApi
+    if (!persona) return
+    personasApi
       .versions(slug, 50)
       .then((r) => setVersions(r.items as any))
       .catch(() => {})
-  }, [soul, slug])
+  }, [persona, slug])
 
   // Fetch star status
   useEffect(() => {
-    if (!isAuthenticated || !soul) return
-    soulsApi
+    if (!isAuthenticated || !persona) return
+    personasApi
       .isStarred(slug)
       .then((r) => setIsStarred(r.starred))
       .catch(() => setIsStarred(false))
-  }, [isAuthenticated, soul, slug])
+  }, [isAuthenticated, persona, slug])
 
   // Fetch comments
   useEffect(() => {
-    if (!soul) return
-    soulsApi
+    if (!persona) return
+    personasApi
       .comments(slug)
       .then((r) =>
         setComments(
@@ -76,7 +76,7 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
         ),
       )
       .catch(() => setComments([]))
-  }, [soul, slug])
+  }, [persona, slug])
 
   const readmeContent = useMemo(() => {
     if (!readme) return null
@@ -89,7 +89,7 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
     setReadme(null)
     setReadmeError(null)
     let cancelled = false
-    void soulsApi
+    void personasApi
       .getReadme(slug, latestVersion._id)
       .then((data) => {
         if (cancelled) return
@@ -97,7 +97,7 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
       })
       .catch((error) => {
         if (cancelled) return
-        setReadmeError(error instanceof Error ? error.message : 'Failed to load SOUL.md')
+        setReadmeError(error instanceof Error ? error.message : 'Failed to load PERSONA.md')
         setReadme(null)
       })
     return () => {
@@ -105,27 +105,27 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
     }
   }, [latestVersion, slug])
 
-  if (isLoadingSoul) {
+  if (isLoadingPersona) {
     return (
       <main className="section">
         <div className="card">
-          <div className="loading-indicator">Loading soul…</div>
+          <div className="loading-indicator">Loading persona…</div>
         </div>
       </main>
     )
   }
 
-  if (result === null || !soul) {
+  if (result === null || !persona) {
     return (
       <main className="section">
-        <div className="card">Soul not found.</div>
+        <div className="card">Persona not found.</div>
       </main>
     )
   }
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
   const apiBase = import.meta.env.VITE_API_URL ?? '/api'
-  const downloadBase = `${apiBase}/v1/souls/${soul.slug}/file`
+  const downloadBase = `${apiBase}/v1/personas/${persona.slug}/file`
 
   return (
     <main className="section">
@@ -134,11 +134,11 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
           <div className="skill-hero-header">
             <div className="skill-hero-title">
               <h1 className="section-title" style={{ margin: 0 }}>
-                {soul.displayName}
+                {persona.displayName}
               </h1>
-              <p className="section-subtitle">{soul.summary ?? 'No summary provided.'}</p>
+              <p className="section-subtitle">{persona.summary ?? 'No summary provided.'}</p>
               <div className="stat">
-                <SoulStatsTripletLine stats={soul.stats} versionSuffix="versions" />
+                <PersonaStatsTripletLine stats={persona.stats} versionSuffix="versions" />
               </div>
               {ownerHandle ? (
                 <div className="stat">
@@ -150,8 +150,8 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                   <button
                     className={`star-toggle${isStarred ? ' is-active' : ''}`}
                     type="button"
-                    onClick={() => void soulsApi.toggleStar(slug).then((r) => setIsStarred(r.starred))}
-                    aria-label={isStarred ? 'Unstar soul' : 'Star soul'}
+                    onClick={() => void personasApi.toggleStar(slug).then((r) => setIsStarred(r.starred))}
+                    aria-label={isStarred ? 'Unstar persona' : 'Star persona'}
                   >
                     <span aria-hidden="true">★</span>
                   </button>
@@ -165,10 +165,10 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
               </div>
               <a
                 className="btn btn-primary"
-                href={`${downloadBase}?path=SOUL.md`}
-                aria-label="Download SOUL.md"
+                href={`${downloadBase}?path=PERSONA.md`}
+                aria-label="Download PERSONA.md"
               >
-                Download SOUL.md
+                Download PERSONA.md
               </a>
             </div>
           </div>
@@ -179,9 +179,9 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
             {readmeContent ? (
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{readmeContent}</ReactMarkdown>
             ) : readmeError ? (
-              <div className="stat">Failed to load SOUL.md: {readmeError}</div>
+              <div className="stat">Failed to load PERSONA.md: {readmeError}</div>
             ) : (
-              <div className="loading-indicator">Loading SOUL.md…</div>
+              <div className="loading-indicator">Loading PERSONA.md…</div>
             )}
           </div>
         </div>
@@ -208,11 +208,11 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                   <div className="version-actions">
                     <a
                       className="btn version-zip"
-                      href={`${downloadBase}?path=SOUL.md&version=${encodeURIComponent(
+                      href={`${downloadBase}?path=PERSONA.md&version=${encodeURIComponent(
                         version.version,
                       )}`}
                     >
-                      SOUL.md
+                      PERSONA.md
                     </a>
                   </div>
                 </div>
@@ -230,10 +230,10 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
               onSubmit={(event) => {
                 event.preventDefault()
                 if (!comment.trim()) return
-                void soulsApi.addComment(slug, comment.trim()).then(() => {
+                void personasApi.addComment(slug, comment.trim()).then(() => {
                   setComment('')
                   // Refresh comments
-                  soulsApi.comments(slug).then((r) =>
+                  personasApi.comments(slug).then((r) =>
                     setComments(
                       r.items.map((item: any) => ({
                         comment: { _id: item.id ?? item._id, body: item.body, userId: item.userId, createdAt: item.createdAt },
@@ -274,8 +274,8 @@ export function SoulDetailPage({ slug }: SoulDetailPageProps) {
                       className="btn comment-delete"
                       type="button"
                       onClick={() => {
-                        void soulsApi.deleteComment(slug, entry.comment._id).then(() => {
-                          soulsApi.comments(slug).then((r) =>
+                        void personasApi.deleteComment(slug, entry.comment._id).then(() => {
+                          personasApi.comments(slug).then((r) =>
                             setComments(
                               r.items.map((item: any) => ({
                                 comment: { _id: item.id ?? item._id, body: item.body, userId: item.userId, createdAt: item.createdAt },

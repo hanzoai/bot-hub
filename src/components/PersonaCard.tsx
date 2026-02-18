@@ -1,18 +1,18 @@
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import type { PublicSoul } from '../lib/publicUser'
+import type { PublicPersona } from '../lib/publicUser'
 
-type SoulCardProps = {
-  soul: PublicSoul
+type PersonaCardProps = {
+  persona: PublicPersona
   summaryFallback: string
   meta: ReactNode
 }
 
-export function SoulCard({ soul, summaryFallback, meta }: SoulCardProps) {
+export function PersonaCard({ persona, summaryFallback, meta }: PersonaCardProps) {
   return (
-    <Link to="/souls/$slug" params={{ slug: soul.slug }} className="card skill-card">
-      <h3 className="skill-card-title">{soul.displayName}</h3>
-      <p className="skill-card-summary">{soul.summary ?? summaryFallback}</p>
+    <Link to="/personas/$slug" params={{ slug: persona.slug }} className="card skill-card">
+      <h3 className="skill-card-title">{persona.displayName}</h3>
+      <p className="skill-card-summary">{persona.summary ?? summaryFallback}</p>
       <div className="skill-card-footer">{meta}</div>
     </Link>
   )
