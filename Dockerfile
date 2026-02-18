@@ -19,6 +19,7 @@ RUN bun --bun run build
 
 # ─── Stage 3: Production ────────────────────────────────────────────────────
 FROM node:22-slim AS production
+RUN apt-get update && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy API
