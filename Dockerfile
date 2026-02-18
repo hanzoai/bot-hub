@@ -13,8 +13,9 @@ COPY package.json bun.lock ./
 COPY packages/ ./packages/
 RUN bun install --frozen-lockfile
 COPY . .
-# Set API URL for build-time
+# Set API URL for build-time, force Node.js-compatible server output
 ENV VITE_API_URL=/api
+ENV NITRO_PRESET=node-server
 RUN bun --bun run build
 
 # ─── Stage 3: Production ────────────────────────────────────────────────────
