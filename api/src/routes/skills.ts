@@ -39,7 +39,13 @@ skillsRouter.get('/', optionalAuth, async (c) => {
       orderBy = desc(skills.updatedAt)
   }
 
+  const batch = c.req.query('batch')
   const conditions = [isNull(skills.softDeletedAt), eq(skills.moderationStatus, 'active')]
+  if (batch) {
+    conditions.push(eq(skills.batch, batch))
+  } else {
+    conditions.push(isNull(skills.batch))
+  }
   if (cursor) {
     conditions.push(lt(skills.updatedAt, new Date(cursor)))
   }
@@ -52,6 +58,7 @@ skillsRouter.get('/', optionalAuth, async (c) => {
       summary: skills.summary,
       ownerUserId: skills.ownerUserId,
       badges: skills.badges,
+      batch: skills.batch,
       statsDownloads: skills.statsDownloads,
       statsStars: skills.statsStars,
       statsVersions: skills.statsVersions,

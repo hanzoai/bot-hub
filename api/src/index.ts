@@ -8,6 +8,7 @@ import { authRouter } from './routes/auth.js'
 import { searchRouter } from './routes/search.js'
 import { personasRouter } from './routes/personas.js'
 import { skillsRouter } from './routes/skills.js'
+import { integrationsRouter } from './routes/integrations.js'
 import { tokensRouter } from './routes/tokens.js'
 import { uploadRouter } from './routes/upload.js'
 import { usersRouter } from './routes/users.js'
@@ -32,6 +33,7 @@ app.get('/health', (c) => c.json({ status: 'ok', version: '0.1.0' }))
 app.route('/api/auth', authRouter)
 app.route('/api/v1/skills', skillsRouter)
 app.route('/api/v1/personas', personasRouter)
+app.route('/api/v1/integrations', integrationsRouter)
 app.route('/api/v1/search', searchRouter)
 app.route('/api/v1/users', usersRouter)
 app.route('/api/v1/upload', uploadRouter)
