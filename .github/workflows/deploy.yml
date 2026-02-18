@@ -45,5 +45,5 @@ jobs:
 
       - name: Deploy to K8s
         run: |
-          kubectl set image deployment/bot-hub bot-hub=${{ env.IMAGE }}:${{ github.sha }} -n hanzo
+          kubectl rollout restart deployment/bot-hub -n hanzo
           kubectl rollout status deployment/bot-hub -n hanzo --timeout=120s
