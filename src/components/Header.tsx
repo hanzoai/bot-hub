@@ -50,7 +50,7 @@ export default function Header() {
           className="brand"
         >
           <span className="brand-mark">
-            <img src="/clawd-logo.png" alt="" aria-hidden="true" />
+            <img src="/hanzo-logo.svg" alt="" aria-hidden="true" />
           </span>
           <span className="brand-name">{siteName}</span>
         </Link>
