@@ -18,8 +18,8 @@ import { Route as ImportRouteImport } from './routes/import'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PersonasIndexRouteImport } from './routes/personas/index'
 import { Route as SkillsIndexRouteImport } from './routes/skills/index'
+import { Route as PersonasIndexRouteImport } from './routes/personas/index'
 import { Route as UHandleRouteImport } from './routes/u/$handle'
 import { Route as PersonasSlugRouteImport } from './routes/personas/$slug'
 import { Route as CliAuthRouteImport } from './routes/cli/auth'
@@ -70,14 +70,14 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PersonasIndexRoute = PersonasIndexRouteImport.update({
-  id: '/personas/',
-  path: '/personas/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SkillsIndexRoute = SkillsIndexRouteImport.update({
   id: '/skills/',
   path: '/skills/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PersonasIndexRoute = PersonasIndexRouteImport.update({
+  id: '/personas/',
+  path: '/personas/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UHandleRoute = UHandleRouteImport.update({
@@ -115,8 +115,8 @@ export interface FileRoutesByFullPath {
   '/cli/auth': typeof CliAuthRoute
   '/personas/$slug': typeof PersonasSlugRoute
   '/u/$handle': typeof UHandleRoute
-  '/skills/': typeof SkillsIndexRoute
   '/personas/': typeof PersonasIndexRoute
+  '/skills/': typeof SkillsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -132,8 +132,8 @@ export interface FileRoutesByTo {
   '/cli/auth': typeof CliAuthRoute
   '/personas/$slug': typeof PersonasSlugRoute
   '/u/$handle': typeof UHandleRoute
-  '/skills': typeof SkillsIndexRoute
   '/personas': typeof PersonasIndexRoute
+  '/skills': typeof SkillsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -150,8 +150,8 @@ export interface FileRoutesById {
   '/cli/auth': typeof CliAuthRoute
   '/personas/$slug': typeof PersonasSlugRoute
   '/u/$handle': typeof UHandleRoute
-  '/skills/': typeof SkillsIndexRoute
   '/personas/': typeof PersonasIndexRoute
+  '/skills/': typeof SkillsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,8 +169,8 @@ export interface FileRouteTypes {
     | '/cli/auth'
     | '/personas/$slug'
     | '/u/$handle'
-    | '/skills/'
     | '/personas/'
+    | '/skills/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -186,8 +186,8 @@ export interface FileRouteTypes {
     | '/cli/auth'
     | '/personas/$slug'
     | '/u/$handle'
-    | '/skills'
     | '/personas'
+    | '/skills'
   id:
     | '__root__'
     | '/'
@@ -203,8 +203,8 @@ export interface FileRouteTypes {
     | '/cli/auth'
     | '/personas/$slug'
     | '/u/$handle'
-    | '/skills/'
     | '/personas/'
+    | '/skills/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -221,8 +221,8 @@ export interface RootRouteChildren {
   CliAuthRoute: typeof CliAuthRoute
   PersonasSlugRoute: typeof PersonasSlugRoute
   UHandleRoute: typeof UHandleRoute
-  SkillsIndexRoute: typeof SkillsIndexRoute
   PersonasIndexRoute: typeof PersonasIndexRoute
+  SkillsIndexRoute: typeof SkillsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -290,18 +290,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/personas/': {
-      id: '/personas/'
-      path: '/personas'
-      fullPath: '/personas/'
-      preLoaderRoute: typeof PersonasIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/skills/': {
       id: '/skills/'
       path: '/skills'
       fullPath: '/skills/'
       preLoaderRoute: typeof SkillsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/personas/': {
+      id: '/personas/'
+      path: '/personas'
+      fullPath: '/personas/'
+      preLoaderRoute: typeof PersonasIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/u/$handle': {
@@ -349,8 +349,8 @@ const rootRouteChildren: RootRouteChildren = {
   CliAuthRoute: CliAuthRoute,
   PersonasSlugRoute: PersonasSlugRoute,
   UHandleRoute: UHandleRoute,
-  SkillsIndexRoute: SkillsIndexRoute,
   PersonasIndexRoute: PersonasIndexRoute,
+  SkillsIndexRoute: SkillsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

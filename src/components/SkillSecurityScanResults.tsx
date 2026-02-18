@@ -54,7 +54,7 @@ function VirusTotalIcon({ className }: { className?: string }) {
   )
 }
 
-function Hanzo BotIcon({ className }: { className?: string }) {
+function HanzoBotIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -232,7 +232,7 @@ export function SecurityScanResults({
         ) : null}
         {llmStatusInfo ? (
           <div className="version-scan-badge">
-            <Hanzo BotIcon className="version-scan-icon version-scan-icon-oc" />
+            <HanzoBotIcon className="version-scan-icon version-scan-icon-oc" />
             <span className={llmStatusInfo.className}>{llmStatusInfo.label}</span>
           </div>
         ) : null}
@@ -272,7 +272,7 @@ export function SecurityScanResults({
         {llmStatusInfo && llmAnalysis ? (
           <div className="scan-result-row">
             <div className="scan-result-scanner">
-              <Hanzo BotIcon className="scan-result-icon scan-result-icon-oc" />
+              <HanzoBotIcon className="scan-result-icon scan-result-icon-oc" />
               <span className="scan-result-scanner-name">Hanzo Bot</span>
             </div>
             <div className={`scan-result-status ${llmStatusInfo.className}`}>{llmStatusInfo.label}</div>
