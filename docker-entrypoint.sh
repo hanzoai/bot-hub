@@ -1,14 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 echo "Bot Hub starting..."
-
-# Run database migrations if DATABASE_URL is set
-if [ -n "$DATABASE_URL" ]; then
-  echo "Running database migrations..."
-  cd /app/api && npx drizzle-kit migrate 2>&1 || echo "Migration skipped or failed"
-  cd /app
-fi
 
 # Start API server (background)
 echo "Starting API server on port ${PORT:-3001}..."
