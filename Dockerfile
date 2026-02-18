@@ -13,17 +13,14 @@ COPY package.json bun.lock ./
 COPY packages/ ./packages/
 RUN bun install --frozen-lockfile
 COPY . .
-# Set API URL for build-time, force Node.js-compatible server output
 ENV VITE_API_URL=/api
-ENV NITRO_PRESET=node-server
 RUN bun --bun run build
 
-# ─── Stage 3: Production ────────────────────────────────────────────────────
-FROM node:22-slim AS production
-RUN apt-get update && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
+# ─── Stage 3: Production (Bun runtime) ────────────────────────────────────────
+FROM oven/bun:1 AS production
 WORKDIR /app
 
-# Copy API
+# Copy API (Bun supports @hono/node-server via node:http compat)
 COPY --from=api-build /app/api/dist ./api/dist
 COPY --from=api-build /app/api/package.json ./api/
 COPY --from=api-build /app/api/node_modules ./api/node_modules
