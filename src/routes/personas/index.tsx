@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { soulsApi } from '../../lib/api'
-import { SoulMetricsRow, SoulStatsTripletLine } from '../../components/SoulStats'
-import { SoulCard } from '../../components/SoulCard'
-import type { PublicSoul } from '../../lib/publicUser'
+import { personasApi } from '../../lib/api'
+import { PersonaMetricsRow, PersonaStatsTripletLine } from '../../components/PersonaStats'
+import { PersonaCard } from '../../components/PersonaCard'
+import type { PublicPersona } from '../../lib/publicUser'
 
 const sortKeys = ['newest', 'downloads', 'stars', 'name', 'updated'] as const
 type SortKey = (typeof sortKeys)[number]
@@ -20,7 +20,7 @@ function parseDir(value: unknown, sort: SortKey): SortDir {
   return sort === 'name' ? 'asc' : 'desc'
 }
 
-export const Route = createFileRoute('/souls/')({
+export const Route = createFileRoute('/personas/')({
   validateSearch: (search) => {
     return {
       q: typeof search.q === 'string' && search.q.trim() ? search.q : undefined,
@@ -30,10 +30,10 @@ export const Route = createFileRoute('/souls/')({
       focus: search.focus === 'search' ? 'search' : undefined,
     }
   },
-  component: SoulsIndex,
+  component: PersonasIndex,
 })
 
-function SoulsIndex() {
+function PersonasIndex() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
   const sort = search.sort ?? 'newest'
@@ -41,16 +41,16 @@ function SoulsIndex() {
   const view = search.view ?? 'list'
   const [query, setQuery] = useState(search.q ?? '')
 
-  const [souls, setSouls] = useState<PublicSoul[] | undefined>(undefined)
+  const [personas, setPersonas] = useState<PublicPersona[] | undefined>(undefined)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const isLoadingSouls = souls === undefined
+  const isLoadingPersonas = personas === undefined
 
-  // Fetch all souls
+  // Fetch all personas
   useEffect(() => {
-    soulsApi
+    personasApi
       .list({ limit: 500 })
       .then((r) =>
-        setSouls(
+        setPersonas(
           r.items.map((item: any) => ({
             _id: item.id ?? item._id,
             _creationTime: item._creationTime ?? new Date(item.createdAt).getTime(),
@@ -71,7 +71,7 @@ function SoulsIndex() {
           })),
         ),
       )
-      .catch(() => setSouls([]))
+      .catch(() => setPersonas([]))
   }, [])
 
   useEffect(() => {
@@ -89,14 +89,14 @@ function SoulsIndex() {
 
   const filtered = useMemo(() => {
     const value = query.trim().toLowerCase()
-    const all = souls ?? []
+    const all = personas ?? []
     if (!value) return all
-    return all.filter((soul) => {
-      if (soul.slug.toLowerCase().includes(value)) return true
-      if (soul.displayName.toLowerCase().includes(value)) return true
-      return (soul.summary ?? '').toLowerCase().includes(value)
+    return all.filter((persona) => {
+      if (persona.slug.toLowerCase().includes(value)) return true
+      if (persona.displayName.toLowerCase().includes(value)) return true
+      return (persona.summary ?? '').toLowerCase().includes(value)
     })
-  }, [query, souls])
+  }, [query, personas])
 
   const sorted = useMemo(() => {
     const multiplier = dir === 'asc' ? 1 : -1
@@ -122,19 +122,19 @@ function SoulsIndex() {
   }, [dir, filtered, sort])
 
   const showing = sorted.length
-  const total = souls?.length
+  const total = personas?.length
 
   return (
     <main className="section">
       <header className="skills-header">
         <div>
           <h1 className="section-title" style={{ marginBottom: 8 }}>
-            Souls
+            Personas
           </h1>
           <p className="section-subtitle" style={{ marginBottom: 0 }}>
-            {isLoadingSouls
-              ? 'Loading souls…'
-              : `${showing}${typeof total === 'number' ? ` of ${total}` : ''} souls.`}
+            {isLoadingPersonas
+              ? 'Loading personas…'
+              : `${showing}${typeof total === 'number' ? ` of ${total}` : ''} personas.`}
           </p>
         </div>
         <div className="skills-toolbar">
@@ -170,7 +170,7 @@ function SoulsIndex() {
                   replace: true,
                 })
               }}
-              aria-label="Sort souls"
+              aria-label="Sort personas"
             >
               <option value="newest">Newest</option>
               <option value="updated">Recently updated</option>
@@ -213,22 +213,22 @@ function SoulsIndex() {
         </div>
       </header>
 
-      {isLoadingSouls ? (
+      {isLoadingPersonas ? (
         <div className="card">
-          <div className="loading-indicator">Loading souls…</div>
+          <div className="loading-indicator">Loading personas…</div>
         </div>
       ) : showing === 0 ? (
-        <div className="card">No souls match that filter.</div>
+        <div className="card">No personas match that filter.</div>
       ) : view === 'cards' ? (
         <div className="grid">
-          {sorted.map((soul) => (
-            <SoulCard
-              key={soul._id}
-              soul={soul}
-              summaryFallback="A SOUL.md bundle."
+          {sorted.map((persona) => (
+            <PersonaCard
+              key={persona._id}
+              persona={persona}
+              summaryFallback="A PERSONA.md bundle."
               meta={
                 <div className="stat">
-                  <SoulStatsTripletLine stats={soul.stats} />
+                  <PersonaStatsTripletLine stats={persona.stats} />
                 </div>
               }
             />
@@ -236,22 +236,22 @@ function SoulsIndex() {
         </div>
       ) : (
         <div className="skills-list">
-          {sorted.map((soul) => (
+          {sorted.map((persona) => (
             <Link
-              key={soul._id}
+              key={persona._id}
               className="skills-row"
-              to="/souls/$slug"
-              params={{ slug: soul.slug }}
+              to="/personas/$slug"
+              params={{ slug: persona.slug }}
             >
               <div className="skills-row-main">
                 <div className="skills-row-title">
-                  <span>{soul.displayName}</span>
-                  <span className="skills-row-slug">/{soul.slug}</span>
+                  <span>{persona.displayName}</span>
+                  <span className="skills-row-slug">/{persona.slug}</span>
                 </div>
-                <div className="skills-row-summary">{soul.summary ?? 'SOUL.md bundle.'}</div>
+                <div className="skills-row-summary">{persona.summary ?? 'PERSONA.md bundle.'}</div>
               </div>
               <div className="skills-row-metrics">
-                <SoulMetricsRow stats={soul.stats} />
+                <PersonaMetricsRow stats={persona.stats} />
               </div>
             </Link>
           ))}

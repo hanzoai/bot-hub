@@ -34,7 +34,7 @@ type PersonaMeta = {
 }
 
 const DEFAULT_DESCRIPTION = 'Bot Hub — a fast skill registry for agents, with vector search.'
-const DEFAULT_PERSONA_DESCRIPTION = 'PersonaHub — the home for SOUL.md bundles and personal system lore.'
+const DEFAULT_PERSONA_DESCRIPTION = 'PersonaHub — the home for PERSONA.md bundles and personal system lore.'
 const OG_SKILL_IMAGE_LAYOUT_VERSION = '5'
 const OG_PERSONA_IMAGE_LAYOUT_VERSION = '1'
 

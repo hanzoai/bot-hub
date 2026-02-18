@@ -1,13 +1,13 @@
-import { formatSoulStatsTriplet, type SoulStatsTriplet } from '../lib/numberFormat'
+import { formatPersonaStatsTriplet, type PersonaStatsTriplet } from '../lib/numberFormat'
 
-export function SoulStatsTripletLine({
+export function PersonaStatsTripletLine({
   stats,
   versionSuffix = 'v',
 }: {
-  stats: SoulStatsTriplet
+  stats: PersonaStatsTriplet
   versionSuffix?: 'v' | 'versions'
 }) {
-  const formatted = formatSoulStatsTriplet(stats)
+  const formatted = formatPersonaStatsTriplet(stats)
   return (
     <>
       ⭐ {formatted.stars} · ⤓ {formatted.downloads} · {formatted.versions} {versionSuffix}
@@ -15,8 +15,8 @@ export function SoulStatsTripletLine({
   )
 }
 
-export function SoulMetricsRow({ stats }: { stats: SoulStatsTriplet }) {
-  const formatted = formatSoulStatsTriplet(stats)
+export function PersonaMetricsRow({ stats }: { stats: PersonaStatsTriplet }) {
+  const formatted = formatPersonaStatsTriplet(stats)
   return (
     <>
       <span>⤓ {formatted.downloads}</span>
