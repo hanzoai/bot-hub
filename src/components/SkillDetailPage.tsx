@@ -359,7 +359,7 @@ export function SkillDetailPage({
               Install via Nix
             </h2>
             <p className="section-subtitle" style={{ margin: 0 }}>
-              {nixSystems.length ? `Systems: ${nixSystems.join(', ')}` : 'nix-clawdbot'}
+              {nixSystems.length ? `Systems: ${nixSystems.join(', ')}` : 'nix-hanzo-bot'}
             </p>
             <pre className="hero-install-code" style={{ marginTop: 12 }}>
               {nixSnippet}

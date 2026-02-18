@@ -31,7 +31,7 @@ export function SkillInstallCard({ clawdis, osLabels }: SkillInstallCardProps) {
               Runtime requirements
             </h3>
             <div className="skill-panel-body">
-              {clawdis?.emoji ? <div className="tag">{clawdis.emoji} Clawdis</div> : null}
+              {clawdis?.emoji ? <div className="tag">{clawdis.emoji} Skill</div> : null}
               {osLabels.length ? (
                 <div className="stat">
                   <strong>OS</strong>
