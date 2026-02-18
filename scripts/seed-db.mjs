@@ -21,7 +21,7 @@ const BOT_SKILLS_DIR = process.env.BOT_SKILLS_DIR || join(import.meta.dirname, '
 // Polymath skills (nested .md files)
 const SKILLS_REPO_DIR = process.env.SKILLS_REPO_DIR || '/tmp/hanzo-skills/skills'
 const PERSONAS_DIR = process.env.PERSONAS_DIR || join(import.meta.dirname, '../../hanzo/personas/personas')
-const INTEGRATIONS_DIR = process.env.INTEGRATIONS_DIR || join(import.meta.dirname, '../../hanzo/flow/packages/pieces/community')
+const INTEGRATIONS_DIR = process.env.INTEGRATIONS_DIR || join(import.meta.dirname, '../../hanzo/auto/packages/pieces/community')
 
 const sql = postgres(DATABASE_URL)
 
