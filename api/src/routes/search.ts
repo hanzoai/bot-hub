@@ -51,7 +51,7 @@ searchRouter.get('/skills', async (c) => {
       LIMIT ${limit * 3}
     `)
 
-    vectorResults = rows.rows as typeof vectorResults
+    vectorResults = (rows as unknown as typeof vectorResults)
   } catch (err) {
     console.warn('Vector search failed, falling back to lexical:', err)
   }
