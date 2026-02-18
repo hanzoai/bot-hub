@@ -1,6 +1,6 @@
 import { FONT_MONO, FONT_SANS } from './ogAssets'
 
-export type SoulOgSvgParams = {
+export type PersonaOgSvgParams = {
   markDataUrl: string
   title: string
   description: string
@@ -78,9 +78,9 @@ function wrapText(value: string, maxChars: number, maxLines: number) {
   return lines
 }
 
-export function buildSoulOgSvg(params: SoulOgSvgParams) {
-  const rawTitle = params.title.trim() || 'SoulHub'
-  const rawDescription = params.description.trim() || 'SOUL.md bundle on SoulHub.'
+export function buildPersonaOgSvg(params: PersonaOgSvgParams) {
+  const rawTitle = params.title.trim() || 'PersonaHub'
+  const rawDescription = params.description.trim() || 'PERSONA.md bundle on PersonaHub.'
 
   const cardX = 72
   const cardY = 96

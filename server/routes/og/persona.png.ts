@@ -1,8 +1,8 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import { defineEventHandler, getQuery, getRequestHost, setHeader } from 'h3'
 
-import type { SoulOgMeta } from '../../og/fetchSoulOgMeta'
-import { fetchSoulOgMeta } from '../../og/fetchSoulOgMeta'
+import type { PersonaOgMeta } from '../../og/fetchPersonaOgMeta'
+import { fetchPersonaOgMeta } from '../../og/fetchPersonaOgMeta'
 import {
   FONT_MONO,
   FONT_SANS,
@@ -10,7 +10,7 @@ import {
   getMarkDataUrl,
   getResvgWasm,
 } from '../../og/ogAssets'
-import { buildSoulOgSvg } from '../../og/soulOgSvg'
+import { buildPersonaOgSvg } from '../../og/personaOgSvg'
 
 type OgQuery = {
   slug?: string
@@ -48,7 +48,7 @@ async function ensureWasm() {
 
 function buildFooter(slug: string, owner: string | null) {
   if (owner) return `@${owner}/${slug}`
-  return `souls/${slug}`
+  return `personas/${slug}`
 }
 
 export default defineEventHandler(async (event) => {
@@ -65,8 +65,8 @@ export default defineEventHandler(async (event) => {
   const descriptionFromQuery = cleanString(query.description)
 
   const needFetch = !titleFromQuery || !descriptionFromQuery || !ownerFromQuery || !versionFromQuery
-  const meta: SoulOgMeta | null = needFetch
-    ? await fetchSoulOgMeta(slug, getApiBase(getRequestHost(event)))
+  const meta: PersonaOgMeta | null = needFetch
+    ? await fetchPersonaOgMeta(slug, getApiBase(getRequestHost(event)))
     : null
 
   const owner = ownerFromQuery || meta?.owner || ''
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
   const title = titleFromQuery || meta?.displayName || slug
   const description = descriptionFromQuery || meta?.summary || ''
 
-  const ownerLabel = owner ? `@${owner}` : 'SoulHub'
+  const ownerLabel = owner ? `@${owner}` : 'PersonaHub'
   const versionLabel = version ? `v${version}` : 'latest'
   const footer = buildFooter(slug, owner || null)
 
@@ -87,7 +87,7 @@ export default defineEventHandler(async (event) => {
     ensureWasm().then(() => getFontBuffers()),
   ])
 
-  const svg = buildSoulOgSvg({
+  const svg = buildPersonaOgSvg({
     markDataUrl,
     title,
     description,
