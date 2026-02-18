@@ -94,6 +94,20 @@ spec:
     - host: hub.hanzo.bot
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: bot-hub
+                port:
+                  number: 3001
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: bot-hub
+                port:
+                  number: 3001
           - path: /
             pathType: Prefix
             backend:
