@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useAuthContext } from '../lib/AuthContext'
 import { gravatarUrl } from '../lib/gravatar'
 import { isModerator } from '../lib/roles'
-import { getBotHubSiteUrl, getSiteMode, getSiteName } from '../lib/site'
+import { getSiteName } from '../lib/site'
 import { applyTheme, useThemeMode } from '../lib/theme'
 import { startThemeTransition } from '../lib/theme-transition'
 import {
@@ -20,10 +20,7 @@ export default function Header() {
   const { user: me, isAuthenticated, loading: isLoading, signIn, signOut } = useAuthContext()
   const { mode, setMode } = useThemeMode()
   const toggleRef = useRef<HTMLDivElement | null>(null)
-  const siteMode = getSiteMode()
-  const siteName = useMemo(() => getSiteName(siteMode), [siteMode])
-  const isPersonaMode = siteMode === 'personas'
-  const botHubUrl = getBotHubSiteUrl()
+  const siteName = useMemo(() => getSiteName(), [])
 
   const avatar = me?.image ?? (me?.email ? gravatarUrl(me.email) : undefined)
   const handle = me?.handle ?? me?.displayName ?? 'user'
@@ -58,61 +55,47 @@ export default function Header() {
           <span className="brand-name">{siteName}</span>
         </Link>
         <nav className="nav-links">
-          {isPersonaMode ? <a href={botHubUrl}>Bot Hub</a> : null}
-          {isPersonaMode ? (
-            <Link
-              to="/personas"
-              search={{
-                q: undefined,
-                sort: undefined,
-                dir: undefined,
-                view: undefined,
-                focus: undefined,
-              }}
-            >
-              Personas
-            </Link>
-          ) : (
-            <Link
-              to="/skills"
-              search={{
-                q: undefined,
-                sort: undefined,
-                dir: undefined,
-                highlighted: undefined,
-                nonSuspicious: undefined,
-                view: undefined,
-                focus: undefined,
-              }}
-            >
-              Skills
-            </Link>
-          )}
+          <Link
+            to="/skills"
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              highlighted: undefined,
+              nonSuspicious: undefined,
+              view: undefined,
+              focus: undefined,
+            }}
+          >
+            Skills
+          </Link>
+          <Link
+            to="/personas"
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              view: undefined,
+              focus: undefined,
+            }}
+          >
+            Personas
+          </Link>
           <Link to="/upload" search={{ updateSlug: undefined }}>
             Upload
           </Link>
-          {isPersonaMode ? null : <Link to="/import">Import</Link>}
+          <Link to="/import">Import</Link>
           <Link
-            to={isPersonaMode ? '/souls' : '/skills'}
-            search={
-              isPersonaMode
-                ? {
-                    q: undefined,
-                    sort: undefined,
-                    dir: undefined,
-                    view: undefined,
-                    focus: 'search',
-                  }
-                : {
-                    q: undefined,
-                    sort: undefined,
-                    dir: undefined,
-                    highlighted: undefined,
-                    nonSuspicious: undefined,
-                    view: undefined,
-                    focus: 'search',
-                  }
-            }
+            to="/skills"
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              highlighted: undefined,
+              nonSuspicious: undefined,
+              view: undefined,
+              focus: 'search',
+            }}
           >
             Search
           </Link>
@@ -132,74 +115,56 @@ export default function Header() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {isPersonaMode ? (
-                  <DropdownMenuItem asChild>
-                    <a href={botHubUrl}>Bot Hub</a>
-                  </DropdownMenuItem>
-                ) : null}
                 <DropdownMenuItem asChild>
-                  {isPersonaMode ? (
-                    <Link
-                      to="/personas"
-                      search={{
-                        q: undefined,
-                        sort: undefined,
-                        dir: undefined,
-                        view: undefined,
-                        focus: undefined,
-                      }}
-                    >
-                      Personas
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/skills"
-                      search={{
-                        q: undefined,
-                        sort: undefined,
-                        dir: undefined,
-                        highlighted: undefined,
-                        nonSuspicious: undefined,
-                        view: undefined,
-                        focus: undefined,
-                      }}
-                    >
-                      Skills
-                    </Link>
-                  )}
+                  <Link
+                    to="/skills"
+                    search={{
+                      q: undefined,
+                      sort: undefined,
+                      dir: undefined,
+                      highlighted: undefined,
+                      nonSuspicious: undefined,
+                      view: undefined,
+                      focus: undefined,
+                    }}
+                  >
+                    Skills
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    to="/personas"
+                    search={{
+                      q: undefined,
+                      sort: undefined,
+                      dir: undefined,
+                      view: undefined,
+                      focus: undefined,
+                    }}
+                  >
+                    Personas
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/upload" search={{ updateSlug: undefined }}>
                     Upload
                   </Link>
                 </DropdownMenuItem>
-                {isPersonaMode ? null : (
-                  <DropdownMenuItem asChild>
-                    <Link to="/import">Import</Link>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem asChild>
+                  <Link to="/import">Import</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link
-                    to={isPersonaMode ? '/souls' : '/skills'}
-                    search={
-                      isPersonaMode
-                        ? {
-                            q: undefined,
-                            sort: undefined,
-                            dir: undefined,
-                            view: undefined,
-                            focus: 'search',
-                          }
-                        : {
-                            q: undefined,
-                            sort: undefined,
-                            dir: undefined,
-                            highlighted: undefined,
-                            nonSuspicious: undefined,
-                            view: undefined,
-                            focus: 'search',
-                          }
-                    }
+                    to="/skills"
+                    search={{
+                      q: undefined,
+                      sort: undefined,
+                      dir: undefined,
+                      highlighted: undefined,
+                      nonSuspicious: undefined,
+                      view: undefined,
+                      focus: 'search',
+                    }}
                   >
                     Search
                   </Link>

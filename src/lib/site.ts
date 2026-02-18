@@ -83,14 +83,12 @@ export function getSiteMode(): SiteMode {
   return 'skills'
 }
 
-export function getSiteName(mode: SiteMode = getSiteMode()) {
-  return mode === 'personas' ? 'PersonaHub' : 'Bot Hub'
+export function getSiteName(_mode?: SiteMode) {
+  return 'Bot Hub'
 }
 
-export function getSiteDescription(mode: SiteMode = getSiteMode()) {
-  return mode === 'personas'
-    ? 'PersonaHub — the home for SOUL.md bundles and personal system lore.'
-    : 'Bot Hub — a fast skill registry for agents, with vector search.'
+export function getSiteDescription(_mode?: SiteMode) {
+  return 'Bot Hub — skills, personas, and agents in one place.'
 }
 
 export function getSiteUrlForMode(mode: SiteMode = getSiteMode()) {
