@@ -51,5 +51,3 @@ serve({
 })
 
 console.log(`Bot Hub API listening on http://0.0.0.0:${env.port}`)
-
-export default app
