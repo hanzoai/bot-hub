@@ -8,14 +8,13 @@
   "scripts": {
     "build": "bun --bun vite build",
     "check:peers": "bun scripts/check-peer-deps.ts",
-    "convex:deploy": "bunx convex deploy --typecheck=disable --yes",
     "coverage": "vitest run --coverage",
     "dev": "bun --bun vite dev --port 3000",
     "docs:list": "bun scripts/docs-list.ts",
     "format": "oxfmt --write",
     "lint": "bun run lint:oxlint",
-    "lint:fix": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./convex ./packages/bothub/src ./packages/schema/src --fix && bun run format",
-    "lint:oxlint": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./convex ./packages/bothub/src ./packages/schema/src",
+    "lint:fix": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./packages/bothub/src ./packages/schema/src --fix && bun run format",
+    "lint:oxlint": "oxlint --type-aware --tsconfig ./tsconfig.oxlint.json ./src ./packages/bothub/src ./packages/schema/src",
     "preinstall": "bunx only-allow bun",
     "preview": "bun --bun vite preview",
     "test": "vitest run",
@@ -25,8 +24,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@auth/core": "^0.37.4",
-    "@convex-dev/auth": "^0.0.90",
     "@fontsource/bricolage-grotesque": "^5.2.10",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/manrope": "^5.2.8",
@@ -43,7 +40,6 @@
     "@vercel/analytics": "^1.6.1",
     "bothub-schema": "workspace:*",
     "clsx": "^2.1.1",
-    "convex": "^1.31.7",
     "fflate": "^0.8.2",
     "h3": "2.0.1-rc.11",
     "lucide-react": "^0.563.0",

@@ -1,7 +1,5 @@
-import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { db } from '../db/index.js'
-import { oauthAccounts, sessions, users } from '../db/schema.js'
+import { pb, ensureAdminAuth } from '../db/index.js'
 import { env } from '../lib/env.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -78,76 +76,39 @@ authRouter.get('/callback', async (c) => {
     picture?: string
   }
 
-  // Find or create user
-  let [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, profile.email ?? ''))
-    .limit(1)
+  // Find or create user in Base
+  await ensureAdminAuth()
+
+  let user: any = null
+  try {
+    user = await pb.collection('users').getFirstListItem(
+      `email = "${profile.email ?? ''}"`,
+    )
+  } catch { /* not found */ }
 
   if (!user) {
-    const [created] = await db
-      .insert(users)
-      .values({
-        handle: profile.preferred_username ?? profile.name,
-        email: profile.email,
-        displayName: profile.name ?? profile.preferred_username,
-        name: profile.name ?? profile.preferred_username,
-        image: profile.picture,
-        role: 'user',
-      })
-      .returning()
-    user = created
-  } else {
-    // Update profile
-    await db
-      .update(users)
-      .set({
-        image: profile.picture ?? user.image,
-        displayName: profile.name ?? user.displayName,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, user.id))
-  }
-
-  // Upsert OAuth account link
-  const [existingOauth] = await db
-    .select()
-    .from(oauthAccounts)
-    .where(eq(oauthAccounts.providerAccountId, profile.sub))
-    .limit(1)
-
-  if (!existingOauth) {
-    await db.insert(oauthAccounts).values({
-      userId: user.id,
-      provider: 'hanzo',
-      providerAccountId: profile.sub,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
+    user = await pb.collection('users').create({
+      email: profile.email,
+      handle: profile.preferred_username ?? profile.name,
+      displayName: profile.name ?? profile.preferred_username,
+      name: profile.name ?? profile.preferred_username,
+      image: profile.picture,
+      role: 'user',
+      password: crypto.randomUUID(), // Base auth requires a password
+      passwordConfirm: crypto.randomUUID(),
     })
   } else {
-    await db
-      .update(oauthAccounts)
-      .set({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-      })
-      .where(eq(oauthAccounts.id, existingOauth.id))
+    await pb.collection('users').update(user.id, {
+      image: profile.picture ?? user.image,
+      displayName: profile.name ?? user.displayName,
+    })
   }
 
-  // Create session
-  const sessionToken = crypto.randomUUID()
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-
-  await db.insert(sessions).values({
-    userId: user.id,
-    token: sessionToken,
-    expiresAt,
-  })
-
-  // Redirect back to frontend with session token
+  // Use the IAM access token as the session token for the frontend.
+  // The middleware validates against IAM userinfo, so no need for a
+  // separate sessions table.
   const returnUrl = new URL(env.publicUrl)
-  returnUrl.searchParams.set('session', sessionToken)
+  returnUrl.searchParams.set('session', tokens.access_token)
   if (state) returnUrl.searchParams.set('state', state)
 
   return c.redirect(returnUrl.toString())
@@ -157,31 +118,30 @@ authRouter.get('/callback', async (c) => {
 authRouter.get('/me', requireAuth, async (c) => {
   const authUser = c.get('user') as AuthUser
 
-  const [user] = await db
-    .select({
-      id: users.id,
-      handle: users.handle,
-      displayName: users.displayName,
-      email: users.email,
-      image: users.image,
-      bio: users.bio,
-      role: users.role,
-      trustedPublisher: users.trustedPublisher,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .where(eq(users.id, authUser.id))
-    .limit(1)
+  await ensureAdminAuth()
+  let user: any
+  try {
+    user = await pb.collection('users').getOne(authUser.id)
+  } catch {
+    return c.json({ error: 'User not found' }, 404)
+  }
 
-  if (!user) return c.json({ error: 'User not found' }, 404)
-  return c.json(user)
+  return c.json({
+    id: user.id,
+    handle: user.handle,
+    displayName: user.displayName,
+    email: user.email,
+    image: user.image,
+    bio: user.bio,
+    role: user.role,
+    trustedPublisher: user.trustedPublisher,
+    createdAt: user.created,
+  })
 })
 
 // ─── Logout ─────────────────────────────────────────────────────────────────
 authRouter.post('/logout', requireAuth, async (c) => {
-  const token = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '')
-  if (token) {
-    await db.delete(sessions).where(eq(sessions.token, token))
-  }
+  // With IAM-based sessions, logout is handled client-side by clearing
+  // the stored token. No server-side session table to delete.
   return c.json({ ok: true })
 })

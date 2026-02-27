@@ -1,7 +1,5 @@
-import { desc, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { db } from '../db/index.js'
-import { skills, stars, users } from '../db/schema.js'
+import { pb, ensureAdminAuth } from '../db/index.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -11,49 +9,51 @@ export const usersRouter = new Hono()
 usersRouter.get('/:handle', async (c) => {
   const handle = c.req.param('handle')
 
-  const [user] = await db
-    .select({
-      id: users.id,
-      handle: users.handle,
-      displayName: users.displayName,
-      image: users.image,
-      bio: users.bio,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .where(eq(users.handle, handle))
-    .limit(1)
+  await ensureAdminAuth()
+  let user: any
+  try {
+    user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+  } catch {
+    return c.json({ error: 'User not found' }, 404)
+  }
 
-  if (!user) return c.json({ error: 'User not found' }, 404)
-  return c.json(user)
+  return c.json({
+    id: user.id,
+    handle: user.handle,
+    displayName: user.displayName,
+    image: user.image,
+    bio: user.bio,
+    createdAt: user.created,
+  })
 })
 
 // ─── List user's skills ─────────────────────────────────────────────────────
 usersRouter.get('/:handle/skills', async (c) => {
   const handle = c.req.param('handle')
 
-  const [user] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.handle, handle))
-    .limit(1)
+  await ensureAdminAuth()
+  let user: any
+  try {
+    user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+  } catch {
+    return c.json({ error: 'User not found' }, 404)
+  }
 
-  if (!user) return c.json({ error: 'User not found' }, 404)
+  const result = await pb.collection('skills').getList(1, 200, {
+    filter: `ownerUserId = "${user.id}"`,
+    sort: '-updated',
+  })
 
-  const items = await db
-    .select({
-      id: skills.id,
-      slug: skills.slug,
-      displayName: skills.displayName,
-      summary: skills.summary,
-      statsDownloads: skills.statsDownloads,
-      statsStars: skills.statsStars,
-      createdAt: skills.createdAt,
-      updatedAt: skills.updatedAt,
-    })
-    .from(skills)
-    .where(eq(skills.ownerUserId, user.id))
-    .orderBy(desc(skills.updatedAt))
+  const items = result.items.map((s) => ({
+    id: s.id,
+    slug: s.slug,
+    displayName: s.displayName,
+    summary: s.summary,
+    statsDownloads: s.statsDownloads ?? 0,
+    statsStars: s.statsStars ?? 0,
+    createdAt: s.created,
+    updatedAt: s.updated,
+  }))
 
   return c.json({ items })
 })
@@ -62,26 +62,30 @@ usersRouter.get('/:handle/skills', async (c) => {
 usersRouter.get('/:handle/stars', async (c) => {
   const handle = c.req.param('handle')
 
-  const [user] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.handle, handle))
-    .limit(1)
+  await ensureAdminAuth()
+  let user: any
+  try {
+    user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+  } catch {
+    return c.json({ error: 'User not found' }, 404)
+  }
 
-  if (!user) return c.json({ error: 'User not found' }, 404)
+  const result = await pb.collection('stars').getList(1, 200, {
+    filter: `userId = "${user.id}"`,
+    sort: '-created',
+    expand: 'skillId',
+  })
 
-  const items = await db
-    .select({
-      skillId: stars.skillId,
-      skillSlug: skills.slug,
-      skillDisplayName: skills.displayName,
-      skillSummary: skills.summary,
-      starredAt: stars.createdAt,
-    })
-    .from(stars)
-    .innerJoin(skills, eq(stars.skillId, skills.id))
-    .where(eq(stars.userId, user.id))
-    .orderBy(desc(stars.createdAt))
+  const items = result.items.map((s) => {
+    const skill = s.expand?.skillId
+    return {
+      skillId: s.skillId,
+      skillSlug: skill?.slug ?? null,
+      skillDisplayName: skill?.displayName ?? null,
+      skillSummary: skill?.summary ?? null,
+      starredAt: s.created,
+    }
+  })
 
   return c.json({ items })
 })
@@ -95,18 +99,18 @@ usersRouter.patch('/me', requireAuth, async (c) => {
     handle?: string
   }>()
 
-  const updates: Record<string, unknown> = { updatedAt: new Date() }
+  const updates: Record<string, unknown> = {}
   if (body.displayName !== undefined) updates.displayName = body.displayName
   if (body.bio !== undefined) updates.bio = body.bio
   if (body.handle !== undefined) {
-    // Validate handle
     if (!/^[a-z0-9][a-z0-9_-]*$/.test(body.handle)) {
       return c.json({ error: 'Handle must be lowercase alphanumeric' }, 400)
     }
     updates.handle = body.handle
   }
 
-  await db.update(users).set(updates).where(eq(users.id, user.id))
+  await ensureAdminAuth()
+  await pb.collection('users').update(user.id, updates)
 
   return c.json({ ok: true })
 })

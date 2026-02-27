@@ -4,14 +4,12 @@ metadata:
   name: bot-hub
   namespace: hanzo
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: bot-hub
   strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+    type: Recreate
   template:
     metadata:
       labels:
@@ -28,6 +26,8 @@ spec:
               name: web
             - containerPort: 3001
               name: api
+            - containerPort: 8090
+              name: base
           env:
             - name: NODE_ENV
               value: production
@@ -35,83 +35,82 @@ spec:
               value: "3001"
             - name: WEB_PORT
               value: "3000"
-            - name: DATABASE_URL
+            - name: BASE_PORT
+              value: "8090"
+            - name: BASE_URL
+              value: "http://127.0.0.1:8090"
+            - name: BASE_ADMIN_EMAIL
               valueFrom:
                 secretKeyRef:
                   name: bot-hub-secrets
-                  key: DATABASE_URL
+                  key: BASE_ADMIN_EMAIL
                   optional: true
+            - name: BASE_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bot-hub-secrets
+                  key: BASE_ADMIN_PASSWORD
+                  optional: true
+            - name: IAM_URL
+              value: "https://hanzo.id"
+            - name: IAM_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bot-hub-secrets
+                  key: IAM_CLIENT_ID
+                  optional: true
+            - name: IAM_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bot-hub-secrets
+                  key: IAM_CLIENT_SECRET
+                  optional: true
+            - name: S3_ENDPOINT
+              value: "http://minio.hanzo.svc:9000"
+            - name: S3_BUCKET
+              value: "hub-files"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bot-hub-secrets
+                  key: OPENAI_API_KEY
+                  optional: true
+          volumeMounts:
+            - name: base-data
+              mountPath: /app/hz_data
           readinessProbe:
             httpGet:
               path: /health
               port: 3001
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
               port: 3001
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 30
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
-            limits:
-              cpu: 500m
+              cpu: 200m
               memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: base-data
+          persistentVolumeClaim:
+            claimName: bot-hub-base-data
 ---
 apiVersion: v1
-kind: Service
+kind: PersistentVolumeClaim
 metadata:
-  name: bot-hub
+  name: bot-hub-base-data
   namespace: hanzo
 spec:
-  selector:
-    app: bot-hub
-  ports:
-    - name: web
-      port: 80
-      targetPort: 3000
-    - name: api
-      port: 3001
-      targetPort: 3001
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: bot-hub-ingress
-  namespace: hanzo
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-spec:
-  tls:
-    - hosts:
-        - hub.hanzo.bot
-      secretName: hub-hanzo-bot-tls
-  rules:
-    - host: hub.hanzo.bot
-      http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: bot-hub
-                port:
-                  number: 3001
-          - path: /health
-            pathType: Exact
-            backend:
-              service:
-                name: bot-hub
-                port:
-                  number: 3001
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: bot-hub
-                port:
-                  number: 80
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: do-block-storage
+  resources:
+    requests:
+      storage: 10Gi
