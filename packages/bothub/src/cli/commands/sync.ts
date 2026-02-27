@@ -1,6 +1,6 @@
 import { intro, outro } from '@clack/prompts'
 import { hashSkillFiles, listTextFiles, readSkillOrigin } from '../../skills.js'
-import { resolveClawdbotSkillRoots } from '../botConfig.js'
+import { resolveBotSkillRoots } from '../botConfig.js'
 import { requireAuthToken } from '../authToken.js'
 import { getFallbackSkillRoots } from '../scanSkills.js'
 import type { GlobalOpts } from '../types.js'
@@ -36,7 +36,7 @@ export async function cmdSync(opts: GlobalOpts, options: SyncOptions, inputAllow
 
   const registry = await getRegistryWithAuth(opts, token)
   const selectedRoots = buildScanRoots(opts, options.root)
-  const botRoots = await resolveClawdbotSkillRoots()
+  const botRoots = await resolveBotSkillRoots()
   const combinedRoots = Array.from(
     new Set([...selectedRoots, ...botRoots.roots].map((root) => root.trim()).filter(Boolean)),
   )

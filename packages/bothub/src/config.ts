@@ -6,13 +6,13 @@ import { type GlobalConfig, GlobalConfigSchema, parseArk } from './schema/index.
 
 /**
  * Resolve config path with legacy fallback.
- * Checks for 'bothub' first, falls back to legacy 'bothub' if it exists.
+ * Checks for 'bothub' first, falls back to legacy 'clawhub' if it exists.
  */
 function resolveConfigPath(baseDir: string): string {
   const bothubPath = join(baseDir, 'bothub', 'config.json')
-  const bothubPath = join(baseDir, 'bothub', 'config.json')
+  const legacyPath = join(baseDir, 'clawhub', 'config.json')
   if (existsSync(bothubPath)) return bothubPath
-  if (existsSync(bothubPath)) return bothubPath
+  if (existsSync(legacyPath)) return legacyPath
   return bothubPath
 }
 

@@ -424,11 +424,11 @@ function buildDiffOptions(viewMode: 'split' | 'inline'): DiffEditorProps['option
 function applyMonacoTheme(monaco: NonNullable<ReturnType<typeof useMonaco>>) {
   const styles = getComputedStyle(document.documentElement)
   const surface = normalizeHex(styles.getPropertyValue('--surface').trim() || '#ffffff')
-  const surfaceMuted = styles.getPropertyValue('--surface-muted').trim() || '#f6f1ec'
-  const ink = styles.getPropertyValue('--ink').trim() || '#1d1a17'
-  const inkSoft = styles.getPropertyValue('--ink-soft').trim() || '#4c463f'
-  const line = styles.getPropertyValue('--line').trim() || 'rgba(29, 26, 23, 0.12)'
-  const accent = styles.getPropertyValue('--accent').trim() || '#e65c46'
+  const surfaceMuted = styles.getPropertyValue('--surface-muted').trim() || '#f5f5f5'
+  const ink = styles.getPropertyValue('--ink').trim() || '#0a0a0a'
+  const inkSoft = styles.getPropertyValue('--ink-soft').trim() || '#525252'
+  const line = styles.getPropertyValue('--line').trim() || 'rgba(0, 0, 0, 0.1)'
+  const accent = styles.getPropertyValue('--accent').trim() || '#0a0a0a'
   const seafoam = styles.getPropertyValue('--seafoam').trim() || '#2bc6a4'
   const diffAdded = styles.getPropertyValue('--diff-added').trim() || seafoam
   const diffRemoved = styles.getPropertyValue('--diff-removed').trim() || accent

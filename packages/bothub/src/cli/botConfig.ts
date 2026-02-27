@@ -30,31 +30,31 @@ type BotConfig = {
   }
 }
 
-export type ClawdbotSkillRoots = {
+export type BotSkillRoots = {
   roots: string[]
   labels: Record<string, string>
 }
 
-export async function resolveClawdbotSkillRoots(): Promise<ClawdbotSkillRoots> {
+export async function resolveBotSkillRoots(): Promise<BotSkillRoots> {
   const roots: string[] = []
   const labels: Record<string, string> = {}
 
-  const botStateDir = resolveClawdbotStateDir()
-  const sharedSkills = resolveUserPath(join(botStateDir, 'skills'))
-  pushRoot(roots, labels, sharedSkills, 'Shared skills')
+  const legacyStateDir = resolveLegacyStateDir()
+  const legacyShared = resolveUserPath(join(legacyStateDir, 'skills'))
+  pushRoot(roots, labels, legacyShared, 'Shared skills')
 
-  const hanzoBotStateDir = resolveBotStateDir()
-  const hanzo-botShared = resolveUserPath(join(hanzoBotStateDir, 'skills'))
-  pushRoot(roots, labels, hanzo-botShared, 'Hanzo Bot: Shared skills')
+  const hanzoBotStateDir = resolveHanzoBotStateDir()
+  const hanzoBotShared = resolveUserPath(join(hanzoBotStateDir, 'skills'))
+  pushRoot(roots, labels, hanzoBotShared, 'Hanzo Bot: Shared skills')
 
-  const [botConfig, hanzoBotConfig] = await Promise.all([
-    readBotConfig(),
-    readBotConfig(),
+  const [legacyConfig, hanzoBotConfig] = await Promise.all([
+    readLegacyConfig(),
+    readHanzoBotConfig(),
   ])
-  if (!botConfig && !hanzoBotConfig) return { roots, labels }
+  if (!legacyConfig && !hanzoBotConfig) return { roots, labels }
 
-  if (botConfig) {
-    addConfigRoots(botConfig, roots, labels)
+  if (legacyConfig) {
+    addConfigRoots(legacyConfig, roots, labels)
   }
   if (hanzoBotConfig) {
     addConfigRoots(hanzoBotConfig, roots, labels, 'Hanzo Bot')
@@ -63,9 +63,9 @@ export async function resolveClawdbotSkillRoots(): Promise<ClawdbotSkillRoots> {
   return { roots, labels }
 }
 
-export async function resolveClawdbotDefaultWorkspace(): Promise<string | null> {
-  const config = await readBotConfig()
-  const hanzoBotConfig = await readBotConfig()
+export async function resolveBotDefaultWorkspace(): Promise<string | null> {
+  const config = await readLegacyConfig()
+  const hanzoBotConfig = await readHanzoBotConfig()
   if (!config && !hanzoBotConfig) return null
 
   const defaultsWorkspace = resolveUserPath(
@@ -80,40 +80,40 @@ export async function resolveClawdbotDefaultWorkspace(): Promise<string | null> 
   if (listWorkspace) return listWorkspace
 
   if (!hanzoBotConfig) return null
-  const hanzo-botDefaults = resolveUserPath(
+  const hanzoBotDefaults = resolveUserPath(
     hanzoBotConfig.agents?.defaults?.workspace ?? hanzoBotConfig.agent?.workspace ?? '',
   )
-  if (hanzo-botDefaults) return hanzo-botDefaults
-  const hanzo-botAgents = hanzoBotConfig.agents?.list ?? []
-  const hanzo-botDefaultAgent =
-    hanzo-botAgents.find((entry) => entry.default) ??
-    hanzo-botAgents.find((entry) => entry.id === 'main')
-  const hanzo-botWorkspace = resolveUserPath(hanzo-botDefaultAgent?.workspace ?? '')
-  return hanzo-botWorkspace || null
+  if (hanzoBotDefaults) return hanzoBotDefaults
+  const hanzoBotAgents = hanzoBotConfig.agents?.list ?? []
+  const hanzoBotDefaultAgent =
+    hanzoBotAgents.find((entry) => entry.default) ??
+    hanzoBotAgents.find((entry) => entry.id === 'main')
+  const hanzoBotWorkspace = resolveUserPath(hanzoBotDefaultAgent?.workspace ?? '')
+  return hanzoBotWorkspace || null
 }
 
-function resolveClawdbotStateDir() {
-  const override = process.env.CLAWDBOT_STATE_DIR?.trim()
+function resolveLegacyStateDir() {
+  const override = process.env.BOT_STATE_DIR?.trim()
   if (override) return resolveUserPath(override)
   return join(resolveHome(), '.bot')
 }
 
-function resolveBotConfigPath() {
-  const override = process.env.CLAWDBOT_CONFIG_PATH?.trim()
+function resolveLegacyConfigPath() {
+  const override = process.env.BOT_CONFIG_PATH?.trim()
   if (override) return resolveUserPath(override)
-  return join(resolveClawdbotStateDir(), 'bot.json')
+  return join(resolveLegacyStateDir(), 'bot.json')
 }
 
-function resolveBotStateDir() {
+function resolveHanzoBotStateDir() {
   const override = process.env.HANZO_BOT_STATE_DIR?.trim()
   if (override) return resolveUserPath(override)
   return join(resolveHome(), '.hanzo-bot')
 }
 
-function resolveBotConfigPath() {
+function resolveHanzoBotConfigPath() {
   const override = process.env.HANZO_BOT_CONFIG_PATH?.trim()
   if (override) return resolveUserPath(override)
-  return join(resolveBotStateDir(), 'bot.json')
+  return join(resolveHanzoBotStateDir(), 'bot.json')
 }
 
 function resolveUserPath(input: string) {
@@ -125,12 +125,12 @@ function resolveUserPath(input: string) {
   return resolve(trimmed)
 }
 
-async function readBotConfig(): Promise<BotConfig | null> {
-  return readConfigFile(resolveBotConfigPath())
+async function readLegacyConfig(): Promise<BotConfig | null> {
+  return readConfigFile(resolveLegacyConfigPath())
 }
 
-async function readBotConfig(): Promise<BotConfig | null> {
-  return readConfigFile(resolveBotConfigPath())
+async function readHanzoBotConfig(): Promise<BotConfig | null> {
+  return readConfigFile(resolveHanzoBotConfigPath())
 }
 
 async function readConfigFile(path: string): Promise<BotConfig | null> {
