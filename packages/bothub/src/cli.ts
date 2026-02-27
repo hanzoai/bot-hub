@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { getCliBuildLabel, getCliVersion } from './cli/buildInfo.js'
-import { resolveClawdbotDefaultWorkspace } from './cli/botConfig.js'
+import { resolveBotDefaultWorkspace } from './cli/botConfig.js'
 import { cmdLoginFlow, cmdLogout, cmdWhoami } from './cli/commands/auth.js'
 import {
   cmdDeleteSkill,
@@ -87,7 +87,7 @@ async function resolveWorkdir(explicit?: string) {
   const hasMarker = await hasBothubMarker(cwd)
   if (hasMarker) return cwd
 
-  const botWorkspace = await resolveClawdbotDefaultWorkspace()
+  const botWorkspace = await resolveBotDefaultWorkspace()
   return botWorkspace ? resolve(botWorkspace) : cwd
 }
 
