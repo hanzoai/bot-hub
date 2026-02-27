@@ -1,9 +1,6 @@
-import { eq } from 'drizzle-orm'
 import type { Context, Next } from 'hono'
 import { createMiddleware } from 'hono/factory'
-import * as jose from 'jose'
-import { db } from '../db/index.js'
-import { apiTokens, users } from '../db/schema.js'
+import { pb, ensureAdminAuth } from '../db/index.js'
 import { env } from '../lib/env.js'
 
 export type AuthUser = {
@@ -67,37 +64,35 @@ async function resolveIamToken(token: string): Promise<AuthUser | null> {
 
     if (!profile.sub) return null
 
-    // Find or create user by IAM subject
     const handle = profile.preferred_username ?? profile.name ?? null
     const email = profile.email ?? null
 
-    let [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email ?? ''))
-      .limit(1)
+    // Find or create user in Base
+    await ensureAdminAuth()
+
+    let user: any = null
+    if (email) {
+      try {
+        user = await pb.collection('users').getFirstListItem(`email = "${email}"`)
+      } catch { /* not found */ }
+    }
 
     if (!user && handle) {
-      ;[user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.handle, handle))
-        .limit(1)
+      try {
+        user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+      } catch { /* not found */ }
     }
 
     if (!user) {
-      // Auto-create user from IAM profile
-      const [created] = await db
-        .insert(users)
-        .values({
-          handle,
-          email,
-          displayName: profile.name ?? handle,
-          name: profile.name ?? handle,
-          role: 'user',
-        })
-        .returning()
-      user = created
+      user = await pb.collection('users').create({
+        handle,
+        email,
+        displayName: profile.name ?? handle,
+        name: profile.name ?? handle,
+        role: 'user',
+        password: crypto.randomUUID(),
+        passwordConfirm: crypto.randomUUID(),
+      })
     }
 
     return {
@@ -114,27 +109,30 @@ async function resolveIamToken(token: string): Promise<AuthUser | null> {
 async function resolveApiToken(token: string): Promise<AuthUser | null> {
   try {
     const hash = await hashToken(token)
-    const [record] = await db
-      .select()
-      .from(apiTokens)
-      .where(eq(apiTokens.tokenHash, hash))
-      .limit(1)
 
-    if (!record || record.revokedAt) return null
+    await ensureAdminAuth()
+    let record: any
+    try {
+      record = await pb.collection('api_tokens').getFirstListItem(
+        `tokenHash = "${hash}"`,
+      )
+    } catch {
+      return null
+    }
+
+    if (record.revokedAt) return null
 
     // Update lastUsedAt
-    await db
-      .update(apiTokens)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(apiTokens.id, record.id))
+    await pb.collection('api_tokens').update(record.id, {
+      lastUsedAt: new Date().toISOString(),
+    })
 
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, record.userId))
-      .limit(1)
-
-    if (!user) return null
+    let user: any
+    try {
+      user = await pb.collection('users').getOne(record.userId)
+    } catch {
+      return null
+    }
 
     return {
       id: user.id,

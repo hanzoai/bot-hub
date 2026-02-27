@@ -1,7 +1,11 @@
 /** Validated environment config — read once at startup */
 export const env = {
   port: Number(process.env.PORT ?? 3001),
-  databaseUrl: process.env.DATABASE_URL ?? 'postgresql://hub:hub@localhost:5432/hub',
+
+  // Hanzo Base
+  baseUrl: process.env.BASE_URL ?? 'http://localhost:8090',
+  baseAdminEmail: process.env.BASE_ADMIN_EMAIL ?? 'admin@hanzo.ai',
+  baseAdminPassword: process.env.BASE_ADMIN_PASSWORD ?? '',
 
   // MinIO / S3
   s3Endpoint: process.env.S3_ENDPOINT ?? 'http://minio.hanzo.svc:9000',

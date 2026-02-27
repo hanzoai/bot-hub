@@ -1,10 +1,25 @@
-import { drizzle } from 'drizzle-orm/postgres-js'
-import postgres from 'postgres'
-import * as schema from './schema.js'
+import PocketBase from 'pocketbase'
+import { env } from '../lib/env.js'
 
-const connectionString =
-  process.env.DATABASE_URL ?? 'postgresql://hub:hub@localhost:5432/hub'
+// PocketBase SDK client — talks to Hanzo Base server
+export const pb = new PocketBase(env.baseUrl)
 
-const client = postgres(connectionString, { max: 20 })
-export const db = drizzle(client, { schema })
-export type DB = typeof db
+// Admin auth for server-side operations
+let adminAuthed = false
+
+export async function ensureAdminAuth(): Promise<void> {
+  if (adminAuthed && pb.authStore.isValid) return
+  try {
+    await pb.collection('_superusers').authWithPassword(
+      env.baseAdminEmail,
+      env.baseAdminPassword,
+    )
+    adminAuthed = true
+  } catch (err) {
+    console.error('Base admin auth failed:', err)
+    throw err
+  }
+}
+
+// Auto-auth on import (best-effort, routes will retry)
+ensureAdminAuth().catch(() => {})
