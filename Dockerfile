@@ -1,13 +1,5 @@
-# ─── Stage 1: Build Base (Go) ────────────────────────────────────────────────
-FROM golang:1.24-alpine AS base-build
-WORKDIR /build
-# Copy Base source from the hanzo/base repo (built separately or vendored)
-# For now, download and build from the existing binary or use a prebuilt image
-# In CI, this stage can be replaced with COPY --from=ghcr.io/hanzoai/base:latest
-ARG BASE_VERSION=latest
-RUN apk add --no-cache git
-COPY base/ ./
-RUN CGO_ENABLED=0 GOOS=linux go build -o /base examples/base/main.go
+# ─── Stage 1: Get Base binary ────────────────────────────────────────────────
+FROM ghcr.io/hanzoai/base:latest AS base-build
 
 # ─── Stage 2: Build API ──────────────────────────────────────────────────────
 FROM node:22-slim AS api-build
@@ -32,7 +24,7 @@ FROM oven/bun:1 AS production
 WORKDIR /app
 
 # Base binary
-COPY --from=base-build /base /usr/local/bin/base
+COPY --from=base-build /app/base /usr/local/bin/base
 
 # Base migrations
 COPY base/hz_migrations ./hz_migrations
