@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/hero.svg" alt="bot-hub" width="880"></p>
+
 # Bot Hub
 
 <p align="center">
