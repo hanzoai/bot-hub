@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-push:
-    runs-on: ubuntu-latest
+    runs-on: hanzo-build-linux-amd64
     permissions:
       contents: read
       packages: write
@@ -34,7 +34,7 @@ jobs:
 
   deploy:
     needs: build-push
-    runs-on: ubuntu-latest
+    runs-on: hanzo-build-linux-amd64
     steps:
       - uses: digitalocean/action-doctl@v2
         with:
