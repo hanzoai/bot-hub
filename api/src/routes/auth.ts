@@ -36,7 +36,7 @@ authRouter.get('/callback', async (c) => {
   }
 
   // Exchange code for token
-  const tokenResponse = await fetch(`${env.iamUrl}/api/login/oauth/access_token`, {
+  const tokenResponse = await fetch(`${env.iamUrl}/v1/iam/login/oauth/access_token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -60,7 +60,7 @@ authRouter.get('/callback', async (c) => {
   }
 
   // Get user profile from IAM
-  const profileResponse = await fetch(`${env.iamUrl}/api/userinfo`, {
+  const profileResponse = await fetch(`${env.iamUrl}/v1/iam/userinfo`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
 
