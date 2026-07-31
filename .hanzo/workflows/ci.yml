@@ -1,0 +1,70 @@
+name: CI
+
+# The test gate for bot-hub, on the native runners (git.hanzo.ai → git-runner).
+#
+# This repo has been building and pushing ghcr.io/hanzoai/bot-hub with NOTHING
+# gating it. The gate existed once, as .github/workflows/ci.yml, and it was lost
+# in two steps that each looked deliberate:
+#
+#   1. a2a58e6 added .hanzo/workflows/deploy.yml. Gitea collects workflows from
+#      the FIRST of WORKFLOW_DIRS that exists in the pushed commit and ignores
+#      the rest (modules/actions/workflows.go, listWorkflowsInDirs breaks on the
+#      first hit), so creating that directory switched the whole of
+#      .github/workflows off — ci.yml included. Nothing said so: no run, no
+#      queued job, no error.
+#   2. a99c2e1 then deleted ci.yml as "remove GitHub CI". By then it had already
+#      stopped running, so deleting it looked free. It was not free — it was the
+#      only thing running lint, tests, coverage and the typecheck.
+#
+# This is that file, restored where it can actually run. Every step is the one
+# it had; the runner label was already right (it named hanzo-build-linux-amd64
+# even then), and every script it invokes still exists in package.json.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer commit makes the older run irrelevant. Without this the queue grows
+# faster than the fleet drains it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: [hanzo-build-linux-amd64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Peer deps
+        run: bun run check:peers
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test
+        run: bun run test
+
+      - name: Coverage
+        run: bun run coverage
+
+      - name: Typecheck packages
+        run: |
+          bunx tsc -p packages/schema/tsconfig.json --noEmit
+          bunx tsc -p packages/bothub/tsconfig.json --noEmit
+
+      - name: Build
+        run: bun run build

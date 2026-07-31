@@ -1,9 +1,0 @@
-name: Build & Deploy Bot Hub
-on:
-  workflow_dispatch:
-jobs:
-  sync-notice:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Native pipeline moved
-        run: echo "native pipeline is .hanzo/workflows/deploy.yml; GitHub is a mirror"
