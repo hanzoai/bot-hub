@@ -66,7 +66,7 @@ spec:
                   key: IAM_CLIENT_SECRET
                   optional: true
             - name: S3_ENDPOINT
-              value: "http://minio.hanzo.svc:9000"
+              value: "http://s3.hanzo.svc:9000"
             - name: S3_BUCKET
               value: "hub-files"
             - name: OPENAI_API_KEY

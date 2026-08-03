@@ -7,8 +7,8 @@ export const env = {
   baseAdminEmail: process.env.BASE_ADMIN_EMAIL ?? 'admin@hanzo.ai',
   baseAdminPassword: process.env.BASE_ADMIN_PASSWORD ?? '',
 
-  // MinIO / S3
-  s3Endpoint: process.env.S3_ENDPOINT ?? 'http://minio.hanzo.svc:9000',
+  // Hanzo S3
+  s3Endpoint: process.env.S3_ENDPOINT ?? 'http://s3.hanzo.svc:9000',
   s3AccessKey: process.env.S3_ACCESS_KEY ?? 'hanzo',
   s3SecretKey: process.env.S3_SECRET_KEY ?? '',
   s3Bucket: process.env.S3_BUCKET ?? 'hub-files',
