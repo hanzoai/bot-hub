@@ -7,7 +7,6 @@
   "type": "module",
   "scripts": {
     "build": "bun --bun vite build",
-    "check:peers": "bun scripts/check-peer-deps.ts",
     "coverage": "vitest run --coverage",
     "dev": "bun --bun vite dev --port 3000",
     "docs:list": "bun scripts/docs-list.ts",
