@@ -19,21 +19,21 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@clack/prompts": "^0.11.0",
-    "arktype": "^2.1.29",
-    "commander": "^14.0.2",
-    "fflate": "^0.8.2",
-    "ignore": "^7.0.5",
+    "@clack/prompts": "^1.7.0",
+    "arktype": "^2.2.3",
+    "commander": "^15.0.0",
+    "fflate": "^0.8.3",
+    "ignore": "^7.0.6",
     "json5": "^2.2.3",
     "mime": "^4.1.0",
-    "ora": "^9.0.0",
-    "p-retry": "^7.1.1",
-    "semver": "^7.7.3",
-    "undici": "^7.16.0"
+    "ora": "^9.4.1",
+    "p-retry": "^8.0.0",
+    "semver": "^7.8.5",
+    "undici": "^8.10.0"
   },
   "devDependencies": {
-    "@types/node": "^25.0.9",
-    "typescript": "^5.9.3"
+    "@types/node": "26.4.0",
+    "typescript": "7.0.2"
   },
   "engines": {
     "node": ">=20"

@@ -18,13 +18,13 @@ describe('resolveClawdbotSkillRoots', () => {
     const home = join(base, 'home')
     const stateDir = join(base, 'state')
     const configPath = join(base, 'bot.json')
-    const hanzo-botStateDir = join(base, 'hanzo-bot-state')
+    const hanzoBotStateDir = join(base, 'hanzo-bot-state')
 
     process.env.HOME = home
     process.env.CLAWDBOT_STATE_DIR = stateDir
     process.env.CLAWDBOT_CONFIG_PATH = configPath
-    process.env.HANZO_BOT_STATE_DIR = hanzo-botStateDir
-    process.env.HANZO_BOT_CONFIG_PATH = join(hanzo-botStateDir, 'hanzo-bot.json')
+    process.env.HANZO_BOT_STATE_DIR = hanzoBotStateDir
+    process.env.HANZO_BOT_CONFIG_PATH = join(hanzoBotStateDir, 'hanzo-bot.json')
 
     const config = `{
       // JSON5 comments + trailing commas supported
@@ -53,7 +53,7 @@ describe('resolveClawdbotSkillRoots', () => {
 
     const expectedRoots = [
       resolve(stateDir, 'skills'),
-      resolve(hanzo-botStateDir, 'skills'),
+      resolve(hanzoBotStateDir, 'skills'),
       resolve(home, 'clawd-main', 'skills'),
       resolve(home, 'clawd-work', 'skills'),
       resolve(home, 'clawd-family', 'skills'),
@@ -63,7 +63,7 @@ describe('resolveClawdbotSkillRoots', () => {
 
     expect(roots).toEqual(expect.arrayContaining(expectedRoots))
     expect(labels[resolve(stateDir, 'skills')]).toBe('Shared skills')
-    expect(labels[resolve(hanzo-botStateDir, 'skills')]).toBe('Hanzo Bot: Shared skills')
+    expect(labels[resolve(hanzoBotStateDir, 'skills')]).toBe('Hanzo Bot: Shared skills')
     expect(labels[resolve(home, 'clawd-main', 'skills')]).toBe('Agent: main')
     expect(labels[resolve(home, 'clawd-work', 'skills')]).toBe('Agent: Work Bot')
     expect(labels[resolve(home, 'clawd-family', 'skills')]).toBe('Agent: family')
@@ -78,13 +78,13 @@ describe('resolveClawdbotSkillRoots', () => {
     const configPath = join(base, 'bot.json')
     const workspaceMain = join(base, 'workspace-main')
     const workspaceList = join(base, 'workspace-list')
-    const hanzo-botStateDir = join(base, 'hanzo-bot-state')
+    const hanzoBotStateDir = join(base, 'hanzo-bot-state')
 
     process.env.HOME = home
     process.env.CLAWDBOT_STATE_DIR = stateDir
     process.env.CLAWDBOT_CONFIG_PATH = configPath
-    process.env.HANZO_BOT_STATE_DIR = hanzo-botStateDir
-    process.env.HANZO_BOT_CONFIG_PATH = join(hanzo-botStateDir, 'hanzo-bot.json')
+    process.env.HANZO_BOT_STATE_DIR = hanzoBotStateDir
+    process.env.HANZO_BOT_CONFIG_PATH = join(hanzoBotStateDir, 'hanzo-bot.json')
 
     const config = `{
       agents: {
@@ -106,12 +106,12 @@ describe('resolveClawdbotSkillRoots', () => {
     const configPath = join(base, 'bot.json')
     const workspaceMain = join(base, 'workspace-main')
     const workspaceWork = join(base, 'workspace-work')
-    const hanzo-botStateDir = join(base, 'hanzo-bot-state')
+    const hanzoBotStateDir = join(base, 'hanzo-bot-state')
 
     process.env.HOME = home
     process.env.CLAWDBOT_CONFIG_PATH = configPath
-    process.env.HANZO_BOT_STATE_DIR = hanzo-botStateDir
-    process.env.HANZO_BOT_CONFIG_PATH = join(hanzo-botStateDir, 'hanzo-bot.json')
+    process.env.HANZO_BOT_STATE_DIR = hanzoBotStateDir
+    process.env.HANZO_BOT_CONFIG_PATH = join(hanzoBotStateDir, 'hanzo-bot.json')
 
     const config = `{
       agents: {
@@ -132,13 +132,13 @@ describe('resolveClawdbotSkillRoots', () => {
     const home = join(base, 'home')
     const stateDir = join(base, 'custom-state')
     const configPath = join(base, 'config', 'bot.json')
-    const hanzo-botStateDir = join(base, 'hanzo-bot-state')
+    const hanzoBotStateDir = join(base, 'hanzo-bot-state')
 
     process.env.HOME = home
     process.env.CLAWDBOT_STATE_DIR = stateDir
     process.env.CLAWDBOT_CONFIG_PATH = configPath
-    process.env.HANZO_BOT_STATE_DIR = hanzo-botStateDir
-    process.env.HANZO_BOT_CONFIG_PATH = join(hanzo-botStateDir, 'hanzo-bot.json')
+    process.env.HANZO_BOT_STATE_DIR = hanzoBotStateDir
+    process.env.HANZO_BOT_CONFIG_PATH = join(hanzoBotStateDir, 'hanzo-bot.json')
 
     const config = `{
       agent: { workspace: "${join(base, 'workspace-main')}" },
@@ -151,12 +151,12 @@ describe('resolveClawdbotSkillRoots', () => {
     expect(roots).toEqual(
       expect.arrayContaining([
         resolve(stateDir, 'skills'),
-        resolve(hanzo-botStateDir, 'skills'),
+        resolve(hanzoBotStateDir, 'skills'),
         resolve(join(base, 'workspace-main'), 'skills'),
       ]),
     )
     expect(labels[resolve(stateDir, 'skills')]).toBe('Shared skills')
-    expect(labels[resolve(hanzo-botStateDir, 'skills')]).toBe('Hanzo Bot: Shared skills')
+    expect(labels[resolve(hanzoBotStateDir, 'skills')]).toBe('Hanzo Bot: Shared skills')
     expect(labels[resolve(join(base, 'workspace-main'), 'skills')]).toBe('Agent: main')
   })
 
@@ -164,18 +164,18 @@ describe('resolveClawdbotSkillRoots', () => {
     const base = await mkdtemp(join(tmpdir(), 'bothub-bot-missing-'))
     const stateDir = join(base, 'state')
     const configPath = join(base, 'missing', 'bot.json')
-    const hanzo-botStateDir = join(base, 'hanzo-bot-state')
+    const hanzoBotStateDir = join(base, 'hanzo-bot-state')
 
     process.env.CLAWDBOT_STATE_DIR = stateDir
     process.env.CLAWDBOT_CONFIG_PATH = configPath
-    process.env.HANZO_BOT_STATE_DIR = hanzo-botStateDir
-    process.env.HANZO_BOT_CONFIG_PATH = join(hanzo-botStateDir, 'hanzo-bot.json')
+    process.env.HANZO_BOT_STATE_DIR = hanzoBotStateDir
+    process.env.HANZO_BOT_CONFIG_PATH = join(hanzoBotStateDir, 'hanzo-bot.json')
 
     const { roots, labels } = await resolveClawdbotSkillRoots()
 
-    expect(roots).toEqual([resolve(stateDir, 'skills'), resolve(hanzo-botStateDir, 'skills')])
+    expect(roots).toEqual([resolve(stateDir, 'skills'), resolve(hanzoBotStateDir, 'skills')])
     expect(labels[resolve(stateDir, 'skills')]).toBe('Shared skills')
-    expect(labels[resolve(hanzo-botStateDir, 'skills')]).toBe('Hanzo Bot: Shared skills')
+    expect(labels[resolve(hanzoBotStateDir, 'skills')]).toBe('Hanzo Bot: Shared skills')
   })
 
   it('uses $HOME over os.homedir() for tilde expansion', async () => {
@@ -183,13 +183,13 @@ describe('resolveClawdbotSkillRoots', () => {
     const customHome = join(base, 'custom-home')
     const stateDir = join(base, 'state')
     const configPath = join(base, 'bot.json')
-    const hanzo-botStateDir = join(base, 'hanzo-bot-state')
+    const hanzoBotStateDir = join(base, 'hanzo-bot-state')
 
     process.env.HOME = customHome
     process.env.CLAWDBOT_STATE_DIR = stateDir
     process.env.CLAWDBOT_CONFIG_PATH = configPath
-    process.env.HANZO_BOT_STATE_DIR = hanzo-botStateDir
-    process.env.HANZO_BOT_CONFIG_PATH = join(hanzo-botStateDir, 'hanzo-bot.json')
+    process.env.HANZO_BOT_STATE_DIR = hanzoBotStateDir
+    process.env.HANZO_BOT_CONFIG_PATH = join(hanzoBotStateDir, 'hanzo-bot.json')
 
     const config = `{
       agents: {
