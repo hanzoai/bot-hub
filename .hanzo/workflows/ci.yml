@@ -17,7 +17,7 @@ name: CI
 #      only thing running lint, tests, coverage and the typecheck.
 #
 # This is that file, restored where it can actually run. Every step is the one
-# it had; the runner label was already right (it named hanzo-build-linux-amd64
+# it had; the runner label was already right (it named linux-amd64
 # even then), and every script it invokes still exists in package.json.
 
 on:
@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [hanzo-build-linux-amd64]
+    runs-on: [linux-amd64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
