@@ -6,4 +6,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Native pipeline moved
-        run: echo "native pipeline is .hanzo/workflows/deploy.yml; GitHub is a mirror"
+        run: echo "native pipeline is .github/workflows/deploy.yml; GitHub is a mirror"
