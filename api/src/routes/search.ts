@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth, type Row } from '../db/index.js'
 import { generateEmbedding } from '../lib/embeddings.js'
 
 export const searchRouter = new Hono()
@@ -41,7 +41,7 @@ searchRouter.get('/skills', async (c) => {
     const queryVector = await generateEmbedding(query)
 
     // Fetch all latest embeddings (dataset is small enough for in-memory cosine)
-    const embeddingsResult = await pb.collection('skill_embeddings').getFullList({
+    const embeddingsResult = await base.collection('skill_embeddings').getFullList<Row>({
       filter: 'isLatest = true && (visibility = "latest" || visibility = "latest-approved")',
     })
 
@@ -58,7 +58,7 @@ searchRouter.get('/skills', async (c) => {
     // Fetch skill details
     for (const s of scored) {
       try {
-        const skill = await pb.collection('skills').getOne(s.skillId, {
+        const skill = await base.collection('skills').getOne<Row>(s.skillId, {
           expand: 'ownerUserId',
         })
         if (skill.softDeletedAt || skill.moderationStatus !== 'active') continue
@@ -82,7 +82,7 @@ searchRouter.get('/skills', async (c) => {
 
   // Lexical search
   const escapedQuery = query.replace(/"/g, '\\"')
-  const lexResult = await pb.collection('skills').getList(1, limit, {
+  const lexResult = await base.collection('skills').getList<Row>(1, limit, {
     filter: [
       'softDeletedAt = ""',
       'moderationStatus = "active"',
@@ -136,7 +136,7 @@ searchRouter.get('/personas', async (c) => {
   await ensureAdminAuth()
   const escapedQuery = query.replace(/"/g, '\\"')
 
-  const result = await pb.collection('personas').getList(1, limit, {
+  const result = await base.collection('personas').getList<Row>(1, limit, {
     filter: [
       'softDeletedAt = ""',
       `(slug ~ "${escapedQuery}" || displayName ~ "${escapedQuery}" || summary ~ "${escapedQuery}")`,

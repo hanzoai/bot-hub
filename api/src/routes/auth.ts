@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth } from '../db/index.js'
 import { env } from '../lib/env.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -81,13 +81,13 @@ authRouter.get('/callback', async (c) => {
 
   let user: any = null
   try {
-    user = await pb.collection('users').getFirstListItem(
+    user = await base.collection('users').getFirstListItem(
       `email = "${profile.email ?? ''}"`,
     )
   } catch { /* not found */ }
 
   if (!user) {
-    user = await pb.collection('users').create({
+    user = await base.collection('users').create({
       email: profile.email,
       handle: profile.preferred_username ?? profile.name,
       displayName: profile.name ?? profile.preferred_username,
@@ -98,7 +98,7 @@ authRouter.get('/callback', async (c) => {
       passwordConfirm: crypto.randomUUID(),
     })
   } else {
-    await pb.collection('users').update(user.id, {
+    await base.collection('users').update(user.id, {
       image: profile.picture ?? user.image,
       displayName: profile.name ?? user.displayName,
     })
@@ -121,7 +121,7 @@ authRouter.get('/me', requireAuth, async (c) => {
   await ensureAdminAuth()
   let user: any
   try {
-    user = await pb.collection('users').getOne(authUser.id)
+    user = await base.collection('users').getOne(authUser.id)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth } from '../db/index.js'
 import { optionalAuth } from '../middleware/auth.js'
 import type { AuthUser } from '../middleware/auth.js'
 
@@ -30,7 +30,7 @@ integrationsRouter.get('/', optionalAuth, async (c) => {
   }
 
   await ensureAdminAuth()
-  const result = await pb.collection('skills').getList(1, limit + 1, {
+  const result = await base.collection('skills').getList(1, limit + 1, {
     filter: filters.join(' && '),
     sort: sortField,
   })
@@ -59,7 +59,7 @@ integrationsRouter.get('/:slug', optionalAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(
+    skill = await base.collection('skills').getFirstListItem(
       `slug = "${slug}" && batch = "integration" && softDeletedAt = ""`,
     )
   } catch {
@@ -69,7 +69,7 @@ integrationsRouter.get('/:slug', optionalAuth, async (c) => {
   let latestVersion = null
   if (skill.latestVersionId) {
     try {
-      latestVersion = await pb.collection('skill_versions').getOne(skill.latestVersionId)
+      latestVersion = await base.collection('skill_versions').getOne(skill.latestVersionId)
     } catch { /* missing version */ }
   }
 

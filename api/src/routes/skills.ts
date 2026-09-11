@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth, type Row } from '../db/index.js'
 import { buildEmbeddingText, generateEmbedding } from '../lib/embeddings.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { optionalAuth, requireAuth } from '../middleware/auth.js'
@@ -39,7 +39,7 @@ skillsRouter.get('/', optionalAuth, async (c) => {
   }
 
   await ensureAdminAuth()
-  const result = await pb.collection('skills').getList(1, limit + 1, {
+  const result = await base.collection('skills').getList<Row>(1, limit + 1, {
     filter: filters.join(' && '),
     sort: sortField,
     expand: 'ownerUserId',
@@ -78,7 +78,7 @@ skillsRouter.get('/:slug', optionalAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`, {
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`, {
       expand: 'ownerUserId',
     })
   } catch {
@@ -125,12 +125,12 @@ skillsRouter.get('/:slug/versions', async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
-  const result = await pb.collection('skill_versions').getList(1, limit, {
+  const result = await base.collection('skill_versions').getList(1, limit, {
     filter: `skillId = "${skill.id}" && softDeletedAt = ""`,
     sort: '-created',
   })
@@ -158,14 +158,14 @@ skillsRouter.get('/:slug/versions/:version/files', async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
   let sv: any
   try {
-    sv = await pb.collection('skill_versions').getFirstListItem(
+    sv = await base.collection('skill_versions').getFirstListItem(
       `skillId = "${skill.id}" && version = "${version}"`,
     )
   } catch {
@@ -202,7 +202,7 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
   // Find or create skill
   let existing: any = null
   try {
-    existing = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    existing = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch { /* not found */ }
 
   if (existing && existing.ownerUserId !== user.id && user.role !== 'admin') {
@@ -210,7 +210,7 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
   }
 
   if (!existing) {
-    existing = await pb.collection('skills').create({
+    existing = await base.collection('skills').create({
       slug,
       displayName: body.displayName,
       ownerUserId: user.id,
@@ -225,14 +225,14 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
 
   // Check for duplicate version
   try {
-    await pb.collection('skill_versions').getFirstListItem(
+    await base.collection('skill_versions').getFirstListItem(
       `skillId = "${existing.id}" && version = "${body.version}"`,
     )
     return c.json({ error: `Version ${body.version} already exists` }, 409)
   } catch { /* not found, good */ }
 
   // Create version
-  const sv = await pb.collection('skill_versions').create({
+  const sv = await base.collection('skill_versions').create({
     skillId: existing.id,
     version: body.version,
     changelog: body.changelog,
@@ -243,7 +243,7 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
   })
 
   // Update skill
-  await pb.collection('skills').update(existing.id, {
+  await base.collection('skills').update(existing.id, {
     latestVersionId: sv.id,
     displayName: body.displayName,
     statsVersions: (existing.statsVersions ?? 0) + 1,
@@ -254,13 +254,13 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
     .then(async (vector) => {
       await ensureAdminAuth()
       // Mark old embeddings as not latest
-      const oldEmbeddings = await pb.collection('skill_embeddings').getFullList({
+      const oldEmbeddings = await base.collection('skill_embeddings').getFullList({
         filter: `skillId = "${existing.id}" && isLatest = true`,
       })
       for (const old of oldEmbeddings) {
-        await pb.collection('skill_embeddings').update(old.id, { isLatest: false })
+        await base.collection('skill_embeddings').update(old.id, { isLatest: false })
       }
-      await pb.collection('skill_embeddings').create({
+      await base.collection('skill_embeddings').create({
         skillId: existing.id,
         versionId: sv.id,
         ownerId: user.id,
@@ -287,7 +287,7 @@ skillsRouter.delete('/:slug', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -296,7 +296,7 @@ skillsRouter.delete('/:slug', requireAuth, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  await pb.collection('skills').update(skill.id, {
+  await base.collection('skills').update(skill.id, {
     softDeletedAt: new Date().toISOString(),
   })
 
@@ -311,7 +311,7 @@ skillsRouter.post('/:slug/undelete', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -320,7 +320,7 @@ skillsRouter.post('/:slug/undelete', requireAuth, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  await pb.collection('skills').update(skill.id, {
+  await base.collection('skills').update(skill.id, {
     softDeletedAt: '',
   })
 
@@ -335,7 +335,7 @@ skillsRouter.post('/:slug/stars', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -343,24 +343,24 @@ skillsRouter.post('/:slug/stars', requireAuth, async (c) => {
   // Check existing star
   let existing: any = null
   try {
-    existing = await pb.collection('stars').getFirstListItem(
+    existing = await base.collection('stars').getFirstListItem(
       `skillId = "${skill.id}" && userId = "${user.id}"`,
     )
   } catch { /* not found */ }
 
   if (existing) {
-    await pb.collection('stars').delete(existing.id)
-    await pb.collection('skills').update(skill.id, {
+    await base.collection('stars').delete(existing.id)
+    await base.collection('skills').update(skill.id, {
       statsStars: Math.max((skill.statsStars ?? 0) - 1, 0),
     })
     return c.json({ starred: false })
   }
 
-  await pb.collection('stars').create({
+  await base.collection('stars').create({
     skillId: skill.id,
     userId: user.id,
   })
-  await pb.collection('skills').update(skill.id, {
+  await base.collection('skills').update(skill.id, {
     statsStars: (skill.statsStars ?? 0) + 1,
   })
   return c.json({ starred: true })
@@ -374,13 +374,13 @@ skillsRouter.get('/:slug/stars/me', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
   try {
-    await pb.collection('stars').getFirstListItem(
+    await base.collection('stars').getFirstListItem(
       `skillId = "${skill.id}" && userId = "${user.id}"`,
     )
     return c.json({ starred: true })
@@ -396,12 +396,12 @@ skillsRouter.get('/:slug/comments', async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
-  const result = await pb.collection('comments').getList(1, 200, {
+  const result = await base.collection('comments').getList<Row>(1, 200, {
     filter: `skillId = "${skill.id}" && softDeletedAt = ""`,
     sort: '-created',
     expand: 'userId',
@@ -434,18 +434,18 @@ skillsRouter.post('/:slug/comments', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await pb.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
-  const comment = await pb.collection('comments').create({
+  const comment = await base.collection('comments').create({
     skillId: skill.id,
     userId: user.id,
     body: body.body.trim(),
   })
 
-  await pb.collection('skills').update(skill.id, {
+  await base.collection('skills').update(skill.id, {
     statsComments: (skill.statsComments ?? 0) + 1,
   })
 
@@ -466,7 +466,7 @@ skillsRouter.delete('/:slug/comments/:commentId', requireAuth, async (c) => {
   await ensureAdminAuth()
   let comment: any
   try {
-    comment = await pb.collection('comments').getOne(commentId)
+    comment = await base.collection('comments').getOne(commentId)
   } catch {
     return c.json({ error: 'Comment not found' }, 404)
   }
@@ -475,7 +475,7 @@ skillsRouter.delete('/:slug/comments/:commentId', requireAuth, async (c) => {
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  await pb.collection('comments').update(commentId, {
+  await base.collection('comments').update(commentId, {
     softDeletedAt: new Date().toISOString(),
     deletedBy: user.id,
   })

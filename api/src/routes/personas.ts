@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth } from '../db/index.js'
 import { optionalAuth } from '../middleware/auth.js'
 import type { AuthUser } from '../middleware/auth.js'
 
@@ -27,7 +27,7 @@ personasRouter.get('/', optionalAuth, async (c) => {
   }
 
   await ensureAdminAuth()
-  const result = await pb.collection('personas').getList(1, limit + 1, {
+  const result = await base.collection('personas').getList(1, limit + 1, {
     filter: filters.join(' && '),
     sort: sortField,
   })
@@ -58,7 +58,7 @@ personasRouter.get('/:slug/detail', optionalAuth, async (c) => {
   await ensureAdminAuth()
   let persona: any
   try {
-    persona = await pb.collection('personas').getFirstListItem(
+    persona = await base.collection('personas').getFirstListItem(
       `slug = "${slug}" && softDeletedAt = ""`,
     )
   } catch {
@@ -68,14 +68,14 @@ personasRouter.get('/:slug/detail', optionalAuth, async (c) => {
   let latestVersion = null
   if (persona.latestVersionId) {
     try {
-      const ver = await pb.collection('persona_versions').getOne(persona.latestVersionId)
+      const ver = await base.collection('persona_versions').getOne(persona.latestVersionId)
       latestVersion = ver
     } catch { /* missing version */ }
   }
 
   let owner = null
   try {
-    const u = await pb.collection('users').getOne(persona.ownerUserId)
+    const u = await base.collection('users').getOne(persona.ownerUserId)
     owner = { handle: u.handle, displayName: u.displayName }
   } catch { /* missing owner */ }
 
@@ -90,12 +90,12 @@ personasRouter.get('/:slug/versions', optionalAuth, async (c) => {
   await ensureAdminAuth()
   let persona: any
   try {
-    persona = await pb.collection('personas').getFirstListItem(`slug = "${slug}"`)
+    persona = await base.collection('personas').getFirstListItem(`slug = "${slug}"`)
   } catch {
     return c.json({ error: 'Not found' }, 404)
   }
 
-  const result = await pb.collection('persona_versions').getList(1, limit, {
+  const result = await base.collection('persona_versions').getList(1, limit, {
     filter: `personaId = "${persona.id}"`,
     sort: '-created',
   })

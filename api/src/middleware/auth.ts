@@ -1,6 +1,6 @@
 import type { Context, Next } from 'hono'
 import { createMiddleware } from 'hono/factory'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth } from '../db/index.js'
 import { env } from '../lib/env.js'
 
 export type AuthUser = {
@@ -73,18 +73,18 @@ async function resolveIamToken(token: string): Promise<AuthUser | null> {
     let user: any = null
     if (email) {
       try {
-        user = await pb.collection('users').getFirstListItem(`email = "${email}"`)
+        user = await base.collection('users').getFirstListItem(`email = "${email}"`)
       } catch { /* not found */ }
     }
 
     if (!user && handle) {
       try {
-        user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+        user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
       } catch { /* not found */ }
     }
 
     if (!user) {
-      user = await pb.collection('users').create({
+      user = await base.collection('users').create({
         handle,
         email,
         displayName: profile.name ?? handle,
@@ -113,7 +113,7 @@ async function resolveApiToken(token: string): Promise<AuthUser | null> {
     await ensureAdminAuth()
     let record: any
     try {
-      record = await pb.collection('api_tokens').getFirstListItem(
+      record = await base.collection('api_tokens').getFirstListItem(
         `tokenHash = "${hash}"`,
       )
     } catch {
@@ -123,13 +123,13 @@ async function resolveApiToken(token: string): Promise<AuthUser | null> {
     if (record.revokedAt) return null
 
     // Update lastUsedAt
-    await pb.collection('api_tokens').update(record.id, {
+    await base.collection('api_tokens').update(record.id, {
       lastUsedAt: new Date().toISOString(),
     })
 
     let user: any
     try {
-      user = await pb.collection('users').getOne(record.userId)
+      user = await base.collection('users').getOne(record.userId)
     } catch {
       return null
     }

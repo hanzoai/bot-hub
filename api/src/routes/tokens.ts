@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth } from '../db/index.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -10,7 +10,7 @@ tokensRouter.get('/', requireAuth, async (c) => {
   const user = c.get('user') as AuthUser
 
   await ensureAdminAuth()
-  const result = await pb.collection('api_tokens').getList(1, 200, {
+  const result = await base.collection('api_tokens').getList(1, 200, {
     filter: `userId = "${user.id}" && revokedAt = ""`,
   })
 
@@ -39,7 +39,7 @@ tokensRouter.post('/', requireAuth, async (c) => {
   const hash = await hashToken(rawToken)
 
   await ensureAdminAuth()
-  const token = await pb.collection('api_tokens').create({
+  const token = await base.collection('api_tokens').create({
     userId: user.id,
     label: body.label.trim(),
     prefix,
@@ -62,14 +62,14 @@ tokensRouter.delete('/:id', requireAuth, async (c) => {
   await ensureAdminAuth()
   let token: any
   try {
-    token = await pb.collection('api_tokens').getFirstListItem(
+    token = await base.collection('api_tokens').getFirstListItem(
       `id = "${tokenId}" && userId = "${user.id}"`,
     )
   } catch {
     return c.json({ error: 'Token not found' }, 404)
   }
 
-  await pb.collection('api_tokens').update(tokenId, {
+  await base.collection('api_tokens').update(tokenId, {
     revokedAt: new Date().toISOString(),
   })
 

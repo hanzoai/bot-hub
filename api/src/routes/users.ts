@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { pb, ensureAdminAuth } from '../db/index.js'
+import { base, ensureAdminAuth, type Row } from '../db/index.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -12,7 +12,7 @@ usersRouter.get('/:handle', async (c) => {
   await ensureAdminAuth()
   let user: any
   try {
-    user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+    user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }
@@ -34,12 +34,12 @@ usersRouter.get('/:handle/skills', async (c) => {
   await ensureAdminAuth()
   let user: any
   try {
-    user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+    user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }
 
-  const result = await pb.collection('skills').getList(1, 200, {
+  const result = await base.collection('skills').getList(1, 200, {
     filter: `ownerUserId = "${user.id}"`,
     sort: '-updated',
   })
@@ -65,12 +65,12 @@ usersRouter.get('/:handle/stars', async (c) => {
   await ensureAdminAuth()
   let user: any
   try {
-    user = await pb.collection('users').getFirstListItem(`handle = "${handle}"`)
+    user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }
 
-  const result = await pb.collection('stars').getList(1, 200, {
+  const result = await base.collection('stars').getList<Row>(1, 200, {
     filter: `userId = "${user.id}"`,
     sort: '-created',
     expand: 'skillId',
@@ -110,7 +110,7 @@ usersRouter.patch('/me', requireAuth, async (c) => {
   }
 
   await ensureAdminAuth()
-  await pb.collection('users').update(user.id, updates)
+  await base.collection('users').update(user.id, updates)
 
   return c.json({ ok: true })
 })

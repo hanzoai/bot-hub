@@ -1,16 +1,19 @@
-import PocketBase from 'pocketbase'
+import { BaseClient, type BaseRecord } from '@hanzo/base'
 import { env } from '../lib/env.js'
 
-// PocketBase SDK client — talks to Hanzo Base server
-export const pb = new PocketBase(env.baseUrl)
+// Hanzo Base client
+export const base = new BaseClient(env.baseUrl)
+
+// A record read without a declared collection schema
+export type Row = BaseRecord & Record<string, any>
 
 // Admin auth for server-side operations
 let adminAuthed = false
 
 export async function ensureAdminAuth(): Promise<void> {
-  if (adminAuthed && pb.authStore.isValid) return
+  if (adminAuthed && base.authStore.isValid) return
   try {
-    await pb.collection('_superusers').authWithPassword(
+    await base.collection('_superusers').authWithPassword(
       env.baseAdminEmail,
       env.baseAdminPassword,
     )
