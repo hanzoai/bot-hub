@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { ClawdisSkillMetadata } from 'bothub-schema'
+import { API_BASE } from '../lib/api'
 import type { Doc, Id } from '../lib/types'
 import { getSkillBadges } from '../lib/badges'
 import { formatCompactStat, formatSkillStatsTriplet } from '../lib/numberFormat'
@@ -265,7 +266,7 @@ export function SkillHeader({
               {!nixPlugin && !modInfo?.isMalwareBlocked && !modInfo?.isRemoved ? (
                 <a
                   className="btn btn-primary"
-                  href={`${import.meta.env.VITE_API_URL ?? '/api'}/v1/download?slug=${skill.slug}`}
+                  href={`${API_BASE}/v1/download?slug=${skill.slug}`}
                 >
                   Download zip
                 </a>

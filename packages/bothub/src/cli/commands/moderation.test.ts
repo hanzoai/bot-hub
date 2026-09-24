@@ -55,7 +55,7 @@ describe('cmdBanUser', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'POST',
-        path: '/api/v1/users/ban',
+        path: '/v1/users/ban',
         body: { handle: 'hightower6eu' },
       }),
       expect.anything(),
@@ -74,7 +74,7 @@ describe('cmdBanUser', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'POST',
-        path: '/api/v1/users/ban',
+        path: '/v1/users/ban',
         body: { handle: 'hightower6eu', reason: 'malware distribution' },
       }),
       expect.anything(),
@@ -88,7 +88,7 @@ describe('cmdBanUser', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'POST',
-        path: '/api/v1/users/ban',
+        path: '/v1/users/ban',
         body: { userId: 'user_123' },
       }),
       expect.anything(),
@@ -116,7 +116,7 @@ describe('cmdBanUser', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'GET',
-        path: expect.stringContaining('/api/v1/users?'),
+        path: expect.stringContaining('/v1/users?'),
       }),
       expect.anything(),
     )
@@ -125,7 +125,7 @@ describe('cmdBanUser', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'POST',
-        path: '/api/v1/users/ban',
+        path: '/v1/users/ban',
         body: { userId: 'users_123' },
       }),
       expect.anything(),
@@ -176,7 +176,7 @@ describe('cmdSetRole', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'POST',
-        path: '/api/v1/users/role',
+        path: '/v1/users/role',
         body: { handle: 'hightower6eu', role: 'moderator' },
       }),
       expect.anything(),
@@ -190,7 +190,7 @@ describe('cmdSetRole', () => {
       expect.anything(),
       expect.objectContaining({
         method: 'POST',
-        path: '/api/v1/users/role',
+        path: '/v1/users/role',
         body: { userId: 'user_123', role: 'admin' },
       }),
       expect.anything(),

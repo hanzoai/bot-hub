@@ -50,7 +50,7 @@ async function resolveUser(c: Context): Promise<AuthUser | null> {
 async function resolveIamToken(token: string): Promise<AuthUser | null> {
   try {
     // Validate with hanzo.id userinfo endpoint
-    const response = await fetch(`${env.iamUrl}/api/userinfo`, {
+    const response = await fetch(`${env.iamUrl}/v1/iam/oauth/userinfo`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!response.ok) return null

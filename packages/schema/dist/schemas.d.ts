@@ -135,6 +135,16 @@ export declare const ApiV1WhoamiResponseSchema: import("arktype/internal/variant
         image?: string | null | undefined;
     };
 }, {}>;
+export declare const ApiV1UserSearchResponseSchema: import("arktype/internal/variants/object.ts").ObjectType<{
+    items: {
+        userId: string;
+        handle: string | null;
+        displayName?: string | null | undefined;
+        name?: string | null | undefined;
+        role?: "user" | "admin" | "moderator" | null | undefined;
+    }[];
+    total: number;
+}, {}>;
 export declare const ApiV1SearchResponseSchema: import("arktype/internal/variants/object.ts").ObjectType<{
     results: {
         score: number;

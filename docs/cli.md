@@ -45,21 +45,21 @@ Stores your API token + cached registry URL.
 
 ### `whoami`
 
-- Verifies the stored token via `/api/v1/whoami`.
+- Verifies the stored token via `/v1/whoami`.
 
 ### `star <slug>` / `unstar <slug>`
 
 - Adds/removes a skill from your highlights.
-- Calls `POST /api/v1/stars/<slug>` and `DELETE /api/v1/stars/<slug>`.
+- Calls `POST /v1/stars/<slug>` and `DELETE /v1/stars/<slug>`.
 - `--yes` skips confirmation.
 
 ### `search <query...>`
 
-- Calls `/api/v1/search?q=...`.
+- Calls `/v1/search?q=...`.
 
 ### `explore`
 
-- Lists latest updated skills via `/api/v1/skills?limit=...` (sorted by `updatedAt` desc).
+- Lists latest updated skills via `/v1/skills?limit=...` (sorted by `updatedAt` desc).
 - Flags:
 - `--limit <n>` (1-200, default: 25)
   - `--sort newest|downloads|rating|installs|installsAllTime|trending` (default: newest)
@@ -79,8 +79,8 @@ Stores your API token + cached registry URL.
 
 ### `install <slug>`
 
-- Resolves latest version via `/api/v1/skills/<slug>`.
-- Downloads zip via `/api/v1/download`.
+- Resolves latest version via `/v1/skills/<slug>`.
+- Downloads zip via `/v1/download`.
 - Extracts into `<workdir>/<dir>/<slug>`.
 - Writes:
   - `<workdir>/.bothub/lock.json` (legacy `.bothub`)
@@ -106,19 +106,19 @@ Stores your API token + cached registry URL.
 
 ### `publish <path>`
 
-- Publishes via `POST /api/v1/skills` (multipart).
+- Publishes via `POST /v1/skills` (multipart).
 - Requires semver: `--version 1.2.3`.
 
 ### `delete <slug>`
 
 - Soft-delete a skill (moderator/admin only).
-- Calls `DELETE /api/v1/skills/{slug}`.
+- Calls `DELETE /v1/skills/{slug}`.
 - `--yes` skips confirmation.
 
 ### `undelete <slug>`
 
 - Restore a hidden skill (moderator/admin only).
-- Calls `POST /api/v1/skills/{slug}/undelete`.
+- Calls `POST /v1/skills/{slug}/undelete`.
 - `--yes` skips confirmation.
 
 ### `hide <slug>`
@@ -134,7 +134,7 @@ Stores your API token + cached registry URL.
 ### `ban-user <handleOrId>`
 
 - Ban a user and delete owned skills (moderator/admin only).
-- Calls `POST /api/v1/users/ban`.
+- Calls `POST /v1/users/ban`.
 - `--id` treats the argument as a user id instead of a handle.
 - `--fuzzy` resolves the handle via fuzzy user search (admin only).
 - `--reason` records an optional ban reason.
@@ -143,7 +143,7 @@ Stores your API token + cached registry URL.
 ### `set-role <handleOrId> <role>`
 
 - Change a user role (admin only).
-- Calls `POST /api/v1/users/role`.
+- Calls `POST /v1/users/role`.
 - `--id` treats the argument as a user id instead of a handle.
 - `--fuzzy` resolves the handle via fuzzy user search (admin only).
 - `--yes` skips confirmation.

@@ -1,80 +1,43 @@
 ---
-summary: 'Deploy checklist: Convex backend + Vercel web app + /api rewrites.'
+summary: 'Deploy: one image (Base + API + web), pinned by digest in hanzoai/universe.'
 read_when:
   - Shipping to production
-  - Debugging /api routing
+  - Debugging /v1 routing
 ---
 
 # Deploy
 
-Bot Hub is two deployables:
+One image, `ghcr.io/hanzoai/bot-hub`, runs three processes (`docker-entrypoint.sh`):
 
-- Web app (TanStack Start) → typically Vercel.
-- Convex backend → Convex deployment (serves `/api/...` routes).
+- Hanzo Base on :8090 (data)
+- the API (Hono, `api/`) on :3001 — every route under `/v1`, plus `/health`
+- the web app (TanStack Start + Nitro) on :3000
 
-## 1) Deploy Convex
+The ingress sends `/v1` and `/health` to :3001 and everything else to :3000
+(hanzoai/universe `infra/aws/values/hanzo/bot-hub.yaml`; skills.hanzo.bot in
+`infra/aws/routes/services.yaml`). Nothing is served under `/api`.
 
-From your local machine:
+Sign-in is Hanzo IAM: the API redirects to `https://hanzo.id/v1/iam/oauth/authorize`
+as `hanzo-bothub`, and IAM calls back to `https://<host>/v1/auth/callback`. Those
+redirect URIs are declared in universe `charts/app/values/hanzo/iam-provision.yaml`.
 
-```bash
-bunx convex deploy
-```
+## Release
 
-Ensure Convex env is set (auth + embeddings):
+1. Build at the build door (`POST https://api.hanzo.ai/v1/build`), never on a workstation.
+2. Pin the tag and digest in universe `charts/app/values/hanzo/bot-hub.yaml`; CD rolls it.
 
-- `AUTH_GITHUB_ID`
-- `AUTH_GITHUB_SECRET`
-- `CONVEX_SITE_URL`
-- `JWT_PRIVATE_KEY`
-- `JWKS`
-- `OPENAI_API_KEY`
-- `SITE_URL` (your web app URL)
-- Optional webhook env (see `docs/webhook.md`)
-- Optional: `GITHUB_TOKEN` (recommended; raises GitHub account lookup limit used by publish gate)
+## Registry discovery
 
-## 2) Deploy web app (Vercel)
-
-Set env vars:
-
-- `VITE_CONVEX_URL`
-- `VITE_CONVEX_SITE_URL` (Convex “site” URL)
-- `CONVEX_SITE_URL` (same value; used by auth provider config)
-- `SITE_URL` (web app URL)
-
-## 3) Route `/api/*` to Convex
-
-This repo currently uses `vercel.json` rewrites:
-
-- `source: /api/:path*`
-- `destination: https://<deployment>.convex.site/api/:path*`
-
-For self-host:
-
-- update `vercel.json` to your deployment’s Convex site URL.
-
-## 4) Registry discovery
-
-The CLI can discover the API base from:
-
-- `/.well-known/bothub.json` (preferred)
-- `/.well-known/bothub.json` (legacy)
-
-If you don’t serve that file, users must set:
+The CLI discovers the API base from `/.well-known/bothub.json`. Without it, set:
 
 ```bash
 export BOTHUB_REGISTRY=https://your-site.example
 ```
 
-## 5) Post-deploy checks
+## Post-deploy checks
 
 ```bash
-curl -i "https://<site>/api/v1/search?q=test"
-curl -i "https://<site>/api/v1/skills/gifgrep"
-```
-
-Then:
-
-```bash
-bothub login --site https://<site>
-bothub whoami
+curl -i https://hub.hanzo.bot/health       # 200
+curl -i https://hub.hanzo.bot/v1/auth/me   # 401
+curl -i https://hub.hanzo.bot/api/auth/me  # 404
 ```

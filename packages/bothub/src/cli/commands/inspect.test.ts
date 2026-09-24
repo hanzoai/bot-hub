@@ -114,7 +114,7 @@ describe('cmdInspect', () => {
 
     const fetchArgs = mockFetchText.mock.calls[0]?.[1]
     const url = new URL(String(fetchArgs?.url))
-    expect(url.pathname).toBe('/api/v1/skills/demo/file')
+    expect(url.pathname).toBe('/v1/skills/demo/file')
     expect(url.searchParams.get('path')).toBe('SKILL.md')
     expect(url.searchParams.get('tag')).toBe('latest')
     expect(url.searchParams.get('version')).toBeNull()

@@ -19,6 +19,7 @@ const updateTagsMock = vi.fn()
 const getFileTextMock = vi.fn()
 
 vi.mock('../lib/api', () => ({
+  API_BASE: '',
   skillsApi: {
     getDetail: (...args: unknown[]) => getDetailMock(...args),
     versions: (...args: unknown[]) => versionsMock(...args),

@@ -9,7 +9,7 @@ read_when:
 
 Base: `https://hub.hanzo.bot`
 
-OpenAPI: `/api/v1/openapi.json`
+OpenAPI: `/openapi.json`
 
 ## Auth
 
@@ -29,23 +29,20 @@ Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Ret
 
 Public read:
 
-- `GET /api/v1/search?q=...`
-- `GET /api/v1/skills?limit=&cursor=&sort=`
+- `GET /v1/search?q=...`
+- `GET /v1/skills?limit=&cursor=&sort=`
   - `sort`: `updated` (default), `downloads`, `stars` (`rating`), `installsCurrent` (`installs`), `installsAllTime`, `trending`
-- `GET /api/v1/skills/{slug}`
-- `GET /api/v1/skills/{slug}/versions?limit=&cursor=`
-- `GET /api/v1/skills/{slug}/versions/{version}`
-- `GET /api/v1/skills/{slug}/file?path=&version=&tag=`
-- `GET /api/v1/resolve?slug=&hash=`
-- `GET /api/v1/download?slug=&version=&tag=`
+- `GET /v1/skills/{slug}`
+- `GET /v1/skills/{slug}/versions?limit=&cursor=`
+- `GET /v1/skills/{slug}/versions/{version}`
+- `GET /v1/skills/{slug}/file?path=&version=&tag=`
+- `GET /v1/resolve?slug=&hash=`
+- `GET /v1/download?slug=&version=&tag=`
 
 Auth required:
 
-- `POST /api/v1/skills` (publish, multipart preferred)
-- `DELETE /api/v1/skills/{slug}`
-- `POST /api/v1/skills/{slug}/undelete`
-- `GET /api/v1/whoami`
+- `POST /v1/skills` (publish, multipart preferred)
+- `DELETE /v1/skills/{slug}`
+- `POST /v1/skills/{slug}/undelete`
+- `GET /v1/whoami`
 
-## Legacy
-
-Legacy `/api/*` and `/api/cli/*` still available. See `DEPRECATIONS.md`.

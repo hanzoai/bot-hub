@@ -8,10 +8,10 @@ export const authRouter = new Hono()
 
 // ─── OAuth: Start login flow ────────────────────────────────────────────────
 authRouter.get('/login', (c) => {
-  const redirectUri = c.req.query('redirect_uri') ?? `${env.publicUrl}/api/auth/callback`
+  const redirectUri = c.req.query('redirect_uri') ?? `${env.publicUrl}/v1/auth/callback`
   const state = c.req.query('state') ?? crypto.randomUUID()
 
-  const authUrl = new URL(`${env.iamUrl}/login/oauth/authorize`)
+  const authUrl = new URL(`${env.iamUrl}/v1/iam/oauth/authorize`)
   authUrl.searchParams.set('client_id', env.iamClientId)
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('redirect_uri', redirectUri)
@@ -36,13 +36,13 @@ authRouter.get('/callback', async (c) => {
   }
 
   // Exchange code for token
-  const tokenResponse = await fetch(`${env.iamUrl}/api/login/oauth/access_token`, {
+  const tokenResponse = await fetch(`${env.iamUrl}/v1/iam/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: `${env.publicUrl}/api/auth/callback`,
+      redirect_uri: `${env.publicUrl}/v1/auth/callback`,
       client_id: env.iamClientId,
       client_secret: env.iamClientSecret,
     }),
@@ -60,7 +60,7 @@ authRouter.get('/callback', async (c) => {
   }
 
   // Get user profile from IAM
-  const profileResponse = await fetch(`${env.iamUrl}/api/userinfo`, {
+  const profileResponse = await fetch(`${env.iamUrl}/v1/iam/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
 

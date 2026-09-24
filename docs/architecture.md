@@ -29,13 +29,13 @@ read_when:
 
 ### Search (HTTP)
 
-- `/api/v1/search?q=...` routes to Convex action for vector search.
+- `/v1/search?q=...` routes to Convex action for vector search.
 - Embeddings currently generated during publish.
 
 ### Install (CLI)
 
-- Resolve latest version via `/api/v1/skills/<slug>`.
-- Download zip via `/api/v1/download?slug=...&version=...`.
+- Resolve latest version via `/v1/skills/<slug>`.
+- Download zip via `/v1/download?slug=...&version=...`.
 - Extract into `./skills/<slug>` (default).
 - Persist install state:
   - `./.bothub/lock.json` (per workdir, legacy `.bothub`)
@@ -43,7 +43,7 @@ read_when:
 
 ### Update (CLI)
 
-- Hash local files, call `/api/v1/resolve?slug=...&hash=<sha256>`.
+- Hash local files, call `/v1/resolve?slug=...&hash=<sha256>`.
 - If local matches a known version → use that for “current”.
 - If local doesn’t match:
   - refuse by default
@@ -51,7 +51,7 @@ read_when:
 
 ### Publish (CLI)
 
-- Publish via `POST /api/v1/skills` (multipart; requires Bearer token).
+- Publish via `POST /v1/skills` (multipart; requires Bearer token).
 
 ### Sync (CLI)
 

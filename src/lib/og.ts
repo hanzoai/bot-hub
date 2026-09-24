@@ -54,7 +54,7 @@ export function getApiBase() {
 export async function fetchSkillMeta(slug: string) {
   try {
     const apiBase = getApiBase()
-    const url = new URL(`/api/v1/skills/${encodeURIComponent(slug)}`, apiBase)
+    const url = new URL(`/v1/skills/${encodeURIComponent(slug)}`, apiBase)
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
     if (!response.ok) return null
     const payload = (await response.json()) as {
@@ -77,7 +77,7 @@ export async function fetchSkillMeta(slug: string) {
 export async function fetchPersonaMeta(slug: string) {
   try {
     const apiBase = getApiBase()
-    const url = new URL(`/api/v1/personas/${encodeURIComponent(slug)}`, apiBase)
+    const url = new URL(`/v1/personas/${encodeURIComponent(slug)}`, apiBase)
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
     if (!response.ok) return null
     const payload = (await response.json()) as {

@@ -16,7 +16,6 @@ COPY package.json bun.lock ./
 COPY packages/ ./packages/
 RUN bun install --frozen-lockfile
 COPY . .
-ENV VITE_API_URL=/api
 RUN bun --bun run build
 
 # ─── Stage 4: Production ────────────────────────────────────────────────────

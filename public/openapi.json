@@ -1,11 +1,11 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "ClawHub API",
+    "title": "Bot Hub API",
     "version": "1.0.0",
     "description": "Public REST API for skills. Rate limits: read 120/min per IP + 600/min per key; write 30/min per IP + 120/min per key."
   },
-  "servers": [{ "url": "https://clawhub.ai" }],
+  "servers": [{ "url": "https://hub.hanzo.bot" }],
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -186,7 +186,7 @@
     }
   },
   "paths": {
-    "/api/v1/search": {
+    "/v1/search": {
       "get": {
         "summary": "Search skills",
         "parameters": [
@@ -202,7 +202,7 @@
         }
       }
     },
-    "/api/v1/resolve": {
+    "/v1/resolve": {
       "get": {
         "summary": "Resolve version by hash",
         "parameters": [
@@ -215,7 +215,7 @@
         }
       }
     },
-    "/api/v1/skills": {
+    "/v1/skills": {
       "get": {
         "summary": "List skills",
         "parameters": [
@@ -279,7 +279,7 @@
         }
       }
     },
-    "/api/v1/skills/{slug}": {
+    "/v1/skills/{slug}": {
       "get": {
         "summary": "Get skill",
         "parameters": [
@@ -301,7 +301,7 @@
         }
       }
     },
-    "/api/v1/skills/{slug}/undelete": {
+    "/v1/skills/{slug}/undelete": {
       "post": {
         "summary": "Undelete skill",
         "security": [{ "bearerAuth": [] }],
@@ -313,7 +313,7 @@
         }
       }
     },
-    "/api/v1/skills/{slug}/versions": {
+    "/v1/skills/{slug}/versions": {
       "get": {
         "summary": "List versions",
         "parameters": [
@@ -326,7 +326,7 @@
         }
       }
     },
-    "/api/v1/skills/{slug}/versions/{version}": {
+    "/v1/skills/{slug}/versions/{version}": {
       "get": {
         "summary": "Get version",
         "parameters": [
@@ -338,7 +338,7 @@
         }
       }
     },
-    "/api/v1/skills/{slug}/file": {
+    "/v1/skills/{slug}/file": {
       "get": {
         "summary": "Fetch raw file",
         "parameters": [
@@ -353,7 +353,7 @@
         }
       }
     },
-    "/api/v1/download": {
+    "/v1/download": {
       "get": {
         "summary": "Download zip",
         "parameters": [
@@ -366,7 +366,7 @@
         }
       }
     },
-    "/api/v1/whoami": {
+    "/v1/whoami": {
       "get": {
         "summary": "Current user",
         "security": [{ "bearerAuth": [] }],

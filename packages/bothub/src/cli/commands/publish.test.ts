@@ -76,7 +76,7 @@ describe('cmdPublish', () => {
 
       const publishCall = mockApiRequestForm.mock.calls.find((call) => {
         const req = call[1] as { path?: string } | undefined
-        return req?.path === '/api/v1/skills'
+        return req?.path === '/v1/skills'
       })
       if (!publishCall) throw new Error('Missing publish call')
       const publishForm = (publishCall[1] as { form?: FormData }).form as FormData
@@ -112,7 +112,7 @@ describe('cmdPublish', () => {
 
       expect(mockApiRequestForm).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ path: '/api/v1/skills', method: 'POST' }),
+        expect.objectContaining({ path: '/v1/skills', method: 'POST' }),
         expect.anything(),
       )
     } finally {

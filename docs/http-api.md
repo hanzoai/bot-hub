@@ -9,9 +9,8 @@ read_when:
 
 Base URL: `https://hub.hanzo.bot` (default).
 
-All v1 paths are under `/api/v1/...` and implemented by Convex HTTP routes (`convex/http.ts`).
-Legacy `/api/...` and `/api/cli/...` remain for compatibility (see `DEPRECATIONS.md`).
-OpenAPI: `/api/v1/openapi.json`.
+Every path is under `/v1/...`, served by the API in `api/src`. Nothing is served under `/api`.
+OpenAPI: `/openapi.json`.
 
 ## Rate limits
 
@@ -19,7 +18,7 @@ Enforced per IP + per API key:
 
 - Read: 120/min per IP, 600/min per key
 - Write: 30/min per IP, 120/min per key
-- Download: 20/min per IP, 120/min per key (`/api/v1/download`)
+- Download: 20/min per IP, 120/min per key (`/v1/download`)
 
 Headers:
 
@@ -32,7 +31,7 @@ IP source:
 
 ## Public endpoints (no auth)
 
-### `GET /api/v1/search`
+### `GET /v1/search`
 
 Query params:
 
@@ -50,7 +49,7 @@ Notes:
 
 - Results are returned in relevance order (embedding similarity + exact slug/name token boosts + popularity prior from downloads).
 
-### `GET /api/v1/skills`
+### `GET /v1/skills`
 
 Query params:
 
@@ -68,7 +67,7 @@ Response:
 { "items": [{ "slug": "gifgrep", "displayName": "GifGrep", "summary": "…", "tags": { "latest": "1.2.3" }, "stats": {}, "createdAt": 0, "updatedAt": 0, "latestVersion": { "version": "1.2.3", "createdAt": 0, "changelog": "…" } }], "nextCursor": null }
 ```
 
-### `GET /api/v1/skills/{slug}`
+### `GET /v1/skills/{slug}`
 
 Response:
 
@@ -76,18 +75,18 @@ Response:
 { "skill": { "slug": "gifgrep", "displayName": "GifGrep", "summary": "…", "tags": { "latest": "1.2.3" }, "stats": {}, "createdAt": 0, "updatedAt": 0 }, "latestVersion": { "version": "1.2.3", "createdAt": 0, "changelog": "…" }, "owner": { "handle": "steipete", "displayName": "Peter", "image": null } }
 ```
 
-### `GET /api/v1/skills/{slug}/versions`
+### `GET /v1/skills/{slug}/versions`
 
 Query params:
 
 - `limit` (optional): integer
 - `cursor` (optional): pagination cursor
 
-### `GET /api/v1/skills/{slug}/versions/{version}`
+### `GET /v1/skills/{slug}/versions/{version}`
 
 Returns version metadata + files list.
 
-### `GET /api/v1/skills/{slug}/file`
+### `GET /v1/skills/{slug}/file`
 
 Returns raw text content.
 
@@ -102,7 +101,7 @@ Notes:
 - Defaults to latest version.
 - File size limit: 200KB.
 
-### `GET /api/v1/resolve`
+### `GET /v1/resolve`
 
 Used by the CLI to map a local fingerprint to a known version.
 
@@ -117,7 +116,7 @@ Response:
 { "slug": "gifgrep", "match": { "version": "1.2.2" }, "latestVersion": { "version": "1.2.3" } }
 ```
 
-### `GET /api/v1/download`
+### `GET /v1/download`
 
 Downloads a zip of a skill version.
 
@@ -141,18 +140,18 @@ All endpoints require:
 Authorization: Bearer clh_...
 ```
 
-### `GET /api/v1/whoami`
+### `GET /v1/whoami`
 
 Validates token and returns the user handle.
 
-### `POST /api/v1/skills`
+### `POST /v1/skills`
 
 Publishes a new version.
 
 - Preferred: `multipart/form-data` with `payload` JSON + `files[]` blobs.
 - JSON body with `files` (storageId-based) is also accepted.
 
-### `DELETE /api/v1/skills/{slug}` / `POST /api/v1/skills/{slug}/undelete`
+### `DELETE /v1/skills/{slug}` / `POST /v1/skills/{slug}/undelete`
 
 Soft-delete / restore a skill (moderator/admin only).
 
@@ -164,7 +163,7 @@ Status codes:
 - `404`: skill/user not found
 - `500`: internal server error
 
-### `POST /api/v1/users/ban`
+### `POST /v1/users/ban`
 
 Ban a user and hard-delete owned skills (moderator/admin only).
 
@@ -186,7 +185,7 @@ Response:
 { "ok": true, "alreadyBanned": false, "deletedSkills": 3 }
 ```
 
-### `POST /api/v1/users/role`
+### `POST /v1/users/role`
 
 Change a user role (admin only).
 
@@ -208,7 +207,7 @@ Response:
 { "ok": true, "role": "moderator" }
 ```
 
-### `GET /api/v1/users`
+### `GET /v1/users`
 
 List or search users (admin only).
 
@@ -235,7 +234,7 @@ Response:
 }
 ```
 
-### `POST /api/v1/stars/{slug}` / `DELETE /api/v1/stars/{slug}`
+### `POST /v1/stars/{slug}` / `DELETE /v1/stars/{slug}`
 
 Add/remove a star (highlights). Both endpoints are idempotent.
 
@@ -248,19 +247,6 @@ Responses:
 ```json
 { "ok": true, "unstarred": true, "alreadyUnstarred": false }
 ```
-
-## Legacy CLI endpoints (deprecated)
-
-Still supported for older CLI versions:
-
-- `GET /api/cli/whoami`
-- `POST /api/cli/upload-url`
-- `POST /api/cli/publish`
-- `POST /api/cli/telemetry/sync`
-- `POST /api/cli/skill/delete`
-- `POST /api/cli/skill/undelete`
-
-See `DEPRECATIONS.md` for removal plan.
 
 ## Registry discovery (`/.well-known/bothub.json`)
 

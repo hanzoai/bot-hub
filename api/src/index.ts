@@ -30,21 +30,25 @@ app.use(
 app.get('/health', (c) => c.json({ status: 'ok', version: '0.1.0' }))
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
-app.route('/api/auth', authRouter)
-app.route('/api/v1/skills', skillsRouter)
-app.route('/api/v1/personas', personasRouter)
-app.route('/api/v1/integrations', integrationsRouter)
-app.route('/api/v1/search', searchRouter)
-app.route('/api/v1/users', usersRouter)
-app.route('/api/v1/upload', uploadRouter)
-app.route('/api/v1/tokens', tokensRouter)
+// Every route is /v1/…; nothing is served under /api.
+const v1 = new Hono()
+v1.route('/auth', authRouter)
+v1.route('/skills', skillsRouter)
+v1.route('/personas', personasRouter)
+v1.route('/integrations', integrationsRouter)
+v1.route('/search', searchRouter)
+v1.route('/users', usersRouter)
+v1.route('/upload', uploadRouter)
+v1.route('/tokens', tokensRouter)
 
-// ─── CLI compatibility endpoints (v0, maps to v1) ──────────────────────────
-app.get('/api/whoami', async (c) => {
+// The CLI's `bothub whoami` reads the signed-in user at /v1/whoami.
+v1.get('/whoami', (c) => {
   const url = new URL(c.req.url)
-  url.pathname = '/api/auth/me'
+  url.pathname = '/v1/auth/me'
   return app.fetch(new Request(url, c.req.raw))
 })
+
+app.route('/v1', v1)
 
 // ─── Start server ───────────────────────────────────────────────────────────
 console.log(`Bot Hub API starting on port ${env.port}`)

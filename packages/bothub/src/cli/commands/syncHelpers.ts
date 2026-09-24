@@ -11,7 +11,6 @@ import {
   ApiV1SkillResolveResponseSchema,
   ApiV1SkillResponseSchema,
   ApiV1WhoamiResponseSchema,
-  LegacyApiRoutes,
 } from '../../schema/index.js'
 import { hashSkillZip } from '../../skills.js'
 import { getRegistry } from '../registry.js'
@@ -46,7 +45,7 @@ export async function reportTelemetryIfEnabled(params: {
       params.registry,
       {
         method: 'POST',
-        path: LegacyApiRoutes.cliTelemetrySync,
+        path: ApiRoutes.telemetrySync,
         token: params.token,
         body: { roots },
       },

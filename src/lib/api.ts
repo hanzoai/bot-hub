@@ -1,6 +1,7 @@
 /** API client for the Bot Hub backend, replacing Convex hooks */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+/** Origin of the Bot Hub API; empty means this site's own origin. Every path is /v1/…. */
+export const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 type FetchOptions = {
   method?: string
@@ -72,11 +73,11 @@ export const authApi = {
     role: string | null
     trustedPublisher: boolean
     createdAt: string
-  }>('/auth/me'),
+  }>('/v1/auth/me'),
 
-  loginUrl: () => `${API_BASE}/auth/login?redirect_uri=${encodeURIComponent(window.location.origin + '/api/auth/callback')}`,
+  loginUrl: () => `${API_BASE}/v1/auth/login?redirect_uri=${encodeURIComponent(window.location.origin + '/v1/auth/callback')}`,
 
-  logout: () => apiFetch<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+  logout: () => apiFetch<{ ok: boolean }>('/v1/auth/logout', { method: 'POST' }),
 }
 
 // ─── Skills API ─────────────────────────────────────────────────────────────

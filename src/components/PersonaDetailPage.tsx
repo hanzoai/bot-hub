@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { personasApi } from '../lib/api'
+import { API_BASE, personasApi } from '../lib/api'
 import type { Doc } from '../lib/types'
 import { PersonaStatsTripletLine } from './PersonaStats'
 import type { PublicPersona, PublicUser } from '../lib/publicUser'
@@ -124,8 +124,7 @@ export function PersonaDetailPage({ slug }: PersonaDetailPageProps) {
   }
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
-  const apiBase = import.meta.env.VITE_API_URL ?? '/api'
-  const downloadBase = `${apiBase}/v1/personas/${persona.slug}/file`
+  const downloadBase = `${API_BASE}/v1/personas/${persona.slug}/file`
 
   return (
     <main className="section">

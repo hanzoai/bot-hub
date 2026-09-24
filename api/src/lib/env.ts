@@ -14,7 +14,8 @@ export const env = {
   s3Bucket: process.env.S3_BUCKET ?? 'hub-files',
   s3Region: process.env.S3_REGION ?? 'us-east-1',
 
-  // hanzo.id OAuth
+  // hanzo.id OAuth. The endpoints are the ones its discovery document names
+  // (https://hanzo.id/.well-known/openid-configuration), all under /v1/iam.
   iamUrl: process.env.IAM_URL ?? 'https://hanzo.id',
   iamClientId: process.env.IAM_CLIENT_ID ?? 'app-bothub',
   iamClientSecret: process.env.IAM_CLIENT_SECRET ?? '',
@@ -31,5 +32,4 @@ export const env = {
 
   // Public URL
   publicUrl: process.env.PUBLIC_URL ?? 'https://hub.hanzo.bot',
-  apiUrl: process.env.API_URL ?? 'https://hub.hanzo.bot/api',
 } as const

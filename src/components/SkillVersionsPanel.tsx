@@ -1,3 +1,4 @@
+import { API_BASE } from '../lib/api'
 import type { Doc } from '../lib/types'
 import { type LlmAnalysis, SecurityScanResults } from './SkillSecurityScanResults'
 
@@ -47,7 +48,7 @@ export function SkillVersionsPanel({ versions, nixPlugin, skillSlug }: SkillVers
                 <div className="version-actions">
                   <a
                     className="btn version-zip"
-                    href={`${import.meta.env.VITE_API_URL ?? '/api'}/v1/download?slug=${skillSlug}&version=${version.version}`}
+                    href={`${API_BASE}/v1/download?slug=${skillSlug}&version=${version.version}`}
                   >
                     Zip
                   </a>

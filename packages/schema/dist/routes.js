@@ -1,23 +1,12 @@
-export const LegacyApiRoutes = {
-    download: '/api/download',
-    search: '/api/search',
-    skill: '/api/skill',
-    skillResolve: '/api/skill/resolve',
-    cliWhoami: '/api/cli/whoami',
-    cliUploadUrl: '/api/cli/upload-url',
-    cliPublish: '/api/cli/publish',
-    cliTelemetrySync: '/api/cli/telemetry/sync',
-    cliSkillDelete: '/api/cli/skill/delete',
-    cliSkillUndelete: '/api/cli/skill/undelete',
-};
 export const ApiRoutes = {
-    search: '/api/v1/search',
-    resolve: '/api/v1/resolve',
-    download: '/api/v1/download',
-    skills: '/api/v1/skills',
-    stars: '/api/v1/stars',
-    souls: '/api/v1/souls',
-    users: '/api/v1/users',
-    whoami: '/api/v1/whoami',
+    search: '/v1/search',
+    resolve: '/v1/resolve',
+    download: '/v1/download',
+    skills: '/v1/skills',
+    stars: '/v1/stars',
+    personas: '/v1/personas',
+    users: '/v1/users',
+    whoami: '/v1/whoami',
+    telemetrySync: '/v1/telemetry/sync',
 };
 //# sourceMappingURL=routes.js.map

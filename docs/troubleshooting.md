@@ -48,8 +48,3 @@ bothub sync --root /path/to/skills
   - keep local edits; skip updating
   - overwrite: `bothub update <slug> --force`
   - publish as fork: copy to new folder/slug then `bothub publish ... --fork-of upstream@version`
-
-## `GET /api/*` works locally but not on Vercel
-
-- Check `vercel.json` rewrite destination points at your Convex site URL.
-- Ensure `VITE_CONVEX_SITE_URL` and `CONVEX_SITE_URL` match your deployment.
