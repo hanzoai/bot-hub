@@ -14,7 +14,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 // ─── Search skills (hybrid: vector + lexical) — GET /v1/skills/search ───────
-export async function searchSkills(c: Context) {
+export async function searchSkills(c: Context): Promise<Response> {
   const query = c.req.query('q')?.trim()
   const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
 
@@ -125,7 +125,7 @@ export async function searchSkills(c: Context) {
 }
 
 // ─── Search personas — GET /v1/skills/personas/search ─────────────────────────
-export async function searchPersonas(c: Context) {
+export async function searchPersonas(c: Context): Promise<Response> {
   const query = c.req.query('q')?.trim()
   const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
 

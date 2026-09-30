@@ -5,8 +5,8 @@ FROM ghcr.io/hanzoai/base:1.5.91@sha256:8d042b1c62d4c2eeac41128eaa2a6b99f2b73e53
 # ─── Stage 2: Build API ──────────────────────────────────────────────────────
 FROM node:22-slim AS api-build
 WORKDIR /app/api
-COPY api/package.json api/tsconfig.json ./
-RUN npm install --production=false
+COPY api/package.json api/package-lock.json api/tsconfig.json ./
+RUN npm ci
 COPY api/src ./src
 RUN npx tsc
 
