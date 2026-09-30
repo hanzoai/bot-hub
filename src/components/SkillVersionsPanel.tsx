@@ -48,7 +48,7 @@ export function SkillVersionsPanel({ versions, nixPlugin, skillSlug }: SkillVers
                 <div className="version-actions">
                   <a
                     className="btn version-zip"
-                    href={`${API_BASE}/v1/download?slug=${skillSlug}&version=${version.version}`}
+                    href={`${API_BASE}/v1/skills/download?slug=${skillSlug}&version=${version.version}`}
                   >
                     Zip
                   </a>

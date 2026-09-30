@@ -3,8 +3,10 @@ import { discoverRegistryFromSite } from '../discovery.js'
 import type { GlobalOpts } from './types.js'
 
 export const DEFAULT_SITE = 'https://hub.hanzo.bot'
-export const DEFAULT_REGISTRY = 'https://hub.hanzo.bot'
-const LEGACY_REGISTRY_HOSTS = new Set(['auth.hub.hanzo.bot', 'auth.hub.hanzo.bot', 'auth.hub.hanzo.bot'])
+// The API is api.hanzo.ai (/v1/skills); the sites used to serve it themselves,
+// and a registry cached from then is replaced rather than used.
+export const DEFAULT_REGISTRY = 'https://api.hanzo.ai'
+const LEGACY_REGISTRY_HOSTS = new Set(['hub.hanzo.bot', 'market.hanzo.bot', 'skills.hanzo.bot'])
 
 export async function resolveRegistry(opts: GlobalOpts) {
   const explicit = opts.registrySource !== 'default' ? opts.registry.trim() : ''

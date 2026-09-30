@@ -7,9 +7,9 @@ read_when:
 
 # HTTP API
 
-Base URL: `https://hub.hanzo.bot` (default).
+Base URL: `https://api.hanzo.ai` (default).
 
-Every path is under `/v1/...`, served by the API in `api/src`. Nothing is served under `/api`.
+Every path is under `/v1/skills/...`, served by the API in `api/src`. Nothing is served under `/api`.
 OpenAPI: `/openapi.json`.
 
 ## Rate limits
@@ -18,7 +18,7 @@ Enforced per IP + per API key:
 
 - Read: 120/min per IP, 600/min per key
 - Write: 30/min per IP, 120/min per key
-- Download: 20/min per IP, 120/min per key (`/v1/download`)
+- Download: 20/min per IP, 120/min per key (`/v1/skills/download`)
 
 Headers:
 
@@ -31,7 +31,7 @@ IP source:
 
 ## Public endpoints (no auth)
 
-### `GET /v1/search`
+### `GET /v1/skills/search`
 
 Query params:
 
@@ -101,7 +101,7 @@ Notes:
 - Defaults to latest version.
 - File size limit: 200KB.
 
-### `GET /v1/resolve`
+### `GET /v1/skills/resolve`
 
 Used by the CLI to map a local fingerprint to a known version.
 
@@ -116,7 +116,7 @@ Response:
 { "slug": "gifgrep", "match": { "version": "1.2.2" }, "latestVersion": { "version": "1.2.3" } }
 ```
 
-### `GET /v1/download`
+### `GET /v1/skills/download`
 
 Downloads a zip of a skill version.
 
@@ -140,7 +140,7 @@ All endpoints require:
 Authorization: Bearer clh_...
 ```
 
-### `GET /v1/whoami`
+### `GET /v1/skills/whoami`
 
 Validates token and returns the user handle.
 
@@ -163,7 +163,7 @@ Status codes:
 - `404`: skill/user not found
 - `500`: internal server error
 
-### `POST /v1/users/ban`
+### `POST /v1/skills/users/ban`
 
 Ban a user and hard-delete owned skills (moderator/admin only).
 
@@ -185,7 +185,7 @@ Response:
 { "ok": true, "alreadyBanned": false, "deletedSkills": 3 }
 ```
 
-### `POST /v1/users/role`
+### `POST /v1/skills/users/role`
 
 Change a user role (admin only).
 
@@ -207,7 +207,7 @@ Response:
 { "ok": true, "role": "moderator" }
 ```
 
-### `GET /v1/users`
+### `GET /v1/skills/users`
 
 List or search users (admin only).
 
@@ -234,7 +234,7 @@ Response:
 }
 ```
 
-### `POST /v1/stars/{slug}` / `DELETE /v1/stars/{slug}`
+### `POST /v1/skills/stars/{slug}` / `DELETE /v1/skills/stars/{slug}`
 
 Add/remove a star (highlights). Both endpoints are idempotent.
 
@@ -258,7 +258,7 @@ The CLI can discover registry/auth settings from the site:
 Schema:
 
 ```json
-{ "apiBase": "https://hub.hanzo.bot", "authBase": "https://hub.hanzo.bot", "minCliVersion": "0.0.5" }
+{ "apiBase": "https://api.hanzo.ai", "authBase": "https://hub.hanzo.bot", "registry": "https://api.hanzo.ai", "minCliVersion": "0.1.0" }
 ```
 
 If you self-host, serve this file (or set `BOTHUB_REGISTRY` explicitly; legacy `CLAWDHUB_REGISTRY`).

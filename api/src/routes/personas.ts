@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
-import { base, ensureAdminAuth } from '../db/index.js'
+import { base, lit } from '../db/index.js'
 import { optionalAuth } from '../middleware/auth.js'
+import { searchPersonas } from './search.js'
 import type { AuthUser } from '../middleware/auth.js'
 
 type Env = { Variables: { user: AuthUser | null } }
@@ -23,10 +24,9 @@ personasRouter.get('/', optionalAuth, async (c) => {
 
   const filters: string[] = ['softDeletedAt = ""']
   if (cursor) {
-    filters.push(`updated < "${cursor}"`)
+    filters.push(`updated < ${lit(cursor)}`)
   }
 
-  await ensureAdminAuth()
   const result = await base.collection('personas').getList(1, limit + 1, {
     filter: filters.join(' && '),
     sort: sortField,
@@ -43,23 +43,24 @@ personasRouter.get('/', optionalAuth, async (c) => {
     statsStars: r.statsStars ?? 0,
     statsVersions: r.statsVersions ?? 0,
     statsComments: r.statsComments ?? 0,
-    createdAt: r.created,
-    updatedAt: r.updated,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
     latestVersionId: r.latestVersionId,
   }))
 
   return c.json({ items, hasMore })
 })
 
+personasRouter.get('/search', searchPersonas)
+
 // ─── Get persona detail ────────────────────────────────────────────────────
 personasRouter.get('/:slug/detail', optionalAuth, async (c) => {
   const slug = c.req.param('slug')
 
-  await ensureAdminAuth()
   let persona: any
   try {
     persona = await base.collection('personas').getFirstListItem(
-      `slug = "${slug}" && softDeletedAt = ""`,
+      `slug = ${lit(slug)} && softDeletedAt = ""`,
     )
   } catch {
     return c.json({ error: 'Not found' }, 404)
@@ -87,16 +88,15 @@ personasRouter.get('/:slug/versions', optionalAuth, async (c) => {
   const slug = c.req.param('slug')
   const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
 
-  await ensureAdminAuth()
   let persona: any
   try {
-    persona = await base.collection('personas').getFirstListItem(`slug = "${slug}"`)
+    persona = await base.collection('personas').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Not found' }, 404)
   }
 
   const result = await base.collection('persona_versions').getList(1, limit, {
-    filter: `personaId = "${persona.id}"`,
+    filter: `personaId = ${lit(persona.id)}`,
     sort: '-created',
   })
 

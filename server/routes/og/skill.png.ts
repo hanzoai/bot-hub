@@ -1,5 +1,5 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
-import { defineEventHandler, getQuery, getRequestHost, setHeader } from 'h3'
+import { defineEventHandler, getQuery, setHeader } from 'h3'
 
 import { fetchSkillOgMeta } from '../../og/fetchSkillOgMeta'
 import {
@@ -27,15 +27,8 @@ function cleanString(value: unknown) {
   return value.trim()
 }
 
-function getApiBase(eventHost: string | null) {
-  const direct = (process.env.VITE_API_URL ?? '').trim()
-  if (direct) return direct
-
-  const site = process.env.SITE_URL?.trim() || process.env.VITE_SITE_URL?.trim()
-  if (site) return site
-
-  if (eventHost) return `https://${eventHost}`
-  return 'https://hub.hanzo.bot'
+function getApiBase() {
+  return (process.env.VITE_API_URL ?? '').trim() || 'https://api.hanzo.ai'
 }
 
 async function ensureWasm() {
@@ -59,7 +52,7 @@ export default defineEventHandler(async (event) => {
   const descriptionFromQuery = cleanString(query.description)
 
   const needFetch = !titleFromQuery || !descriptionFromQuery || !ownerFromQuery || !versionFromQuery
-  const meta = needFetch ? await fetchSkillOgMeta(slug, getApiBase(getRequestHost(event))) : null
+  const meta = needFetch ? await fetchSkillOgMeta(slug, getApiBase()) : null
 
   const owner = ownerFromQuery || meta?.owner || ''
   const version = versionFromQuery || meta?.version || ''

@@ -19,7 +19,7 @@ vi.mock('@tanstack/react-router', () => ({
   Link: (props: { children: ReactNode }) => <a href="/">{props.children}</a>,
 }))
 
-vi.mock('../../lib/api', async () => {
+vi.mock('../lib/api', async () => {
   return {
     skillsApi: {
       list: (...args: unknown[]) => listMock(...args),

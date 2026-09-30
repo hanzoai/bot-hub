@@ -2,17 +2,22 @@ import { env } from './env.js'
 
 export const EMBEDDING_DIMENSIONS = 1536
 
-/** Generate an embedding vector using OpenAI API */
+/** Embeddings need a Hanzo API key; without one, search is lexical only. */
+export function embeddingsEnabled(): boolean {
+  return env.hanzoApiKey !== ''
+}
+
+/** Generate an embedding vector through api.hanzo.ai */
 export async function generateEmbedding(text: string): Promise<number[]> {
   const maxRetries = 3
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
+      const response = await fetch(`${env.apiUrl}/v1/embeddings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${env.openaiApiKey}`,
+          Authorization: `Bearer ${env.hanzoApiKey}`,
         },
         body: JSON.stringify({
           model: env.embeddingModel,
@@ -23,7 +28,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
       if (!response.ok) {
         const error = await response.text()
-        throw new Error(`OpenAI API error (${response.status}): ${error}`)
+        throw new Error(`embeddings answered ${response.status}: ${error}`)
       }
 
       const data = (await response.json()) as {

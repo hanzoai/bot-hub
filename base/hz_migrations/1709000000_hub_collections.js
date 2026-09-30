@@ -1,46 +1,42 @@
 /// <reference path="../base_/data/types.d.ts" />
 
-// Bot Hub collections migration — maps the Drizzle schema to Base collections.
+// Bot Hub collections: the hub's tables, on the users collection every Base has.
+// A collection declares its created and updated stamps; Base adds neither.
 // Run: ./base serve --migrationsDir ./hz_migrations
 
 migrate((app) => {
-  // ─── Users (auth collection) ───────────────────────────────────────────────
-  const users = new Collection({
-    id: "hub_users",
-    name: "users",
-    type: "auth",
-    system: false,
-    fields: [
-      { name: "handle",              type: "text",   options: { maxSize: 64 } },
-      { name: "displayName",         type: "text",   options: { maxSize: 256 } },
-      { name: "bio",                 type: "text",   options: { maxSize: 2000 } },
-      { name: "role",                type: "select",  options: { values: ["user","moderator","admin"], maxSelect: 1 } },
-      { name: "image",               type: "url" },
-      { name: "githubId",            type: "text",   options: { maxSize: 64 } },
-      { name: "githubCreatedAt",     type: "date" },
-      { name: "githubFetchedAt",     type: "date" },
-      { name: "githubProfileSyncedAt", type: "date" },
-      { name: "trustedPublisher",    type: "bool" },
-      { name: "deactivatedAt",       type: "date" },
-      { name: "purgedAt",            type: "date" },
-      { name: "deletedAt",           type: "date" },
-      { name: "banReason",           type: "text" },
-      { name: "phone",               type: "text",   options: { maxSize: 32 } },
-    ],
-    indexes: [
-      "CREATE UNIQUE INDEX idx_users_handle ON users (handle) WHERE handle != ''",
-      "CREATE UNIQUE INDEX idx_users_github ON users (githubId) WHERE githubId != ''",
-    ],
-    authRule: "",
-    manageRule: '@request.auth.role = "admin"',
-    listRule: "",
-    viewRule: "",
-    createRule: null,
-    updateRule: 'id = @request.auth.id || @request.auth.role = "admin"',
-    deleteRule: '@request.auth.role = "admin"',
-    passwordAuth: { enabled: true, identityFields: ["email"] },
-    oauth2: { enabled: true },
-  })
+  // ─── Users ─────────────────────────────────────────────────────────────────
+  // Every Base carries an auth collection named users; the hub adds its
+  // profile fields to it. Sign-in is Hanzo IAM's, so no password or OAuth2
+  // setting is touched here.
+  const users = app.findCollectionByNameOrId("users")
+  for (const field of [
+    { name: "handle",              type: "text", max: 64 },
+    { name: "displayName",         type: "text", max: 256 },
+    { name: "bio",                 type: "text", max: 2000 },
+    { name: "role",                type: "select", values: ["user","moderator","admin"], maxSelect: 1 },
+    { name: "image",               type: "url" },
+    { name: "githubId",            type: "text", max: 64 },
+    { name: "githubCreatedAt",     type: "date" },
+    { name: "githubFetchedAt",     type: "date" },
+    { name: "githubProfileSyncedAt", type: "date" },
+    { name: "trustedPublisher",    type: "bool" },
+    { name: "deactivatedAt",       type: "date" },
+    { name: "purgedAt",            type: "date" },
+    { name: "deletedAt",           type: "date" },
+    { name: "banReason",           type: "text" },
+    { name: "phone",               type: "text", max: 32 },
+  ]) {
+    users.fields.add(new Field(field))
+  }
+  users.indexes = users.indexes.concat([
+    "CREATE UNIQUE INDEX idx_users_handle ON users (handle) WHERE handle != ''",
+    "CREATE UNIQUE INDEX idx_users_github ON users (githubId) WHERE githubId != ''",
+  ])
+  users.listRule = ""
+  users.viewRule = ""
+  users.updateRule = 'id = @request.auth.id || @request.auth.role = "admin"'
+  users.deleteRule = '@request.auth.role = "admin"'
   app.save(users)
 
   // ─── Skills ────────────────────────────────────────────────────────────────
@@ -49,36 +45,38 @@ migrate((app) => {
     name: "skills",
     type: "base",
     fields: [
-      { name: "slug",              type: "text",     options: { maxSize: 128 } },
-      { name: "displayName",       type: "text",     options: { maxSize: 256 } },
-      { name: "summary",           type: "text",     options: { maxSize: 4000 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "slug",              type: "text", max: 128 },
+      { name: "displayName",       type: "text", max: 256 },
+      { name: "summary",           type: "text", max: 4000 },
       { name: "resourceId",        type: "text" },
-      { name: "ownerUserId",       type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "ownerUserId",       type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "canonicalSkillId",  type: "text" },
       { name: "forkOf",            type: "json" },
       { name: "latestVersionId",   type: "text" },
       { name: "tags",              type: "json" },
       { name: "softDeletedAt",     type: "date" },
       { name: "badges",            type: "json" },
-      { name: "moderationStatus",  type: "select",   options: { values: ["active","hidden","removed"], maxSelect: 1 } },
+      { name: "moderationStatus",  type: "select", values: ["active","hidden","removed"], maxSelect: 1 },
       { name: "moderationNotes",   type: "text" },
       { name: "moderationReason",  type: "text" },
       { name: "quality",           type: "json" },
       { name: "moderationFlags",   type: "json" },
       { name: "lastReviewedAt",    type: "date" },
       { name: "scanLastCheckedAt", type: "date" },
-      { name: "scanCheckCount",    type: "number",   options: { min: 0 } },
+      { name: "scanCheckCount",    type: "number", min: 0 },
       { name: "hiddenAt",          type: "date" },
       { name: "hiddenBy",          type: "text" },
-      { name: "reportCount",       type: "number",   options: { min: 0 } },
+      { name: "reportCount",       type: "number", min: 0 },
       { name: "lastReportedAt",    type: "date" },
       { name: "batch",             type: "text" },
-      { name: "statsDownloads",    type: "number",   options: { min: 0 } },
-      { name: "statsStars",        type: "number",   options: { min: 0 } },
-      { name: "statsInstallsCurrent", type: "number", options: { min: 0 } },
-      { name: "statsInstallsAllTime", type: "number", options: { min: 0 } },
-      { name: "statsVersions",     type: "number",   options: { min: 0 } },
-      { name: "statsComments",     type: "number",   options: { min: 0 } },
+      { name: "statsDownloads",    type: "number", min: 0 },
+      { name: "statsStars",        type: "number", min: 0 },
+      { name: "statsInstallsCurrent", type: "number", min: 0 },
+      { name: "statsInstallsAllTime", type: "number", min: 0 },
+      { name: "statsVersions",     type: "number", min: 0 },
+      { name: "statsComments",     type: "number", min: 0 },
     ],
     indexes: [
       "CREATE UNIQUE INDEX idx_skills_slug ON skills (slug)",
@@ -102,14 +100,16 @@ migrate((app) => {
     name: "skill_versions",
     type: "base",
     fields: [
-      { name: "skillId",         type: "relation",  options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "version",         type: "text",      options: { maxSize: 64 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",         type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "version",         type: "text", max: 64 },
       { name: "fingerprint",     type: "text" },
       { name: "changelog",       type: "text" },
-      { name: "changelogSource", type: "select",    options: { values: ["auto","user"], maxSelect: 1 } },
+      { name: "changelogSource", type: "select", values: ["auto","user"], maxSelect: 1 },
       { name: "files",           type: "json" },
       { name: "parsed",          type: "json" },
-      { name: "createdBy",       type: "relation",  options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "createdBy",       type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "sha256hash",      type: "text" },
       { name: "vtAnalysis",      type: "json" },
       { name: "llmAnalysis",     type: "json" },
@@ -134,17 +134,19 @@ migrate((app) => {
     name: "personas",
     type: "base",
     fields: [
-      { name: "slug",            type: "text",     options: { maxSize: 128 } },
-      { name: "displayName",     type: "text",     options: { maxSize: 256 } },
-      { name: "summary",         type: "text",     options: { maxSize: 4000 } },
-      { name: "ownerUserId",     type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "slug",            type: "text", max: 128 },
+      { name: "displayName",     type: "text", max: 256 },
+      { name: "summary",         type: "text", max: 4000 },
+      { name: "ownerUserId",     type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "latestVersionId", type: "text" },
       { name: "tags",            type: "json" },
       { name: "softDeletedAt",   type: "date" },
-      { name: "statsDownloads",  type: "number",   options: { min: 0 } },
-      { name: "statsStars",      type: "number",   options: { min: 0 } },
-      { name: "statsVersions",   type: "number",   options: { min: 0 } },
-      { name: "statsComments",   type: "number",   options: { min: 0 } },
+      { name: "statsDownloads",  type: "number", min: 0 },
+      { name: "statsStars",      type: "number", min: 0 },
+      { name: "statsVersions",   type: "number", min: 0 },
+      { name: "statsComments",   type: "number", min: 0 },
     ],
     indexes: [
       "CREATE UNIQUE INDEX idx_personas_slug ON personas (slug)",
@@ -165,14 +167,16 @@ migrate((app) => {
     name: "persona_versions",
     type: "base",
     fields: [
-      { name: "personaId",      type: "relation",  options: { collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true } },
-      { name: "version",        type: "text",      options: { maxSize: 64 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "personaId",      type: "relation", collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true },
+      { name: "version",        type: "text", max: 64 },
       { name: "fingerprint",    type: "text" },
       { name: "changelog",      type: "text" },
-      { name: "changelogSource", type: "select",   options: { values: ["auto","user"], maxSelect: 1 } },
+      { name: "changelogSource", type: "select", values: ["auto","user"], maxSelect: 1 },
       { name: "files",          type: "json" },
       { name: "parsed",         type: "json" },
-      { name: "createdBy",      type: "relation",  options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "createdBy",      type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "softDeletedAt",  type: "date" },
     ],
     indexes: [
@@ -193,8 +197,10 @@ migrate((app) => {
     name: "comments",
     type: "base",
     fields: [
-      { name: "skillId",       type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "userId",        type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",       type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "userId",        type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "body",          type: "text" },
       { name: "softDeletedAt", type: "date" },
       { name: "deletedBy",     type: "text" },
@@ -217,8 +223,10 @@ migrate((app) => {
     name: "persona_comments",
     type: "base",
     fields: [
-      { name: "personaId",     type: "relation", options: { collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true } },
-      { name: "userId",        type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "personaId",     type: "relation", collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true },
+      { name: "userId",        type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "body",          type: "text" },
       { name: "softDeletedAt", type: "date" },
       { name: "deletedBy",     type: "text" },
@@ -241,8 +249,10 @@ migrate((app) => {
     name: "stars",
     type: "base",
     fields: [
-      { name: "skillId", type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "userId",  type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId", type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "userId",  type: "relation", collectionId: users.id, maxSelect: 1 },
     ],
     indexes: [
       "CREATE INDEX idx_stars_skill ON stars (skillId)",
@@ -263,8 +273,10 @@ migrate((app) => {
     name: "persona_stars",
     type: "base",
     fields: [
-      { name: "personaId", type: "relation", options: { collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true } },
-      { name: "userId",    type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "personaId", type: "relation", collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true },
+      { name: "userId",    type: "relation", collectionId: users.id, maxSelect: 1 },
     ],
     indexes: [
       "CREATE INDEX idx_ps_persona ON persona_stars (personaId)",
@@ -285,8 +297,10 @@ migrate((app) => {
     name: "skill_reports",
     type: "base",
     fields: [
-      { name: "skillId", type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "userId",  type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId", type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "userId",  type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "reason",  type: "text" },
     ],
     indexes: [
@@ -307,13 +321,15 @@ migrate((app) => {
     name: "skill_embeddings",
     type: "base",
     fields: [
-      { name: "skillId",    type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "versionId",  type: "relation", options: { collectionId: "hub_skill_versions", maxSelect: 1, cascadeDelete: true } },
-      { name: "ownerId",    type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",    type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "versionId",  type: "relation", collectionId: "hub_skill_versions", maxSelect: 1, cascadeDelete: true },
+      { name: "ownerId",    type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "embedding",  type: "json" },
       { name: "isLatest",   type: "bool" },
       { name: "isApproved", type: "bool" },
-      { name: "visibility",  type: "select", options: { values: ["latest","latest-approved","all"], maxSelect: 1 } },
+      { name: "visibility",  type: "select", values: ["latest","latest-approved","all"], maxSelect: 1 },
     ],
     indexes: [
       "CREATE INDEX idx_se_skill ON skill_embeddings (skillId)",
@@ -333,13 +349,15 @@ migrate((app) => {
     name: "persona_embeddings",
     type: "base",
     fields: [
-      { name: "personaId",  type: "relation", options: { collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true } },
-      { name: "versionId",  type: "relation", options: { collectionId: "hub_persona_versions", maxSelect: 1, cascadeDelete: true } },
-      { name: "ownerId",    type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "personaId",  type: "relation", collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true },
+      { name: "versionId",  type: "relation", collectionId: "hub_persona_versions", maxSelect: 1, cascadeDelete: true },
+      { name: "ownerId",    type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "embedding",  type: "json" },
       { name: "isLatest",   type: "bool" },
       { name: "isApproved", type: "bool" },
-      { name: "visibility",  type: "select", options: { values: ["latest","latest-approved","all"], maxSelect: 1 } },
+      { name: "visibility",  type: "select", values: ["latest","latest-approved","all"], maxSelect: 1 },
     ],
     indexes: [
       "CREATE INDEX idx_pe_persona ON persona_embeddings (personaId)",
@@ -359,9 +377,11 @@ migrate((app) => {
     name: "skill_badges",
     type: "base",
     fields: [
-      { name: "skillId",   type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "kind",      type: "select",   options: { values: ["highlighted","official","deprecated","redactionApproved"], maxSelect: 1 } },
-      { name: "byUserId",  type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",   type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "kind",      type: "select", values: ["highlighted","official","deprecated","redactionApproved"], maxSelect: 1 },
+      { name: "byUserId",  type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "at",        type: "date" },
     ],
     indexes: [
@@ -382,9 +402,11 @@ migrate((app) => {
     name: "api_tokens",
     type: "base",
     fields: [
-      { name: "userId",     type: "relation", options: { collectionId: "hub_users", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "userId",     type: "relation", collectionId: users.id, maxSelect: 1, cascadeDelete: true },
       { name: "label",      type: "text" },
-      { name: "prefix",     type: "text",     options: { maxSize: 16 } },
+      { name: "prefix",     type: "text", max: 16 },
       { name: "tokenHash",  type: "text" },
       { name: "lastUsedAt", type: "date" },
       { name: "revokedAt",  type: "date" },
@@ -407,10 +429,12 @@ migrate((app) => {
     name: "skill_daily_stats",
     type: "base",
     fields: [
-      { name: "skillId",   type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",   type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
       { name: "day",       type: "number" },
-      { name: "downloads", type: "number", options: { min: 0 } },
-      { name: "installs",  type: "number", options: { min: 0 } },
+      { name: "downloads", type: "number", min: 0 },
+      { name: "installs",  type: "number", min: 0 },
     ],
     indexes: [
       "CREATE UNIQUE INDEX idx_sds_skill_day ON skill_daily_stats (skillId, day)",
@@ -430,7 +454,9 @@ migrate((app) => {
     name: "skill_leaderboards",
     type: "base",
     fields: [
-      { name: "kind",          type: "text",   options: { maxSize: 32 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "kind",          type: "text", max: 32 },
       { name: "generatedAt",   type: "date" },
       { name: "rangeStartDay", type: "number" },
       { name: "rangeEndDay",   type: "number" },
@@ -453,8 +479,10 @@ migrate((app) => {
     name: "skill_stat_events",
     type: "base",
     fields: [
-      { name: "skillId",     type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "kind",        type: "text",     options: { maxSize: 32 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",     type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "kind",        type: "text", max: 32 },
       { name: "delta",       type: "json" },
       { name: "occurredAt",  type: "date" },
       { name: "processedAt", type: "date" },
@@ -477,9 +505,11 @@ migrate((app) => {
     name: "audit_logs",
     type: "base",
     fields: [
-      { name: "actorUserId", type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
-      { name: "action",      type: "text",     options: { maxSize: 64 } },
-      { name: "targetType",  type: "text",     options: { maxSize: 32 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "actorUserId", type: "relation", collectionId: users.id, maxSelect: 1 },
+      { name: "action",      type: "text", max: 64 },
+      { name: "targetType",  type: "text", max: 32 },
       { name: "targetId",    type: "text" },
       { name: "metadata",    type: "json" },
     ],
@@ -501,7 +531,9 @@ migrate((app) => {
     name: "vt_scan_logs",
     type: "base",
     fields: [
-      { name: "scanType",      type: "select", options: { values: ["daily_rescan","backfill","pending_poll"], maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "scanType",      type: "select", values: ["daily_rescan","backfill","pending_poll"], maxSelect: 1 },
       { name: "total",         type: "number" },
       { name: "scanUpdated",   type: "number" },
       { name: "unchanged",     type: "number" },
@@ -526,7 +558,9 @@ migrate((app) => {
     name: "download_dedupes",
     type: "base",
     fields: [
-      { name: "skillId",      type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",      type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
       { name: "identityHash", type: "text" },
       { name: "hourStart",    type: "date" },
     ],
@@ -548,8 +582,10 @@ migrate((app) => {
     name: "reserved_slugs",
     type: "base",
     fields: [
-      { name: "slug",                type: "text",     options: { maxSize: 128 } },
-      { name: "originalOwnerUserId", type: "relation", options: { collectionId: "hub_users", maxSelect: 1 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "slug",                type: "text", max: 128 },
+      { name: "originalOwnerUserId", type: "relation", collectionId: users.id, maxSelect: 1 },
       { name: "deletedAt",           type: "date" },
       { name: "expiresAt",           type: "date" },
       { name: "reason",              type: "text" },
@@ -573,8 +609,10 @@ migrate((app) => {
     name: "skill_version_fingerprints",
     type: "base",
     fields: [
-      { name: "skillId",     type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
-      { name: "versionId",   type: "relation", options: { collectionId: "hub_skill_versions", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "skillId",     type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
+      { name: "versionId",   type: "relation", collectionId: "hub_skill_versions", maxSelect: 1, cascadeDelete: true },
       { name: "fingerprint", type: "text" },
     ],
     indexes: [
@@ -596,8 +634,10 @@ migrate((app) => {
     name: "persona_version_fingerprints",
     type: "base",
     fields: [
-      { name: "personaId",   type: "relation", options: { collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true } },
-      { name: "versionId",   type: "relation", options: { collectionId: "hub_persona_versions", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "personaId",   type: "relation", collectionId: "hub_personas", maxSelect: 1, cascadeDelete: true },
+      { name: "versionId",   type: "relation", collectionId: "hub_persona_versions", maxSelect: 1, cascadeDelete: true },
       { name: "fingerprint", type: "text" },
     ],
     indexes: [
@@ -619,7 +659,9 @@ migrate((app) => {
     name: "user_sync_roots",
     type: "base",
     fields: [
-      { name: "userId",      type: "relation", options: { collectionId: "hub_users", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "userId",      type: "relation", collectionId: users.id, maxSelect: 1, cascadeDelete: true },
       { name: "rootId",      type: "text" },
       { name: "label",       type: "text" },
       { name: "firstSeenAt", type: "date" },
@@ -644,12 +686,14 @@ migrate((app) => {
     name: "user_skill_installs",
     type: "base",
     fields: [
-      { name: "userId",      type: "relation", options: { collectionId: "hub_users", maxSelect: 1, cascadeDelete: true } },
-      { name: "skillId",     type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "userId",      type: "relation", collectionId: users.id, maxSelect: 1, cascadeDelete: true },
+      { name: "skillId",     type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
       { name: "firstSeenAt", type: "date" },
       { name: "lastSeenAt",  type: "date" },
-      { name: "activeRoots", type: "number",   options: { min: 0 } },
-      { name: "lastVersion", type: "text",     options: { maxSize: 64 } },
+      { name: "activeRoots", type: "number", min: 0 },
+      { name: "lastVersion", type: "text", max: 64 },
     ],
     indexes: [
       "CREATE INDEX idx_usi_user ON user_skill_installs (userId)",
@@ -670,12 +714,14 @@ migrate((app) => {
     name: "user_skill_root_installs",
     type: "base",
     fields: [
-      { name: "userId",      type: "relation", options: { collectionId: "hub_users", maxSelect: 1, cascadeDelete: true } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "userId",      type: "relation", collectionId: users.id, maxSelect: 1, cascadeDelete: true },
       { name: "rootId",      type: "text" },
-      { name: "skillId",     type: "relation", options: { collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true } },
+      { name: "skillId",     type: "relation", collectionId: "hub_skills", maxSelect: 1, cascadeDelete: true },
       { name: "firstSeenAt", type: "date" },
       { name: "lastSeenAt",  type: "date" },
-      { name: "lastVersion", type: "text",     options: { maxSize: 64 } },
+      { name: "lastVersion", type: "text", max: 64 },
       { name: "removedAt",   type: "date" },
     ],
     indexes: [
@@ -697,7 +743,9 @@ migrate((app) => {
     name: "github_backup_sync_state",
     type: "base",
     fields: [
-      { name: "key",    type: "text", options: { maxSize: 64 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "key",    type: "text", max: 64 },
       { name: "cursor", type: "text" },
     ],
     indexes: [
@@ -717,7 +765,9 @@ migrate((app) => {
     name: "skill_stat_update_cursors",
     type: "base",
     fields: [
-      { name: "key",                 type: "text", options: { maxSize: 64 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "key",                 type: "text", max: 64 },
       { name: "cursorCreationTime",  type: "date" },
     ],
     indexes: [
@@ -737,7 +787,9 @@ migrate((app) => {
     name: "skill_stat_backfill_state",
     type: "base",
     fields: [
-      { name: "key",    type: "text",  options: { maxSize: 64 } },
+      { name: "created",           type: "autodate", onCreate: true, onUpdate: false },
+      { name: "updated",           type: "autodate", onCreate: true, onUpdate: true },
+      { name: "key",    type: "text", max: 64 },
       { name: "cursor", type: "text" },
       { name: "doneAt", type: "date" },
     ],
@@ -765,7 +817,7 @@ migrate((app) => {
     "persona_embeddings", "skill_embeddings",
     "persona_stars", "stars", "persona_comments", "comments",
     "skill_reports", "persona_versions", "personas",
-    "skill_versions", "skills", "users",
+    "skill_versions", "skills",
   ]
   for (const name of names) {
     try { app.delete(app.findCollectionByNameOrId(name)) } catch {}

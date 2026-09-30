@@ -1,7 +1,7 @@
 import { parseArk, WellKnownConfigSchema } from './schema/index.js'
 
 export async function discoverRegistryFromSite(siteUrl: string) {
-  const paths = ['/.well-known/bothub.json', '/.well-known/bothub.json']
+  const paths = ['/.well-known/bothub.json']
   for (const path of paths) {
     const url = new URL(path, siteUrl)
     const response = await fetch(url.toString(), {

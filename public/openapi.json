@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "Public REST API for skills. Rate limits: read 120/min per IP + 600/min per key; write 30/min per IP + 120/min per key."
   },
-  "servers": [{ "url": "https://hub.hanzo.bot" }],
+  "servers": [{ "url": "https://api.hanzo.ai" }],
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -186,7 +186,7 @@
     }
   },
   "paths": {
-    "/v1/search": {
+    "/v1/skills/search": {
       "get": {
         "summary": "Search skills",
         "parameters": [
@@ -202,7 +202,7 @@
         }
       }
     },
-    "/v1/resolve": {
+    "/v1/skills/resolve": {
       "get": {
         "summary": "Resolve version by hash",
         "parameters": [
@@ -353,7 +353,7 @@
         }
       }
     },
-    "/v1/download": {
+    "/v1/skills/download": {
       "get": {
         "summary": "Download zip",
         "parameters": [
@@ -366,7 +366,7 @@
         }
       }
     },
-    "/v1/whoami": {
+    "/v1/skills/whoami": {
       "get": {
         "summary": "Current user",
         "security": [{ "bearerAuth": [] }],

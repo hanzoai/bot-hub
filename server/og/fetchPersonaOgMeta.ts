@@ -7,7 +7,7 @@ export type PersonaOgMeta = {
 
 export async function fetchPersonaOgMeta(slug: string, apiBase: string): Promise<PersonaOgMeta | null> {
   try {
-    const url = new URL(`/v1/personas/${encodeURIComponent(slug)}`, apiBase)
+    const url = new URL(`/v1/skills/personas/${encodeURIComponent(slug)}/detail`, apiBase)
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
     if (!response.ok) return null
     const payload = (await response.json()) as {

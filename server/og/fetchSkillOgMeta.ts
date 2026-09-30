@@ -7,7 +7,7 @@ export type SkillOgMeta = {
 
 export async function fetchSkillOgMeta(slug: string, apiBase: string): Promise<SkillOgMeta | null> {
   try {
-    const url = new URL(`/v1/skills/${encodeURIComponent(slug)}`, apiBase)
+    const url = new URL(`/v1/skills/${encodeURIComponent(slug)}/detail`, apiBase)
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
     if (!response.ok) return null
     const payload = (await response.json()) as {

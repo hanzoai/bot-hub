@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { base, ensureAdminAuth } from '../db/index.js'
+import { base, lit } from '../db/index.js'
 import { optionalAuth } from '../middleware/auth.js'
 import type { AuthUser } from '../middleware/auth.js'
 
@@ -26,10 +26,9 @@ integrationsRouter.get('/', optionalAuth, async (c) => {
     'batch = "integration"',
   ]
   if (cursor) {
-    filters.push(`updated < "${cursor}"`)
+    filters.push(`updated < ${lit(cursor)}`)
   }
 
-  await ensureAdminAuth()
   const result = await base.collection('skills').getList(1, limit + 1, {
     filter: filters.join(' && '),
     sort: sortField,
@@ -44,8 +43,8 @@ integrationsRouter.get('/', optionalAuth, async (c) => {
     batch: r.batch,
     statsDownloads: r.statsDownloads ?? 0,
     statsStars: r.statsStars ?? 0,
-    createdAt: r.created,
-    updatedAt: r.updated,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
     latestVersionId: r.latestVersionId,
   }))
 
@@ -56,11 +55,10 @@ integrationsRouter.get('/', optionalAuth, async (c) => {
 integrationsRouter.get('/:slug', optionalAuth, async (c) => {
   const slug = c.req.param('slug')
 
-  await ensureAdminAuth()
   let skill: any
   try {
     skill = await base.collection('skills').getFirstListItem(
-      `slug = "${slug}" && batch = "integration" && softDeletedAt = ""`,
+      `slug = ${lit(slug)} && batch = "integration" && softDeletedAt = ""`,
     )
   } catch {
     return c.json({ error: 'Not found' }, 404)

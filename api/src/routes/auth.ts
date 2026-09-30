@@ -1,25 +1,36 @@
 import { Hono } from 'hono'
-import { base, ensureAdminAuth } from '../db/index.js'
-import { env } from '../lib/env.js'
+import { base, lit, ensureAdminAuth } from '../db/index.js'
+import { env, siteOrigins } from '../lib/env.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
 
 export const authRouter = new Hono()
 
 // ─── OAuth: Start login flow ────────────────────────────────────────────────
+// IAM sends the browser back to this API's own callback. The site to land on
+// afterwards rides in `state`, and only a Bot Hub site is accepted there.
+const callbackUrl = `${env.apiUrl}/v1/skills/auth/callback`
+
 authRouter.get('/login', (c) => {
-  const redirectUri = c.req.query('redirect_uri') ?? `${env.publicUrl}/v1/auth/callback`
-  const state = c.req.query('state') ?? crypto.randomUUID()
+  const back = c.req.query('return') ?? env.publicUrl
+  if (!siteOrigins.has(back)) return c.json({ error: `${back} is not a Bot Hub site` }, 400)
 
   const authUrl = new URL(`${env.iamUrl}/v1/iam/oauth/authorize`)
   authUrl.searchParams.set('client_id', env.iamClientId)
   authUrl.searchParams.set('response_type', 'code')
-  authUrl.searchParams.set('redirect_uri', redirectUri)
+  authUrl.searchParams.set('redirect_uri', callbackUrl)
   authUrl.searchParams.set('scope', 'openid profile email')
-  authUrl.searchParams.set('state', state)
+  authUrl.searchParams.set('state', `${crypto.randomUUID()}.${Buffer.from(back).toString('base64url')}`)
 
   return c.redirect(authUrl.toString())
 })
+
+// The site a sign-in started from, read back out of `state`.
+function returnOf(state: string | undefined): string {
+  const encoded = state?.split('.')[1]
+  const back = encoded ? Buffer.from(encoded, 'base64url').toString() : ''
+  return siteOrigins.has(back) ? back : env.publicUrl
+}
 
 // ─── OAuth: Callback ────────────────────────────────────────────────────────
 authRouter.get('/callback', async (c) => {
@@ -42,7 +53,7 @@ authRouter.get('/callback', async (c) => {
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: `${env.publicUrl}/v1/auth/callback`,
+      redirect_uri: callbackUrl,
       client_id: env.iamClientId,
       client_secret: env.iamClientSecret,
     }),
@@ -82,7 +93,7 @@ authRouter.get('/callback', async (c) => {
   let user: any = null
   try {
     user = await base.collection('users').getFirstListItem(
-      `email = "${profile.email ?? ''}"`,
+      `email = ${lit(profile.email ?? '')}`,
     )
   } catch { /* not found */ }
 
@@ -104,14 +115,10 @@ authRouter.get('/callback', async (c) => {
     })
   }
 
-  // Use the IAM access token as the session token for the frontend.
-  // The middleware validates against IAM userinfo, so no need for a
-  // separate sessions table.
-  const returnUrl = new URL(env.publicUrl)
-  returnUrl.searchParams.set('session', tokens.access_token)
-  if (state) returnUrl.searchParams.set('state', state)
-
-  return c.redirect(returnUrl.toString())
+  // The IAM access token is the web's session token; the middleware checks it
+  // against IAM userinfo. It travels in the fragment, which no server, log or
+  // Referer header ever sees.
+  return c.redirect(`${returnOf(state)}/#session=${encodeURIComponent(tokens.access_token)}`)
 })
 
 // ─── Get current user ───────────────────────────────────────────────────────
@@ -135,7 +142,7 @@ authRouter.get('/me', requireAuth, async (c) => {
     bio: user.bio,
     role: user.role,
     trustedPublisher: user.trustedPublisher,
-    createdAt: user.created,
+    createdAt: user.createdAt,
   })
 })
 

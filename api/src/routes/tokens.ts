@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { base, ensureAdminAuth } from '../db/index.js'
+import { base, lit, ensureAdminAuth } from '../db/index.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -11,7 +11,7 @@ tokensRouter.get('/', requireAuth, async (c) => {
 
   await ensureAdminAuth()
   const result = await base.collection('api_tokens').getList(1, 200, {
-    filter: `userId = "${user.id}" && revokedAt = ""`,
+    filter: `userId = ${lit(user.id)} && revokedAt = ""`,
   })
 
   const items = result.items.map((t) => ({
@@ -19,7 +19,7 @@ tokensRouter.get('/', requireAuth, async (c) => {
     label: t.label,
     prefix: t.prefix,
     lastUsedAt: t.lastUsedAt || null,
-    createdAt: t.created,
+    createdAt: t.createdAt,
   }))
 
   return c.json({ items })
@@ -63,7 +63,7 @@ tokensRouter.delete('/:id', requireAuth, async (c) => {
   let token: any
   try {
     token = await base.collection('api_tokens').getFirstListItem(
-      `id = "${tokenId}" && userId = "${user.id}"`,
+      `id = ${lit(tokenId)} && userId = ${lit(user.id)}`,
     )
   } catch {
     return c.json({ error: 'Token not found' }, 404)

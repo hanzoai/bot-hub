@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { base, ensureAdminAuth, type Row } from '../db/index.js'
+import { base, lit, ensureAdminAuth, type Row } from '../db/index.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -9,10 +9,9 @@ export const usersRouter = new Hono()
 usersRouter.get('/:handle', async (c) => {
   const handle = c.req.param('handle')
 
-  await ensureAdminAuth()
   let user: any
   try {
-    user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
+    user = await base.collection('users').getFirstListItem(`handle = ${lit(handle)}`)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }
@@ -23,7 +22,7 @@ usersRouter.get('/:handle', async (c) => {
     displayName: user.displayName,
     image: user.image,
     bio: user.bio,
-    createdAt: user.created,
+    createdAt: user.createdAt,
   })
 })
 
@@ -31,16 +30,15 @@ usersRouter.get('/:handle', async (c) => {
 usersRouter.get('/:handle/skills', async (c) => {
   const handle = c.req.param('handle')
 
-  await ensureAdminAuth()
   let user: any
   try {
-    user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
+    user = await base.collection('users').getFirstListItem(`handle = ${lit(handle)}`)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }
 
   const result = await base.collection('skills').getList(1, 200, {
-    filter: `ownerUserId = "${user.id}"`,
+    filter: `ownerUserId = ${lit(user.id)}`,
     sort: '-updated',
   })
 
@@ -51,8 +49,8 @@ usersRouter.get('/:handle/skills', async (c) => {
     summary: s.summary,
     statsDownloads: s.statsDownloads ?? 0,
     statsStars: s.statsStars ?? 0,
-    createdAt: s.created,
-    updatedAt: s.updated,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
   }))
 
   return c.json({ items })
@@ -62,16 +60,15 @@ usersRouter.get('/:handle/skills', async (c) => {
 usersRouter.get('/:handle/stars', async (c) => {
   const handle = c.req.param('handle')
 
-  await ensureAdminAuth()
   let user: any
   try {
-    user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
+    user = await base.collection('users').getFirstListItem(`handle = ${lit(handle)}`)
   } catch {
     return c.json({ error: 'User not found' }, 404)
   }
 
   const result = await base.collection('stars').getList<Row>(1, 200, {
-    filter: `userId = "${user.id}"`,
+    filter: `userId = ${lit(user.id)}`,
     sort: '-created',
     expand: 'skillId',
   })
@@ -83,7 +80,7 @@ usersRouter.get('/:handle/stars', async (c) => {
       skillSlug: skill?.slug ?? null,
       skillDisplayName: skill?.displayName ?? null,
       skillSummary: skill?.summary ?? null,
-      starredAt: s.created,
+      starredAt: s.createdAt,
     }
   })
 

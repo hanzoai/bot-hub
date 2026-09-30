@@ -47,14 +47,13 @@ export function getPersonaSiteUrl() {
 }
 
 export function getApiBase() {
-  const explicit = (import.meta.env.VITE_API_URL ?? '').trim()
-  return explicit || getSiteUrl()
+  return (import.meta.env.VITE_API_URL ?? '').trim() || 'https://api.hanzo.ai'
 }
 
 export async function fetchSkillMeta(slug: string) {
   try {
     const apiBase = getApiBase()
-    const url = new URL(`/v1/skills/${encodeURIComponent(slug)}`, apiBase)
+    const url = new URL(`/v1/skills/${encodeURIComponent(slug)}/detail`, apiBase)
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
     if (!response.ok) return null
     const payload = (await response.json()) as {
@@ -77,7 +76,7 @@ export async function fetchSkillMeta(slug: string) {
 export async function fetchPersonaMeta(slug: string) {
   try {
     const apiBase = getApiBase()
-    const url = new URL(`/v1/personas/${encodeURIComponent(slug)}`, apiBase)
+    const url = new URL(`/v1/skills/personas/${encodeURIComponent(slug)}/detail`, apiBase)
     const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
     if (!response.ok) return null
     const payload = (await response.json()) as {

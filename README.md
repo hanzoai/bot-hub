@@ -1,10 +1,3 @@
-> **Retired — this is a stale copy of `hanzoai/bot-hub`.**
->
-> Every branch here is reachable from `hanzoai/bot-hub` — 3 refs, not one commit it lacks — and this copy has no push mirror, so anything committed here reached nothing.
->
-> It also declared `ghcr.io/hanzoai/bot-hub`, the tag `hanzoai/bot-hub` owns, so a push here
-> could have published over it. That declaration is removed.
-
 <p align="center"><img src=".github/hero.svg" alt="bot-hub" width="880"></p>
 
 # Bot Hub

@@ -1,8 +1,6 @@
-import { Hono } from 'hono'
-import { base, ensureAdminAuth, type Row } from '../db/index.js'
-import { generateEmbedding } from '../lib/embeddings.js'
-
-export const searchRouter = new Hono()
+import type { Context } from 'hono'
+import { base, lit, type Row } from '../db/index.js'
+import { embeddingsEnabled, generateEmbedding } from '../lib/embeddings.js'
 
 // ─── Cosine similarity helper ───────────────────────────────────────────────
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -15,16 +13,14 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB))
 }
 
-// ─── Search skills (hybrid: vector + lexical) ──────────────────────────────
-searchRouter.get('/skills', async (c) => {
+// ─── Search skills (hybrid: vector + lexical) — GET /v1/skills/search ───────
+export async function searchSkills(c: Context) {
   const query = c.req.query('q')?.trim()
   const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
 
   if (!query) return c.json({ items: [] })
 
-  await ensureAdminAuth()
-
-  // Try vector search
+  // Vector search, when embeddings are configured
   let vectorResults: Array<{
     id: string
     slug: string
@@ -37,56 +33,58 @@ searchRouter.get('/skills', async (c) => {
     score: number
   }> = []
 
-  try {
-    const queryVector = await generateEmbedding(query)
+  if (embeddingsEnabled()) {
+    try {
+      const queryVector = await generateEmbedding(query)
 
-    // Fetch all latest embeddings (dataset is small enough for in-memory cosine)
-    const embeddingsResult = await base.collection('skill_embeddings').getFullList<Row>({
-      filter: 'isLatest = true && (visibility = "latest" || visibility = "latest-approved")',
-    })
+      // Fetch all latest embeddings (dataset is small enough for in-memory cosine)
+      const embeddingsResult = await base.collection('skill_embeddings').getFullList<Row>({
+        filter: 'isLatest = true && (visibility = "latest" || visibility = "latest-approved")',
+      })
 
-    // Score each embedding
-    const scored = embeddingsResult
-      .filter((e) => Array.isArray(e.embedding) && e.embedding.length > 0)
-      .map((e) => ({
-        skillId: e.skillId,
-        score: cosineSimilarity(queryVector, e.embedding as number[]),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit * 3)
+      // Score each embedding
+      const scored = embeddingsResult
+        .filter((e) => Array.isArray(e.embedding) && e.embedding.length > 0)
+        .map((e) => ({
+          skillId: e.skillId,
+          score: cosineSimilarity(queryVector, e.embedding as number[]),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit * 3)
 
-    // Fetch skill details
-    for (const s of scored) {
-      try {
-        const skill = await base.collection('skills').getOne<Row>(s.skillId, {
-          expand: 'ownerUserId',
-        })
-        if (skill.softDeletedAt || skill.moderationStatus !== 'active') continue
-        const owner = skill.expand?.ownerUserId
-        vectorResults.push({
-          id: skill.id,
-          slug: skill.slug,
-          displayName: skill.displayName,
-          summary: skill.summary,
-          ownerHandle: owner?.handle ?? null,
-          ownerImage: owner?.image ?? null,
-          statsDownloads: skill.statsDownloads ?? 0,
-          statsStars: skill.statsStars ?? 0,
-          score: s.score,
-        })
-      } catch { /* skip missing skills */ }
+      // Fetch skill details
+      for (const s of scored) {
+        try {
+          const skill = await base.collection('skills').getOne<Row>(s.skillId, {
+            expand: 'ownerUserId',
+          })
+          if (skill.softDeletedAt || skill.moderationStatus !== 'active') continue
+          const owner = skill.expand?.ownerUserId
+          vectorResults.push({
+            id: skill.id,
+            slug: skill.slug,
+            displayName: skill.displayName,
+            summary: skill.summary,
+            ownerHandle: owner?.handle ?? null,
+            ownerImage: owner?.image ?? null,
+            statsDownloads: skill.statsDownloads ?? 0,
+            statsStars: skill.statsStars ?? 0,
+            score: s.score,
+          })
+        } catch { /* skip missing skills */ }
+      }
+    } catch (err) {
+      console.warn('Vector search failed, falling back to lexical:', err)
     }
-  } catch (err) {
-    console.warn('Vector search failed, falling back to lexical:', err)
   }
 
   // Lexical search
-  const escapedQuery = query.replace(/"/g, '\\"')
+  const q = lit(query)
   const lexResult = await base.collection('skills').getList<Row>(1, limit, {
     filter: [
       'softDeletedAt = ""',
       'moderationStatus = "active"',
-      `(slug ~ "${escapedQuery}" || displayName ~ "${escapedQuery}" || summary ~ "${escapedQuery}")`,
+      `(slug ~ ${q} || displayName ~ ${q} || summary ~ ${q})`,
     ].join(' && '),
     sort: '-statsDownloads',
     expand: 'ownerUserId',
@@ -124,22 +122,21 @@ searchRouter.get('/skills', async (c) => {
   }
 
   return c.json({ items: merged.slice(0, limit) })
-})
+}
 
-// ─── Search personas ───────────────────────────────────────────────────────────
-searchRouter.get('/personas', async (c) => {
+// ─── Search personas — GET /v1/skills/personas/search ─────────────────────────
+export async function searchPersonas(c: Context) {
   const query = c.req.query('q')?.trim()
   const limit = Math.min(Number(c.req.query('limit') ?? 20), 100)
 
   if (!query) return c.json({ items: [] })
 
-  await ensureAdminAuth()
-  const escapedQuery = query.replace(/"/g, '\\"')
+  const q = lit(query)
 
   const result = await base.collection('personas').getList<Row>(1, limit, {
     filter: [
       'softDeletedAt = ""',
-      `(slug ~ "${escapedQuery}" || displayName ~ "${escapedQuery}" || summary ~ "${escapedQuery}")`,
+      `(slug ~ ${q} || displayName ~ ${q} || summary ~ ${q})`,
     ].join(' && '),
     sort: '-statsDownloads',
     expand: 'ownerUserId',
@@ -160,4 +157,4 @@ searchRouter.get('/personas', async (c) => {
   })
 
   return c.json({ items })
-})
+}

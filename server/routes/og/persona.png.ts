@@ -1,5 +1,5 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
-import { defineEventHandler, getQuery, getRequestHost, setHeader } from 'h3'
+import { defineEventHandler, getQuery, setHeader } from 'h3'
 
 import type { PersonaOgMeta } from '../../og/fetchPersonaOgMeta'
 import { fetchPersonaOgMeta } from '../../og/fetchPersonaOgMeta'
@@ -28,15 +28,8 @@ function cleanString(value: unknown) {
   return value.trim()
 }
 
-function getApiBase(eventHost: string | null) {
-  const direct = (process.env.VITE_API_URL ?? '').trim()
-  if (direct) return direct
-
-  const site = process.env.SITE_URL?.trim() || process.env.VITE_SITE_URL?.trim()
-  if (site) return site
-
-  if (eventHost) return `https://${eventHost}`
-  return 'https://personas.hanzo.ai'
+function getApiBase() {
+  return (process.env.VITE_API_URL ?? '').trim() || 'https://api.hanzo.ai'
 }
 
 async function ensureWasm() {
@@ -66,7 +59,7 @@ export default defineEventHandler(async (event) => {
 
   const needFetch = !titleFromQuery || !descriptionFromQuery || !ownerFromQuery || !versionFromQuery
   const meta: PersonaOgMeta | null = needFetch
-    ? await fetchPersonaOgMeta(slug, getApiBase(getRequestHost(event)))
+    ? await fetchPersonaOgMeta(slug, getApiBase())
     : null
 
   const owner = ownerFromQuery || meta?.owner || ''

@@ -20,7 +20,7 @@ bun bothub --help
 - `--workdir <dir>`: working directory (default: cwd; falls back to Clawdbot workspace if configured)
 - `--dir <dir>`: install dir under workdir (default: `skills`)
 - `--site <url>`: base URL for browser login (default: `https://hub.hanzo.bot`)
-- `--registry <url>`: API base URL (default: discovered, else `https://hub.hanzo.bot`)
+- `--registry <url>`: API base URL (default: discovered, else `https://api.hanzo.ai`)
 - `--no-input`: disable prompts
 
 Env equivalents:
@@ -45,17 +45,17 @@ Stores your API token + cached registry URL.
 
 ### `whoami`
 
-- Verifies the stored token via `/v1/whoami`.
+- Verifies the stored token via `/v1/skills/whoami`.
 
 ### `star <slug>` / `unstar <slug>`
 
 - Adds/removes a skill from your highlights.
-- Calls `POST /v1/stars/<slug>` and `DELETE /v1/stars/<slug>`.
+- Calls `POST /v1/skills/stars/<slug>` and `DELETE /v1/skills/stars/<slug>`.
 - `--yes` skips confirmation.
 
 ### `search <query...>`
 
-- Calls `/v1/search?q=...`.
+- Calls `/v1/skills/search?q=...`.
 
 ### `explore`
 
@@ -80,7 +80,7 @@ Stores your API token + cached registry URL.
 ### `install <slug>`
 
 - Resolves latest version via `/v1/skills/<slug>`.
-- Downloads zip via `/v1/download`.
+- Downloads zip via `/v1/skills/download`.
 - Extracts into `<workdir>/<dir>/<slug>`.
 - Writes:
   - `<workdir>/.bothub/lock.json` (legacy `.bothub`)
@@ -134,7 +134,7 @@ Stores your API token + cached registry URL.
 ### `ban-user <handleOrId>`
 
 - Ban a user and delete owned skills (moderator/admin only).
-- Calls `POST /v1/users/ban`.
+- Calls `POST /v1/skills/users/ban`.
 - `--id` treats the argument as a user id instead of a handle.
 - `--fuzzy` resolves the handle via fuzzy user search (admin only).
 - `--reason` records an optional ban reason.
@@ -143,7 +143,7 @@ Stores your API token + cached registry URL.
 ### `set-role <handleOrId> <role>`
 
 - Change a user role (admin only).
-- Calls `POST /v1/users/role`.
+- Calls `POST /v1/skills/users/role`.
 - `--id` treats the argument as a user id instead of a handle.
 - `--fuzzy` resolves the handle via fuzzy user search (admin only).
 - `--yes` skips confirmation.

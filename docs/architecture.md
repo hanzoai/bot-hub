@@ -29,13 +29,13 @@ read_when:
 
 ### Search (HTTP)
 
-- `/v1/search?q=...` routes to Convex action for vector search.
+- `/v1/skills/search?q=...` routes to Convex action for vector search.
 - Embeddings currently generated during publish.
 
 ### Install (CLI)
 
 - Resolve latest version via `/v1/skills/<slug>`.
-- Download zip via `/v1/download?slug=...&version=...`.
+- Download zip via `/v1/skills/download?slug=...&version=...`.
 - Extract into `./skills/<slug>` (default).
 - Persist install state:
   - `./.bothub/lock.json` (per workdir, legacy `.bothub`)
@@ -43,7 +43,7 @@ read_when:
 
 ### Update (CLI)
 
-- Hash local files, call `/v1/resolve?slug=...&hash=<sha256>`.
+- Hash local files, call `/v1/skills/resolve?slug=...&hash=<sha256>`.
 - If local matches a known version → use that for “current”.
 - If local doesn’t match:
   - refuse by default

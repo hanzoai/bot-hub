@@ -7,7 +7,7 @@ read_when:
 
 # API v1
 
-Base: `https://hub.hanzo.bot`
+Base: `https://api.hanzo.ai` (every path under `/v1/skills`)
 
 OpenAPI: `/openapi.json`
 
@@ -29,20 +29,20 @@ Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Ret
 
 Public read:
 
-- `GET /v1/search?q=...`
+- `GET /v1/skills/search?q=...`
 - `GET /v1/skills?limit=&cursor=&sort=`
   - `sort`: `updated` (default), `downloads`, `stars` (`rating`), `installsCurrent` (`installs`), `installsAllTime`, `trending`
 - `GET /v1/skills/{slug}`
 - `GET /v1/skills/{slug}/versions?limit=&cursor=`
 - `GET /v1/skills/{slug}/versions/{version}`
 - `GET /v1/skills/{slug}/file?path=&version=&tag=`
-- `GET /v1/resolve?slug=&hash=`
-- `GET /v1/download?slug=&version=&tag=`
+- `GET /v1/skills/resolve?slug=&hash=`
+- `GET /v1/skills/download?slug=&version=&tag=`
 
 Auth required:
 
 - `POST /v1/skills` (publish, multipart preferred)
 - `DELETE /v1/skills/{slug}`
 - `POST /v1/skills/{slug}/undelete`
-- `GET /v1/whoami`
+- `GET /v1/skills/whoami`
 

@@ -1,6 +1,7 @@
 import type { Context, Next } from 'hono'
 import { createMiddleware } from 'hono/factory'
-import { base, ensureAdminAuth } from '../db/index.js'
+import { HTTPException } from 'hono/http-exception'
+import { base, lit, ensureAdminAuth } from '../db/index.js'
 import { env } from '../lib/env.js'
 
 export type AuthUser = {
@@ -22,10 +23,11 @@ export const requireAuth = createMiddleware<{ Variables: { user: AuthUser } }>(
   },
 )
 
-/** Middleware: optionally sets c.var.user if auth header present */
+/** Middleware: optionally sets c.var.user if auth header present. A caller
+ * who cannot be resolved reads as anonymous. */
 export const optionalAuth = createMiddleware<{ Variables: { user: AuthUser | null } }>(
   async (c: Context, next: Next) => {
-    const user = await resolveUser(c)
+    const user = await resolveUser(c).catch(() => null)
     c.set('user', user)
     return next()
   },
@@ -73,13 +75,13 @@ async function resolveIamToken(token: string): Promise<AuthUser | null> {
     let user: any = null
     if (email) {
       try {
-        user = await base.collection('users').getFirstListItem(`email = "${email}"`)
+        user = await base.collection('users').getFirstListItem(`email = ${lit(email)}`)
       } catch { /* not found */ }
     }
 
     if (!user && handle) {
       try {
-        user = await base.collection('users').getFirstListItem(`handle = "${handle}"`)
+        user = await base.collection('users').getFirstListItem(`handle = ${lit(handle)}`)
       } catch { /* not found */ }
     }
 
@@ -101,7 +103,9 @@ async function resolveIamToken(token: string): Promise<AuthUser | null> {
       role: user.role,
       email: user.email,
     }
-  } catch {
+  } catch (err) {
+    // The store refusing is not a bad credential; say so rather than 401.
+    if (err instanceof HTTPException) throw err
     return null
   }
 }
@@ -114,7 +118,7 @@ async function resolveApiToken(token: string): Promise<AuthUser | null> {
     let record: any
     try {
       record = await base.collection('api_tokens').getFirstListItem(
-        `tokenHash = "${hash}"`,
+        `tokenHash = ${lit(hash)}`,
       )
     } catch {
       return null
@@ -140,7 +144,9 @@ async function resolveApiToken(token: string): Promise<AuthUser | null> {
       role: user.role,
       email: user.email,
     }
-  } catch {
+  } catch (err) {
+    // The store refusing is not a bad credential; say so rather than 401.
+    if (err instanceof HTTPException) throw err
     return null
   }
 }

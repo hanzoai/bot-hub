@@ -37,8 +37,8 @@ beforeEach(() => {
 
 describe('registry resolution', () => {
   it('prefers explicit registry over discovery/cache', async () => {
-    readGlobalConfig.mockResolvedValue({ registry: 'https://auth.hub.hanzo.bot' })
-    discoverRegistryFromSite.mockResolvedValue({ apiBase: 'https://hub.hanzo.bot' })
+    readGlobalConfig.mockResolvedValue({ registry: 'https://hub.hanzo.bot' })
+    discoverRegistryFromSite.mockResolvedValue({ apiBase: 'https://api.hanzo.ai' })
 
     const registry = await resolveRegistry(
       makeOpts({ registry: 'https://custom.example', registrySource: 'cli' }),
@@ -49,15 +49,22 @@ describe('registry resolution', () => {
   })
 
   it('ignores legacy registry and updates cache from discovery', async () => {
-    readGlobalConfig.mockResolvedValue({ registry: 'https://auth.hub.hanzo.bot', token: 'tkn' })
-    discoverRegistryFromSite.mockResolvedValue({ apiBase: 'https://hub.hanzo.bot' })
+    readGlobalConfig.mockResolvedValue({ registry: 'https://hub.hanzo.bot', token: 'tkn' })
+    discoverRegistryFromSite.mockResolvedValue({ apiBase: 'https://api.hanzo.ai' })
 
     const registry = await getRegistry(makeOpts(), { cache: true })
 
-    expect(registry).toBe('https://hub.hanzo.bot')
+    expect(registry).toBe('https://api.hanzo.ai')
     expect(writeGlobalConfig).toHaveBeenCalledWith({
-      registry: 'https://hub.hanzo.bot',
+      registry: 'https://api.hanzo.ai',
       token: 'tkn',
     })
+  })
+
+  it('replaces a registry cached from when the site served the API', async () => {
+    readGlobalConfig.mockResolvedValue({ registry: 'https://hub.hanzo.bot', token: 'tkn' })
+    discoverRegistryFromSite.mockResolvedValue(null)
+
+    expect(await resolveRegistry(makeOpts())).toBe('https://api.hanzo.ai')
   })
 })

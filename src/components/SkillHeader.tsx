@@ -266,7 +266,7 @@ export function SkillHeader({
               {!nixPlugin && !modInfo?.isMalwareBlocked && !modInfo?.isRemoved ? (
                 <a
                   className="btn btn-primary"
-                  href={`${API_BASE}/v1/download?slug=${skill.slug}`}
+                  href={`${API_BASE}/v1/skills/download?slug=${skill.slug}`}
                 >
                   Download zip
                 </a>

@@ -124,7 +124,7 @@ export function PersonaDetailPage({ slug }: PersonaDetailPageProps) {
   }
 
   const ownerHandle = owner?.handle ?? owner?.name ?? null
-  const downloadBase = `${API_BASE}/v1/personas/${persona.slug}/file`
+  const downloadBase = `${API_BASE}/v1/skills/personas/${persona.slug}/file`
 
   return (
     <main className="section">

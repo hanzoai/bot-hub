@@ -11,7 +11,7 @@ read_when:
 - Ensure logged in: `bun bothub whoami` (or `bun bothub login`).
 - Optional: set env
   - `BOTHUB_SITE=https://hub.hanzo.bot`
-  - `BOTHUB_REGISTRY=https://hub.hanzo.bot`
+  - `BOTHUB_REGISTRY=https://api.hanzo.ai`
 
 ## Smoke
 - `bun bothub --help`
@@ -40,7 +40,7 @@ read_when:
 ## Delete / undelete (owner/admin)
 - `bun bothub delete bothub-manual-<ts> --yes`
 - Verify hidden:
-- `curl -i "https://hub.hanzo.bot/v1/skills/bothub-manual-<ts>"`
+- `curl -i "https://api.hanzo.ai/v1/skills/bothub-manual-<ts>"`
 - Restore:
   - `bun bothub undelete bothub-manual-<ts> --yes`
 - Cleanup:

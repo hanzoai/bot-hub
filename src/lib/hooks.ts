@@ -25,16 +25,13 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for session token in URL (from OAuth callback)
+    // The sign-in callback hands the session token over in the fragment.
     if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const sessionToken = params.get('session')
+      const sessionToken = new URLSearchParams(window.location.hash.slice(1)).get('session')
       if (sessionToken) {
         setStoredToken(sessionToken)
-        // Clean URL
         const url = new URL(window.location.href)
-        url.searchParams.delete('session')
-        url.searchParams.delete('state')
+        url.hash = ''
         window.history.replaceState(null, '', url.toString())
       }
     }

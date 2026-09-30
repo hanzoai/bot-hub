@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
-import { base, ensureAdminAuth, type Row } from '../db/index.js'
+import { base, lit, ensureAdminAuth, type Row } from '../db/index.js'
 import { buildEmbeddingText, generateEmbedding } from '../lib/embeddings.js'
+import { getFile } from '../lib/storage.js'
 import type { AuthUser } from '../middleware/auth.js'
 import { optionalAuth, requireAuth } from '../middleware/auth.js'
 
@@ -8,6 +9,110 @@ type Env = { Variables: { user: AuthUser | null } }
 type AuthEnv = { Variables: { user: AuthUser } }
 
 export const skillsRouter = new Hono<Env>()
+
+// Names /v1/skills serves as sub-resources (app.ts) or the CLI calls
+// (packages/schema routes.ts). A skill slug is the segment after /v1/skills, so
+// none of these can be one.
+export const RESERVED = new Set([
+  'auth', 'changelog-preview', 'download', 'integrations', 'personas', 'resolve',
+  'search', 'stars', 'telemetry', 'tokens', 'upload', 'users', 'whoami',
+])
+
+// One skill by slug, or null when Base has none. Any other failure is thrown:
+// an unreachable store is not a missing skill.
+async function findSkill(slug: string): Promise<Row | null> {
+  try {
+    return await base.collection('skills').getFirstListItem<Row>(`slug = ${lit(slug)}`, {
+      expand: 'ownerUserId',
+    })
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) return null
+    throw err
+  }
+}
+
+// A hidden or removed skill is its owner's and an admin's; to anyone else it
+// does not exist.
+function visible(skill: Row, user: AuthUser | null): boolean {
+  if (skill.softDeletedAt) return false
+  if (skill.moderationStatus === 'active') return true
+  return !!user && (user.id === skill.ownerUserId || user.role === 'admin')
+}
+
+const time = (at: string) => Date.parse(at.replace(' ', 'T'))
+
+// The record shapes the web's skill page reads (src/lib/types.ts).
+function skillDoc(r: Row) {
+  return {
+    _id: r.id,
+    _creationTime: time(r.createdAt),
+    slug: r.slug,
+    displayName: r.displayName,
+    summary: r.summary || null,
+    ownerUserId: r.ownerUserId,
+    latestVersionId: r.latestVersionId || null,
+    canonicalSkillId: r.canonicalSkillId || null,
+    forkOf: r.forkOf ?? null,
+    tags: r.tags ?? {},
+    badges: r.badges ?? null,
+    stats: {
+      downloads: r.statsDownloads ?? 0,
+      stars: r.statsStars ?? 0,
+      versions: r.statsVersions ?? 0,
+      comments: r.statsComments ?? 0,
+    },
+    quality: r.quality ?? null,
+    moderationStatus: r.moderationStatus || null,
+    moderationReason: r.moderationReason || null,
+    moderationFlags: r.moderationFlags ?? null,
+    reportCount: r.reportCount ?? null,
+    lastReportedAt: r.lastReportedAt ? time(r.lastReportedAt) : null,
+    softDeletedAt: null,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }
+}
+
+type StoredFile = { path: string; size: number; sha256: string; contentType?: string; storageKey?: string; content?: string }
+
+function versionDoc(v: Row) {
+  const files = ((v.files ?? []) as StoredFile[]).map(({ content: _content, ...file }) => file)
+  return {
+    _id: v.id,
+    id: v.id,
+    _creationTime: time(v.createdAt),
+    skillId: v.skillId,
+    version: v.version,
+    changelog: v.changelog,
+    changelogSource: v.changelogSource || null,
+    files,
+    parsed: v.parsed ?? null,
+    createdBy: v.createdBy,
+    vtAnalysis: v.vtAnalysis ?? null,
+    llmAnalysis: v.llmAnalysis ?? null,
+    sha256hash: v.sha256hash || null,
+    createdAt: v.createdAt,
+  }
+}
+
+// One file of a version, as text. A catalogue skill carries its files inline;
+// a published one names an object in storage.
+async function fileText(file: StoredFile): Promise<string> {
+  if (typeof file.content === 'string') return file.content
+  if (file.storageKey) return (await getFile(file.storageKey)).toString('utf8')
+  throw new Error(`file ${file.path} has neither content nor a storage key`)
+}
+
+// A version of this skill by record id, or null.
+async function findVersion(skill: Row, versionId: string): Promise<Row | null> {
+  try {
+    const v = await base.collection('skill_versions').getOne<Row>(versionId)
+    return v.skillId === skill.id && !v.softDeletedAt ? v : null
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) return null
+    throw err
+  }
+}
 
 // ─── List skills (public, paginated) ────────────────────────────────────────
 skillsRouter.get('/', optionalAuth, async (c) => {
@@ -30,15 +135,14 @@ skillsRouter.get('/', optionalAuth, async (c) => {
 
   const batch = c.req.query('batch')
   if (batch) {
-    filters.push(`batch = "${batch}"`)
+    filters.push(`batch = ${lit(batch)}`)
   } else {
     filters.push('batch = ""')
   }
   if (cursor) {
-    filters.push(`updated < "${cursor}"`)
+    filters.push(`updated < ${lit(cursor)}`)
   }
 
-  await ensureAdminAuth()
   const result = await base.collection('skills').getList<Row>(1, limit + 1, {
     filter: filters.join(' && '),
     sort: sortField,
@@ -60,8 +164,8 @@ skillsRouter.get('/', optionalAuth, async (c) => {
       statsStars: r.statsStars ?? 0,
       statsVersions: r.statsVersions ?? 0,
       statsComments: r.statsComments ?? 0,
-      createdAt: r.created,
-      updatedAt: r.updated,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
       ownerHandle: owner?.handle ?? null,
       ownerImage: owner?.image ?? null,
     }
@@ -75,10 +179,9 @@ skillsRouter.get('/', optionalAuth, async (c) => {
 skillsRouter.get('/:slug', optionalAuth, async (c) => {
   const slug = c.req.param('slug')
 
-  await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`, {
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`, {
       expand: 'ownerUserId',
     })
   } catch {
@@ -109,12 +212,55 @@ skillsRouter.get('/:slug', optionalAuth, async (c) => {
     statsStars: skill.statsStars ?? 0,
     statsVersions: skill.statsVersions ?? 0,
     statsComments: skill.statsComments ?? 0,
-    createdAt: skill.created,
-    updatedAt: skill.updated,
+    createdAt: skill.createdAt,
+    updatedAt: skill.updatedAt,
     ownerHandle: owner?.handle ?? null,
     ownerDisplayName: owner?.displayName ?? null,
     ownerImage: owner?.image ?? null,
   })
+})
+
+// ─── Skill detail, as the web's skill page reads it ────────────────────────
+skillsRouter.get('/:slug/detail', optionalAuth, async (c) => {
+  const skill = await findSkill(c.req.param('slug'))
+  if (!skill || !visible(skill, c.get('user'))) return c.json({ error: 'Skill not found' }, 404)
+
+  const latest = skill.latestVersionId ? await findVersion(skill, skill.latestVersionId) : null
+  const owner = skill.expand?.ownerUserId
+  return c.json({
+    skill: skillDoc(skill),
+    latestVersion: latest && versionDoc(latest),
+    owner: owner
+      ? { _id: owner.id, handle: owner.handle ?? null, displayName: owner.displayName ?? null, image: owner.image ?? null }
+      : null,
+    forkOf: null,
+    canonical: null,
+  })
+})
+
+// ─── A version's SKILL.md ───────────────────────────────────────────────────
+skillsRouter.get('/:slug/versions/:versionId/readme', optionalAuth, async (c) => {
+  const skill = await findSkill(c.req.param('slug'))
+  if (!skill || !visible(skill, c.get('user'))) return c.json({ error: 'Skill not found' }, 404)
+  const version = await findVersion(skill, c.req.param('versionId'))
+  if (!version) return c.json({ error: 'Version not found' }, 404)
+
+  const file = ((version.files ?? []) as StoredFile[]).find((f) => /^(skill|readme)\.md$/i.test(f.path))
+  if (!file) return c.json({ error: 'This version has no SKILL.md' }, 404)
+  return c.json({ text: await fileText(file) })
+})
+
+// ─── One file of a version ──────────────────────────────────────────────────
+skillsRouter.get('/:slug/versions/:versionId/file', optionalAuth, async (c) => {
+  const skill = await findSkill(c.req.param('slug'))
+  if (!skill || !visible(skill, c.get('user'))) return c.json({ error: 'Skill not found' }, 404)
+  const version = await findVersion(skill, c.req.param('versionId'))
+  if (!version) return c.json({ error: 'Version not found' }, 404)
+
+  const path = c.req.query('path') ?? ''
+  const file = ((version.files ?? []) as StoredFile[]).find((f) => f.path === path)
+  if (!file) return c.json({ error: `No file ${path} in this version` }, 404)
+  return c.json({ text: await fileText(file), size: file.size, sha256: file.sha256 })
 })
 
 // ─── List versions for a skill ──────────────────────────────────────────────
@@ -122,16 +268,15 @@ skillsRouter.get('/:slug/versions', async (c) => {
   const slug = c.req.param('slug')
   const limit = Math.min(Number(c.req.query('limit') ?? 50), 100)
 
-  await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
   const result = await base.collection('skill_versions').getList(1, limit, {
-    filter: `skillId = "${skill.id}" && softDeletedAt = ""`,
+    filter: `skillId = ${lit(skill.id)} && softDeletedAt = ""`,
     sort: '-created',
   })
 
@@ -144,7 +289,7 @@ skillsRouter.get('/:slug/versions', async (c) => {
     sha256hash: v.sha256hash,
     vtAnalysis: v.vtAnalysis,
     llmAnalysis: v.llmAnalysis,
-    createdAt: v.created,
+    createdAt: v.createdAt,
   }))
 
   return c.json({ items })
@@ -155,10 +300,9 @@ skillsRouter.get('/:slug/versions/:version/files', async (c) => {
   const slug = c.req.param('slug')
   const version = c.req.param('version')
 
-  await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -166,7 +310,7 @@ skillsRouter.get('/:slug/versions/:version/files', async (c) => {
   let sv: any
   try {
     sv = await base.collection('skill_versions').getFirstListItem(
-      `skillId = "${skill.id}" && version = "${version}"`,
+      `skillId = ${lit(skill.id)} && version = ${lit(version)}`,
     )
   } catch {
     return c.json({ error: 'Version not found' }, 404)
@@ -196,13 +340,16 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
     return c.json({ error: 'Slug must be lowercase and url-safe' }, 400)
   }
+  if (RESERVED.has(slug)) {
+    return c.json({ error: `${slug} names a route under /v1/skills and cannot be a skill` }, 400)
+  }
 
   await ensureAdminAuth()
 
   // Find or create skill
   let existing: any = null
   try {
-    existing = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    existing = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch { /* not found */ }
 
   if (existing && existing.ownerUserId !== user.id && user.role !== 'admin') {
@@ -226,7 +373,7 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
   // Check for duplicate version
   try {
     await base.collection('skill_versions').getFirstListItem(
-      `skillId = "${existing.id}" && version = "${body.version}"`,
+      `skillId = ${lit(existing.id)} && version = ${lit(body.version)}`,
     )
     return c.json({ error: `Version ${body.version} already exists` }, 409)
   } catch { /* not found, good */ }
@@ -255,7 +402,7 @@ skillsRouter.post('/:slug/publish', requireAuth, async (c) => {
       await ensureAdminAuth()
       // Mark old embeddings as not latest
       const oldEmbeddings = await base.collection('skill_embeddings').getFullList({
-        filter: `skillId = "${existing.id}" && isLatest = true`,
+        filter: `skillId = ${lit(existing.id)} && isLatest = true`,
       })
       for (const old of oldEmbeddings) {
         await base.collection('skill_embeddings').update(old.id, { isLatest: false })
@@ -287,7 +434,7 @@ skillsRouter.delete('/:slug', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -311,7 +458,7 @@ skillsRouter.post('/:slug/undelete', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -335,7 +482,7 @@ skillsRouter.post('/:slug/stars', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -344,7 +491,7 @@ skillsRouter.post('/:slug/stars', requireAuth, async (c) => {
   let existing: any = null
   try {
     existing = await base.collection('stars').getFirstListItem(
-      `skillId = "${skill.id}" && userId = "${user.id}"`,
+      `skillId = ${lit(skill.id)} && userId = ${lit(user.id)}`,
     )
   } catch { /* not found */ }
 
@@ -374,14 +521,14 @@ skillsRouter.get('/:slug/stars/me', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
   try {
     await base.collection('stars').getFirstListItem(
-      `skillId = "${skill.id}" && userId = "${user.id}"`,
+      `skillId = ${lit(skill.id)} && userId = ${lit(user.id)}`,
     )
     return c.json({ starred: true })
   } catch {
@@ -393,16 +540,15 @@ skillsRouter.get('/:slug/stars/me', requireAuth, async (c) => {
 skillsRouter.get('/:slug/comments', async (c) => {
   const slug = c.req.param('slug')
 
-  await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
 
   const result = await base.collection('comments').getList<Row>(1, 200, {
-    filter: `skillId = "${skill.id}" && softDeletedAt = ""`,
+    filter: `skillId = ${lit(skill.id)} && softDeletedAt = ""`,
     sort: '-created',
     expand: 'userId',
   })
@@ -413,7 +559,7 @@ skillsRouter.get('/:slug/comments', async (c) => {
       id: r.id,
       body: r.body,
       userId: r.userId,
-      createdAt: r.created,
+      createdAt: r.createdAt,
       userHandle: u?.handle ?? null,
       userImage: u?.image ?? null,
       userDisplayName: u?.displayName ?? null,
@@ -434,7 +580,7 @@ skillsRouter.post('/:slug/comments', requireAuth, async (c) => {
   await ensureAdminAuth()
   let skill: any
   try {
-    skill = await base.collection('skills').getFirstListItem(`slug = "${slug}"`)
+    skill = await base.collection('skills').getFirstListItem(`slug = ${lit(slug)}`)
   } catch {
     return c.json({ error: 'Skill not found' }, 404)
   }
@@ -454,7 +600,7 @@ skillsRouter.post('/:slug/comments', requireAuth, async (c) => {
     skillId: comment.skillId,
     userId: comment.userId,
     body: comment.body,
-    createdAt: comment.created,
+    createdAt: comment.createdAt,
   })
 })
 

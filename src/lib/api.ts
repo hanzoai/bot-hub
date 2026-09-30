@@ -1,7 +1,8 @@
 /** API client for the Bot Hub backend, replacing Convex hooks */
 
-/** Origin of the Bot Hub API; empty means this site's own origin. Every path is /v1/…. */
-export const API_BASE = import.meta.env.VITE_API_URL ?? ''
+/** Origin of the Bot Hub API. It is api.hanzo.ai, which serves it at
+ * /v1/skills; VITE_API_URL moves it for a local API. */
+export const API_BASE = import.meta.env.VITE_API_URL || 'https://api.hanzo.ai'
 
 type FetchOptions = {
   method?: string
@@ -10,9 +11,10 @@ type FetchOptions = {
 }
 
 async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
+  // A GET with no token and no body is a simple request: no preflight, and
+  // cacheable at the edge.
+  const headers: Record<string, string> = {}
+  if (opts.body) headers['Content-Type'] = 'application/json'
 
   const token = opts.token ?? getStoredToken()
   if (token) {
@@ -73,11 +75,11 @@ export const authApi = {
     role: string | null
     trustedPublisher: boolean
     createdAt: string
-  }>('/v1/auth/me'),
+  }>('/v1/skills/auth/me'),
 
-  loginUrl: () => `${API_BASE}/v1/auth/login?redirect_uri=${encodeURIComponent(window.location.origin + '/v1/auth/callback')}`,
+  loginUrl: () => `${API_BASE}/v1/skills/auth/login?return=${encodeURIComponent(window.location.origin)}`,
 
-  logout: () => apiFetch<{ ok: boolean }>('/v1/auth/logout', { method: 'POST' }),
+  logout: () => apiFetch<{ ok: boolean }>('/v1/skills/auth/logout', { method: 'POST' }),
 }
 
 // ─── Skills API ─────────────────────────────────────────────────────────────
@@ -196,7 +198,7 @@ export const skillsApi = {
     apiFetch<{ ok: boolean }>(`/v1/skills/${slug}/tags`, { method: 'PUT', body: { tags } }),
 
   userSkills: (handle: string) =>
-    apiFetch<{ items: Skill[] }>(`/v1/users/${handle}/skills`),
+    apiFetch<{ items: Skill[] }>(`/v1/skills/users/${handle}/skills`),
 
   generateChangelogPreview: (data: {
     slug: string
@@ -213,12 +215,12 @@ export const skillsApi = {
 export const searchApi = {
   skills: (query: string, limit = 20) =>
     apiFetch<{ items: Array<Skill & { score: number }> }>(
-      `/v1/search/skills?q=${encodeURIComponent(query)}&limit=${limit}`,
+      `/v1/skills/search?q=${encodeURIComponent(query)}&limit=${limit}`,
     ),
 
   personas: (query: string, limit = 20) =>
     apiFetch<{ items: Array<{ id: string; slug: string; displayName: string; summary: string | null; score?: number }> }>(
-      `/v1/search/personas?q=${encodeURIComponent(query)}&limit=${limit}`,
+      `/v1/skills/personas/search?q=${encodeURIComponent(query)}&limit=${limit}`,
     ),
 }
 
@@ -232,40 +234,40 @@ export const usersApi = {
       image: string | null
       bio: string | null
       createdAt: string
-    }>(`/v1/users/${handle}`),
+    }>(`/v1/skills/users/${handle}`),
 
   skills: (handle: string) =>
-    apiFetch<{ items: Skill[] }>(`/v1/users/${handle}/skills`),
+    apiFetch<{ items: Skill[] }>(`/v1/skills/users/${handle}/skills`),
 
   stars: (handle: string) =>
     apiFetch<{ items: Array<{ skillId: string; skillSlug: string; skillDisplayName: string; starredAt: string }> }>(
-      `/v1/users/${handle}/stars`,
+      `/v1/skills/users/${handle}/stars`,
     ),
 
   updateProfile: (data: { displayName?: string; bio?: string; handle?: string }) =>
-    apiFetch<{ ok: boolean }>('/v1/users/me', { method: 'PATCH', body: data }),
+    apiFetch<{ ok: boolean }>('/v1/skills/users/me', { method: 'PATCH', body: data }),
 
   starredSkills: (handle: string, limit = 50) =>
-    apiFetch<{ items: Skill[] }>(`/v1/users/${handle}/starred-skills?limit=${limit}`),
+    apiFetch<{ items: Skill[] }>(`/v1/skills/users/${handle}/starred-skills?limit=${limit}`),
 
   list: (params?: { limit?: number; search?: string }) => {
     const qs = new URLSearchParams()
     if (params?.limit) qs.set('limit', String(params.limit))
     if (params?.search) qs.set('q', params.search)
-    return apiFetch<{ items: any[]; total: number }>(`/v1/users?${qs}`)
+    return apiFetch<{ items: any[]; total: number }>(`/v1/skills/users?${qs}`)
   },
 
   setRole: (userId: string, role: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/users/${userId}/role`, { method: 'POST', body: { role } }),
+    apiFetch<{ ok: boolean }>(`/v1/skills/users/${userId}/role`, { method: 'POST', body: { role } }),
 
   banUser: (userId: string, reason?: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/users/${userId}/ban`, { method: 'POST', body: { reason } }),
+    apiFetch<{ ok: boolean }>(`/v1/skills/users/${userId}/ban`, { method: 'POST', body: { reason } }),
 }
 
 // ─── Upload API ─────────────────────────────────────────────────────────────
 export const uploadApi = {
   getUploadUrl: (filename: string, contentType?: string) =>
-    apiFetch<{ url: string; storageKey: string }>('/v1/upload/url', {
+    apiFetch<{ url: string; storageKey: string }>('/v1/skills/upload/url', {
       method: 'POST',
       body: { filename, contentType },
     }),
@@ -275,17 +277,17 @@ export const uploadApi = {
 export const tokensApi = {
   list: () =>
     apiFetch<{ items: Array<{ id: string; label: string; prefix: string; lastUsedAt: string | null; createdAt: string }> }>(
-      '/v1/tokens',
+      '/v1/skills/tokens',
     ),
 
   create: (label: string) =>
-    apiFetch<{ id: string; token: string; prefix: string; label: string }>('/v1/tokens', {
+    apiFetch<{ id: string; token: string; prefix: string; label: string }>('/v1/skills/tokens', {
       method: 'POST',
       body: { label },
     }),
 
   revoke: (id: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/tokens/${id}`, { method: 'DELETE' }),
+    apiFetch<{ ok: boolean }>(`/v1/skills/tokens/${id}`, { method: 'DELETE' }),
 }
 
 // ─── Personas API ──────────────────────────────────────────────────────────────
@@ -293,33 +295,33 @@ export const personasApi = {
   list: (params?: { limit?: number }) => {
     const qs = new URLSearchParams()
     if (params?.limit) qs.set('limit', String(params.limit))
-    return apiFetch<{ items: any[] }>(`/v1/personas?${qs}`)
+    return apiFetch<{ items: any[] }>(`/v1/skills/personas?${qs}`)
   },
 
-  getDetail: (slug: string) => apiFetch<any>(`/v1/personas/${slug}/detail`),
+  getDetail: (slug: string) => apiFetch<any>(`/v1/skills/personas/${slug}/detail`),
 
-  getExisting: (slug: string) => apiFetch<any>(`/v1/personas/${slug}/detail`).catch(() => null),
+  getExisting: (slug: string) => apiFetch<any>(`/v1/skills/personas/${slug}/detail`).catch(() => null),
 
   versions: (slug: string, limit = 50) =>
-    apiFetch<{ items: any[] }>(`/v1/personas/${slug}/versions?limit=${limit}`),
+    apiFetch<{ items: any[] }>(`/v1/skills/personas/${slug}/versions?limit=${limit}`),
 
   comments: (slug: string) =>
-    apiFetch<{ items: any[] }>(`/v1/personas/${slug}/comments`),
+    apiFetch<{ items: any[] }>(`/v1/skills/personas/${slug}/comments`),
 
   addComment: (slug: string, body: string) =>
-    apiFetch<{ id: string }>(`/v1/personas/${slug}/comments`, { method: 'POST', body: { body } }),
+    apiFetch<{ id: string }>(`/v1/skills/personas/${slug}/comments`, { method: 'POST', body: { body } }),
 
   deleteComment: (slug: string, commentId: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/personas/${slug}/comments/${commentId}`, { method: 'DELETE' }),
+    apiFetch<{ ok: boolean }>(`/v1/skills/personas/${slug}/comments/${commentId}`, { method: 'DELETE' }),
 
   toggleStar: (slug: string) =>
-    apiFetch<{ starred: boolean }>(`/v1/personas/${slug}/stars`, { method: 'POST' }),
+    apiFetch<{ starred: boolean }>(`/v1/skills/personas/${slug}/stars`, { method: 'POST' }),
 
   isStarred: (slug: string) =>
-    apiFetch<{ starred: boolean }>(`/v1/personas/${slug}/stars/me`),
+    apiFetch<{ starred: boolean }>(`/v1/skills/personas/${slug}/stars/me`),
 
   getReadme: (slug: string, versionId: string) =>
-    apiFetch<{ text: string }>(`/v1/personas/${slug}/versions/${versionId}/readme`),
+    apiFetch<{ text: string }>(`/v1/skills/personas/${slug}/versions/${versionId}/readme`),
 
   publish: (data: {
     slug: string
@@ -329,7 +331,7 @@ export const personasApi = {
     tags: string[]
     files: Array<{ path: string; size: number; storageKey: string; sha256: string; contentType?: string }>
   }) => apiFetch<{ personaId: string; versionId: string; version: string; slug: string }>(
-    `/v1/personas/publish`,
+    `/v1/skills/personas/publish`,
     { method: 'POST', body: data },
   ),
 
@@ -338,7 +340,7 @@ export const personasApi = {
     version: string
     readmeText: string
     filePaths: string[]
-  }) => apiFetch<{ changelog: string }>(`/v1/personas/changelog-preview`, {
+  }) => apiFetch<{ changelog: string }>(`/v1/skills/personas/changelog-preview`, {
     method: 'POST',
     body: data,
   }),
@@ -346,47 +348,47 @@ export const personasApi = {
 
 // ─── Management API (staff/admin) ───────────────────────────────────────────
 export const managementApi = {
-  getBySlugForStaff: (slug: string) => apiFetch<any>(`/v1/management/skills/${slug}`),
+  getBySlugForStaff: (slug: string) => apiFetch<any>(`/v1/skills/management/skills/${slug}`),
 
   listRecentVersions: (limit = 20) =>
-    apiFetch<{ items: any[] }>(`/v1/management/recent-versions?limit=${limit}`),
+    apiFetch<{ items: any[] }>(`/v1/skills/management/recent-versions?limit=${limit}`),
 
   listReportedSkills: (limit = 25) =>
-    apiFetch<{ items: any[] }>(`/v1/management/reported-skills?limit=${limit}`),
+    apiFetch<{ items: any[] }>(`/v1/skills/management/reported-skills?limit=${limit}`),
 
   listDuplicateCandidates: (limit = 20) =>
-    apiFetch<{ items: any[] }>(`/v1/management/duplicate-candidates?limit=${limit}`),
+    apiFetch<{ items: any[] }>(`/v1/skills/management/duplicate-candidates?limit=${limit}`),
 
   setBatch: (skillId: string, batch?: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/batch`, {
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}/batch`, {
       method: 'POST', body: { batch },
     }),
 
   setSoftDeleted: (skillId: string, deleted: boolean) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/soft-delete`, {
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}/soft-delete`, {
       method: 'POST', body: { deleted },
     }),
 
   hardDelete: (skillId: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}`, { method: 'DELETE' }),
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}`, { method: 'DELETE' }),
 
   changeOwner: (skillId: string, ownerUserId: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/owner`, {
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}/owner`, {
       method: 'POST', body: { ownerUserId },
     }),
 
   setDuplicate: (skillId: string, canonicalSlug?: string) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/duplicate`, {
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}/duplicate`, {
       method: 'POST', body: { canonicalSlug },
     }),
 
   setOfficialBadge: (skillId: string, official: boolean) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/badge/official`, {
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}/badge/official`, {
       method: 'POST', body: { official },
     }),
 
   setDeprecatedBadge: (skillId: string, deprecated: boolean) =>
-    apiFetch<{ ok: boolean }>(`/v1/management/skills/${skillId}/badge/deprecated`, {
+    apiFetch<{ ok: boolean }>(`/v1/skills/management/skills/${skillId}/badge/deprecated`, {
       method: 'POST', body: { deprecated },
     }),
 }
@@ -394,10 +396,10 @@ export const managementApi = {
 // ─── GitHub Import API ──────────────────────────────────────────────────────
 export const githubImportApi = {
   preview: (url: string) =>
-    apiFetch<{ candidates: any[] }>(`/v1/import/github/preview`, { method: 'POST', body: { url } }),
+    apiFetch<{ candidates: any[] }>(`/v1/skills/import/github/preview`, { method: 'POST', body: { url } }),
 
   previewCandidate: (url: string, candidatePath: string) =>
-    apiFetch<any>(`/v1/import/github/preview-candidate`, { method: 'POST', body: { url, candidatePath } }),
+    apiFetch<any>(`/v1/skills/import/github/preview-candidate`, { method: 'POST', body: { url, candidatePath } }),
 
   importSkill: (data: {
     url: string
@@ -409,7 +411,7 @@ export const githubImportApi = {
     version: string
     tags: string[]
   }) => apiFetch<{ slug: string; skillId: string; versionId: string }>(
-    `/v1/import/github/import`,
+    `/v1/skills/import/github/import`,
     { method: 'POST', body: data },
   ),
 }
@@ -417,8 +419,8 @@ export const githubImportApi = {
 // ─── Telemetry API ──────────────────────────────────────────────────────────
 export const telemetryApi = {
   getMyInstalled: (includeRemoved = false) =>
-    apiFetch<any>(`/v1/telemetry/installed?includeRemoved=${includeRemoved}`),
+    apiFetch<any>(`/v1/skills/telemetry/installed?includeRemoved=${includeRemoved}`),
 
   clearMyTelemetry: () =>
-    apiFetch<{ ok: boolean }>('/v1/telemetry/installed', { method: 'DELETE' }),
+    apiFetch<{ ok: boolean }>('/v1/skills/telemetry/installed', { method: 'DELETE' }),
 }

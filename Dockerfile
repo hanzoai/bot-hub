@@ -1,5 +1,6 @@
 # ─── Stage 1: Get Base binary ────────────────────────────────────────────────
-FROM ghcr.io/hanzoai/base:latest AS base-build
+# Pinned: base/hz_migrations is written against this release's schema API.
+FROM ghcr.io/hanzoai/base:1.5.91@sha256:8d042b1c62d4c2eeac41128eaa2a6b99f2b73e53f311058441197662e4d34690 AS base-build
 
 # ─── Stage 2: Build API ──────────────────────────────────────────────────────
 FROM node:22-slim AS api-build
@@ -43,8 +44,7 @@ RUN chmod +x /docker-entrypoint.sh
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV WEB_PORT=3000
-ENV BASE_PORT=8090
 
-EXPOSE 3000 3001 8090
+EXPOSE 3000 3001
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

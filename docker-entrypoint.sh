@@ -3,21 +3,19 @@ set -e
 
 echo "Bot Hub starting..."
 
-# Start Hanzo Base (serves admin UI + API on :8090)
-echo "Starting Base on port ${BASE_PORT:-8090}..."
+# Hanzo Base, on loopback: only the API beside it talks to it. Its address is
+# fixed rather than read from BASE_PORT, because Kubernetes writes
+# BASE_PORT=tcp://<ip>:<port> into every pod of a namespace holding a Service
+# named base, and a port read from it is no port at all.
+echo "Starting Base on 127.0.0.1:8090..."
 base serve \
-  --http "0.0.0.0:${BASE_PORT:-8090}" \
-  --migrationsDir /app/hz_migrations \
-  --automigrate \
-  --dev="${BASE_DEV:-false}" &
+  --http 127.0.0.1:8090 \
+  --dir /app/data \
+  --migrationsDir /app/hz_migrations &
 BASE_PID=$!
 
-# Wait for Base to be ready
-sleep 2
-
-# Start API server (Hono, talks to Base via SDK)
+# The API reaches Base at http://127.0.0.1:8090 (api/src/lib/env.ts).
 echo "Starting API server on port ${PORT:-3001}..."
-BASE_URL="http://127.0.0.1:${BASE_PORT:-8090}" \
 PORT=${PORT:-3001} bun run /app/api/dist/index.js &
 API_PID=$!
 
