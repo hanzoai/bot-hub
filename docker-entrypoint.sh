@@ -7,8 +7,10 @@ echo "Bot Hub starting..."
 # fixed rather than read from BASE_PORT, because Kubernetes writes
 # BASE_PORT=tcp://<ip>:<port> into every pod of a namespace holding a Service
 # named base, and a port read from it is no port at all.
+# Its ZAP transport would listen on every interface at :9999 and announce itself
+# over mDNS; nothing here speaks ZAP, so it stays off.
 echo "Starting Base on 127.0.0.1:8090..."
-base serve \
+ZAP_DISABLED=1 base serve \
   --http 127.0.0.1:8090 \
   --dir /app/data \
   --migrationsDir /app/hz_migrations &
