@@ -1,7 +1,6 @@
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { Analytics } from '@vercel/analytics/react'
 import { AppProviders } from '../components/AppProviders'
 import { ClientOnly } from '../components/ClientOnly'
 import { Footer } from '../components/Footer'
@@ -118,7 +117,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               {children}
               <Footer />
             </div>
-            <Analytics />
             {import.meta.env.DEV ? (
               <TanStackDevtools
                 config={{
